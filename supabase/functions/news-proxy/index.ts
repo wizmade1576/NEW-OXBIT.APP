@@ -69,9 +69,9 @@ function parseRss(xml: string, fallbackSource: string) {
       for (const it of channelItems) {
         const title = firstText(it, ['title']) || ''
         const url = firstText(it, ['link']) || ''
-        const desc = firstText(it, ['description', 'content\:encoded'])
+        const desc = firstText(it, ['description', 'content\\:encoded'])
         const date = firstText(it, ['pubDate', 'published', 'updated'])
-        const media = (it.querySelector('media\:content')?.getAttribute('url')) || extractImageFromDescription(desc)
+        const media = (it.querySelector('media\\:content')?.getAttribute('url')) || extractImageFromDescription(desc)
         const source = firstText(it, ['source']) || fallbackSource
         if (title && url) out.push({ id: url, title, summary: desc, url, image: media || undefined, date: parseDate(date), source })
       }
@@ -95,7 +95,7 @@ function parseRssFallback(xml: string, source: string): Omit<NewsItem, 'topic'>[
     const re = /<item[\s\S]*?<\/item>/gi
     const blocks = xml.match(re) || []
     for (const b of blocks) {
-      const pick = (tag: string) => (b.match(new RegExp(`<${tag}[^>]*>([\s\S]*?)<\/${tag}>`, 'i')) || [,''])[1].trim()
+      const pick = (tag: string) => (b.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i')) || [,''])[1].trim()
       const title = pick('title')
       const link = pick('link')
       const desc = pick('description')
