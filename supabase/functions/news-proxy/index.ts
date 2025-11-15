@@ -168,7 +168,14 @@ async function fetchCustom(topic: Topic, limit = 30): Promise<NewsItem[]> {
   })
   const seen = new Set<string>()
   const dedup = all.filter(n => { const key = normalizeUrl(n.url || n.id); if (seen.has(key)) return false; seen.add(key); return true })
-  const filtered = topic === 'all' ? dedup : dedup.filter(n => n.topic === topic)
+  let filtered = topic === 'all' ? dedup : dedup.filter(n => n.topic === topic)
+  if (filtered.length === 0 && topic !== 'all') {
+    const sourceFallback = dedup.filter(n => {
+      const src = RSS_SOURCES.find(s => s.name === n.source)
+      return src?.defaultTopic === topic
+    })
+    if (sourceFallback.length) filtered = sourceFallback
+  }
   return filtered.slice().sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
 }
 
