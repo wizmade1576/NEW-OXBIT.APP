@@ -69,9 +69,9 @@ function parseRss(xml: string, fallbackSource: string) {
       for (const it of channelItems) {
         const title = firstText(it, ['title']) || ''
         const url = firstText(it, ['link']) || ''
-        const desc = firstText(it, ['description', 'content\\:encoded'])
+        const desc = firstText(it, ['description', 'content\:encoded'])
         const date = firstText(it, ['pubDate', 'published', 'updated'])
-        const media = (it.querySelector('media\\:content')?.getAttribute('url')) || extractImageFromDescription(desc)
+        const media = (it.querySelector('media\:content')?.getAttribute('url')) || extractImageFromDescription(desc)
         const source = firstText(it, ['source']) || fallbackSource
         if (title && url) out.push({ id: url, title, summary: desc, url, image: media || undefined, date: parseDate(date), source })
       }
@@ -89,12 +89,31 @@ function parseRss(xml: string, fallbackSource: string) {
   return out
 }
 
+function parseRssFallback(xml: string, source: string): Omit<NewsItem, 'topic'>[] {
+  const items: Omit<NewsItem, 'topic'>[] = []
+  try {
+    const re = /<item[\s\S]*?<\/item>/gi
+    const blocks = xml.match(re) || []
+    for (const b of blocks) {
+      const pick = (tag: string) => (b.match(new RegExp(`<${tag}[^>]*>([\s\S]*?)<\/${tag}>`, 'i')) || [,''])[1].trim()
+      const title = pick('title')
+      const link = pick('link')
+      const desc = pick('description')
+      const date = pick('pubDate') || pick('published')
+      if (title && link) items.push({ id: link, title, summary: desc, url: link, image: extractImageFromDescription(desc), date: parseDate(date), source })
+    }
+  } catch {}
+  return items
+}
+
 async function fetchRss(url: string, name: string): Promise<Omit<NewsItem, 'topic'>[]> {
   try {
-    const res = await fetch(url)
+    const res = await fetch(url, { headers: { 'accept': 'application/rss+xml, application/xml, text/xml; charset=utf-8', 'user-agent': 'OXBIT.NewsProxy/1.0 (+https://oxbit.app)' } })
     if (!res.ok) return []
     const xml = await res.text()
-    return parseRss(xml, name)
+    const list = parseRss(xml, name)
+    if (list.length) return list
+    return parseRssFallback(xml, name)
   } catch { return [] }
 }
 
