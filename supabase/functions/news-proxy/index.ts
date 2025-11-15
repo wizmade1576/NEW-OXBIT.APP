@@ -58,6 +58,39 @@ function extractImageFromDescription(html?: string): string | undefined {
   return undefined
 }
 
+function cleanText(s?: string | null): string {
+  if (!s) return ''
+  try {
+    let out = String(s)
+      .replace(/<!\[CDATA\[/g, '')
+      .replace(/\]\]>/g, '')
+      .trim()
+    // decode basic HTML entities and numeric
+    out = out
+      .replace(/&nbsp;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"')
+      .replace(/&#39;/gi, "'")
+    out = out.replace(/&#(\d+);/g, (_, d) => {
+      try { return String.fromCharCode(parseInt(d, 10)) } catch { return _ }
+    })
+    out = out.replace(/&#x([0-9a-fA-F]+);/g, (_, h) => {
+      try { return String.fromCharCode(parseInt(h, 16)) } catch { return _ }
+    })
+    return out.trim()
+  } catch { return String(s || '') }
+}
+
+function sanitizeImage(u?: string | null): string | undefined {
+  const v = cleanText(u)
+  if (!v) return undefined
+  if (v.startsWith('//')) return `https:${v}`
+  if (/^https?:\/\//i.test(v)) return v
+  return undefined
+}
+
 function parseRss(xml: string, fallbackSource: string) {
   const out: Omit<NewsItem, 'topic'>[] = []
   try {
@@ -67,22 +100,23 @@ function parseRss(xml: string, fallbackSource: string) {
     const atomEntries = Array.from(doc.querySelectorAll('feed entry'))
     if (channelItems.length) {
       for (const it of channelItems) {
-        const title = firstText(it, ['title']) || ''
-        const url = firstText(it, ['link']) || ''
-        const desc = firstText(it, ['description', 'content\\:encoded'])
-        const date = firstText(it, ['pubDate', 'published', 'updated'])
-        const media = (it.querySelector('media\\:content')?.getAttribute('url')) || extractImageFromDescription(desc)
-        const source = firstText(it, ['source']) || fallbackSource
-        if (title && url) out.push({ id: url, title, summary: desc, url, image: media || undefined, date: parseDate(date), source })
+        const title = cleanText(firstText(it, ['title']) || '')
+        const url = cleanText(firstText(it, ['link']) || '')
+        const desc = cleanText(firstText(it, ['description', 'content\\:encoded']))
+        const date = cleanText(firstText(it, ['pubDate', 'published', 'updated']))
+        const media = sanitizeImage(it.querySelector('media\\:content')?.getAttribute('url') || it.querySelector('enclosure')?.getAttribute('url') || extractImageFromDescription(desc))
+        const source = cleanText(firstText(it, ['source']) || fallbackSource)
+        if (title && url) out.push({ id: url, title, summary: desc, url, image: media, date: parseDate(date), source })
       }
     } else if (atomEntries.length) {
       for (const it of atomEntries) {
-        const title = firstText(it, ['title']) || ''
+        const title = cleanText(firstText(it, ['title']) || '')
         const linkEl = it.querySelector('link')
-        const url = (linkEl?.getAttribute('href') || linkEl?.textContent || '').trim()
-        const summary = firstText(it, ['summary', 'content'])
+        const url = cleanText((linkEl?.getAttribute('href') || linkEl?.textContent || '').trim())
+        const summary = cleanText(firstText(it, ['summary', 'content']))
         const date = firstText(it, ['updated', 'published'])
-        if (title && url) out.push({ id: url, title, summary, url, image: extractImageFromDescription(summary), date: parseDate(date), source: fallbackSource })
+        const image = sanitizeImage(extractImageFromDescription(summary))
+        if (title && url) out.push({ id: url, title, summary, url, image, date: parseDate(date), source: fallbackSource })
       }
     }
   } catch {}
@@ -96,11 +130,12 @@ function parseRssFallback(xml: string, source: string): Omit<NewsItem, 'topic'>[
     const blocks = xml.match(re) || []
     for (const b of blocks) {
       const pick = (tag: string) => (b.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i')) || [,''])[1].trim()
-      const title = pick('title')
-      const link = pick('link')
-      const desc = pick('description')
+      const title = cleanText(pick('title'))
+      const link = cleanText(pick('link'))
+      const desc = cleanText(pick('description'))
       const date = pick('pubDate') || pick('published')
-      if (title && link) items.push({ id: link, title, summary: desc, url: link, image: extractImageFromDescription(desc), date: parseDate(date), source })
+      const image = sanitizeImage(extractImageFromDescription(desc))
+      if (title && link) items.push({ id: link, title, summary: desc, url: link, image, date: parseDate(date), source })
     }
   } catch {}
   return items
@@ -163,7 +198,7 @@ async function fetchCustom(topic: Topic, limit = 30): Promise<NewsItem[]> {
     const list = settles[i].status === 'fulfilled' ? settles[i].value : []
     for (const it of list) {
       const t = classifyTopic(it.title, it.summary, src.defaultTopic)
-      all.push({ ...it, topic: t })
+      all.push({ ...it, title: cleanText(it.title), summary: cleanText(it.summary), image: sanitizeImage(it.image), topic: t })
     }
   })
   const seen = new Set<string>()
