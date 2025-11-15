@@ -331,7 +331,7 @@ Deno.serve(async (req) => {
     function finalizeItem(n: NewsItem): NewsItem {
       // ensure summary is clean plain text and not too long
       let summary = stripHtml(cleanText(n.summary))
-      if (summary.length > 240) summary = summary.slice(0, 240) + '…'
+      if (summary.length > 240) summary = summary.slice(0, 240) + '...'
       let image = n.image
       if (!image) {
         // last attempt: try to read from raw summary html if any leftover
