@@ -26,7 +26,7 @@ function thumb(url?: string, w = 160, h = 90) {
 function useInfiniteNews(params: { topic: Topic; q?: string; sort?: 'latest' | 'hot'; pageSize?: number }) {
   const { topic, q = '', sort = 'latest', pageSize = 20 } = params
   const [items, setItems] = React.useState<NewsItem[]>([])
-  const [loading, setLoading] = React.useState(false)
+  const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
   const [page, setPage] = React.useState(1)
   const [cursor, setCursor] = React.useState<string | undefined>(undefined)
@@ -64,12 +64,12 @@ function useInfiniteNews(params: { topic: Topic; q?: string; sort?: 'latest' | '
       setCursor(nextCursor)
       setHasMore(Boolean((nextPage && list.length) || nextCursor))
       try { if (page === 1) sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), items: list })) } catch {}
-    } catch (e: any) {
-      setError(e?.message || 'fetch_error')
-      setHasMore(false)
-    } finally {
-      setLoading(false)
-    }
+      } catch (e: any) {
+        setError(e?.message || 'fetch_error')
+        setHasMore(false)
+      } finally {
+        setLoading(false)
+      }
   }, [topic, q, sort, pageSize, page, cursor, hasMore, loading, cacheKey])
 
   return { items, loading, error, fetchPage, hasMore }
