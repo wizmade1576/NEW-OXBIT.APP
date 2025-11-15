@@ -32,6 +32,7 @@ function useInfiniteNews(params: { topic: Topic; q?: string; sort?: 'latest' | '
   const [cursor, setCursor] = React.useState<string | undefined>(undefined)
   const [hasMore, setHasMore] = React.useState(true)
   const cacheKey = React.useMemo(() => `news_cache_v3_${topic}_${sort}_${q}`, [topic, sort, q])
+  const busyRef = React.useRef(false)
 
   // initial fast paint from session cache
   React.useEffect(() => {
@@ -42,7 +43,8 @@ function useInfiniteNews(params: { topic: Topic; q?: string; sort?: 'latest' | '
   React.useEffect(() => { setItems([]); setPage(1); setCursor(undefined); setHasMore(true) }, [topic, q, sort])
 
   const fetchPage = React.useCallback(async () => {
-    if (loading || !hasMore) return
+    if (busyRef.current || !hasMore) return
+    busyRef.current = true
     setLoading(true)
     const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/news-proxy`
     const url = new URL(base)
@@ -64,12 +66,13 @@ function useInfiniteNews(params: { topic: Topic; q?: string; sort?: 'latest' | '
       setCursor(nextCursor)
       setHasMore(Boolean((nextPage && list.length) || nextCursor))
       try { if (page === 1) sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), items: list })) } catch {}
-      } catch (e: any) {
-        setError(e?.message || 'fetch_error')
-        setHasMore(false)
-      } finally {
-        setLoading(false)
-      }
+    } catch (e: any) {
+      setError(e?.message || 'fetch_error')
+      setHasMore(false)
+    } finally {
+      setLoading(false)
+      busyRef.current = false
+    }
   }, [topic, q, sort, pageSize, page, cursor, hasMore, loading, cacheKey])
 
   return { items, loading, error, fetchPage, hasMore }
@@ -153,6 +156,9 @@ export default function NewsPage() {
           list.map((n) => <NewsCard key={n.id || n.url} n={n} />)
         )}
       </div>
+      {!loading && list.length === 0 ? (
+        <div className="text-xs text-muted-foreground">표시할 뉴스가 없습니다.</div>
+      ) : null}
       <div ref={sentinelRef} />
       {!loading && hasMore && (
         <div className="flex justify-center">
