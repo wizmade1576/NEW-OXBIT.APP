@@ -107,14 +107,22 @@ function parseRssFallback(xml: string, source: string): Omit<NewsItem, 'topic'>[
 }
 
 async function fetchRss(url: string, name: string): Promise<Omit<NewsItem, 'topic'>[]> {
+  const controller = new AbortController()
+  const to = setTimeout(() => controller.abort(), 3500)
   try {
-    const res = await fetch(url, { headers: { 'accept': 'application/rss+xml, application/xml, text/xml; charset=utf-8', 'user-agent': 'OXBIT.NewsProxy/1.0 (+https://oxbit.app)' } })
+    const res = await fetch(url, {
+      headers: {
+        'accept': 'application/rss+xml, application/xml, text/xml; charset=utf-8',
+        'user-agent': 'OXBIT.NewsProxy/1.0 (+https://oxbit.app)'
+      },
+      signal: controller.signal,
+    })
     if (!res.ok) return []
     const xml = await res.text()
     const list = parseRss(xml, name)
     if (list.length) return list
     return parseRssFallback(xml, name)
-  } catch { return [] }
+  } catch { return [] } finally { clearTimeout(to) }
 }
 
 // ---------- KR RSS Sources ----------
@@ -149,10 +157,11 @@ function normalizeUrl(u: string): string {
 }
 
 async function fetchCustom(topic: Topic, limit = 30): Promise<NewsItem[]> {
-  const lists = await Promise.all(RSS_SOURCES.map(s => fetchRss(s.url, s.name)))
+  const settles = await Promise.allSettled(RSS_SOURCES.map(s => fetchRss(s.url, s.name)))
   const all: NewsItem[] = []
   RSS_SOURCES.forEach((src, i) => {
-    for (const it of lists[i] || []) {
+    const list = settles[i].status === 'fulfilled' ? settles[i].value : []
+    for (const it of list) {
       const t = classifyTopic(it.title, it.summary, src.defaultTopic)
       all.push({ ...it, topic: t })
     }
