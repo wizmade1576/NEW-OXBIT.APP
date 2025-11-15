@@ -217,6 +217,9 @@ async function fetchCustom(topic: Topic, limit = 30): Promise<NewsItem[]> {
 // ---------- Cache (10s) ----------
 const CACHE_TTL_MS = 10_000
 const cache = new Map<string, { ts: number; data: any }>()
+// thumbnail cache (binary)
+const IMG_CACHE_TTL_MS = 60 * 60 * 1000 // 1h
+const imgCache = new Map<string, { ts: number; buf: Uint8Array; type: string }>()
 const keyOf = (params: Record<string, unknown>) => Object.entries(params).sort().map(([k,v])=>`${k}=${String(v ?? '')}`).join('&')
 
 Deno.serve(async (req) => {
@@ -224,6 +227,30 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url)
     const qp = url.searchParams
+    // Thumbnail proxy endpoint
+    if (qp.get('thumb') === '1') {
+      const src = qp.get('u') || ''
+      const w = Math.max(1, Math.min(640, Number(qp.get('w') || '160') || 160))
+      const h = Math.max(1, Math.min(640, Number(qp.get('h') || '90') || 90))
+      if (!/^https?:\/\//i.test(src)) return json({ error: 'invalid_url' }, { status: 400 })
+      const key = `t:${w}x${h}:${src}`
+      const cached = imgCache.get(key)
+      if (cached && Date.now() - cached.ts < IMG_CACHE_TTL_MS) {
+        return new Response(cached.buf, { status: 200, headers: withCorsHeaders({ 'content-type': cached.type, 'cache-control': 'max-age=3600' }) })
+      }
+      // Use images.weserv.nl for resizing; function acts as a caching proxy to avoid client 429s
+      const wsrv = `https://images.weserv.nl/?url=${encodeURIComponent(src)}&w=${w}&h=${h}&fit=cover&we=1&il`
+      const controller = new AbortController()
+      const to = setTimeout(() => controller.abort(), 5000)
+      try {
+        const r = await fetch(wsrv, { signal: controller.signal })
+        if (!r.ok) return json({ error: `thumb_upstream_${r.status}` }, { status: 502 })
+        const type = r.headers.get('content-type') || 'image/jpeg'
+        const buf = new Uint8Array(await r.arrayBuffer())
+        imgCache.set(key, { ts: Date.now(), buf, type })
+        return new Response(buf, { status: 200, headers: withCorsHeaders({ 'content-type': type, 'cache-control': 'max-age=3600' }) })
+      } finally { clearTimeout(to) }
+    }
     const topic = (qp.get('topic') as Topic) || 'crypto'
     const sort = qp.get('sort') || 'latest'
     const q = qp.get('q') || ''
@@ -248,7 +275,13 @@ Deno.serve(async (req) => {
         items = items.filter(n => n.title.toLowerCase().includes(qq) || (n.summary || '').toLowerCase().includes(qq))
       }
       if (sort === 'latest') items = items.slice().sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
-      return { items, provider }
+      // replace image with function thumbnail proxy
+      const base = `${url.origin}/functions/v1/news-proxy`
+      const itemsWithThumb = items.map(n => ({
+        ...n,
+        image: n.image ? `${base}?thumb=1&u=${encodeURIComponent(n.image)}&w=160&h=90` : undefined,
+      }))
+      return { items: itemsWithThumb, provider }
     }
 
     const cacheKey = keyOf({ topic, sort, q, limit })
