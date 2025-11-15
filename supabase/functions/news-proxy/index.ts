@@ -90,6 +90,22 @@ function sanitizeImage(u?: string | null): string | undefined {
   if (/^https?:\/\//i.test(v)) return v
   return undefined
 }
+function stripHtml(html?: string): string {
+  if (!html) return ''
+  try {
+    return cleanText(html.replace(/<[^>]+>/g, ' ')).replace(/[\s\u00A0]+/g, ' ').trim()
+  } catch { return cleanText(html) }
+}
+
+function isGarbled(s?: string | null): boolean {
+  if (!s) return false
+  const txt = String(s)
+  const total = txt.length || 1
+  const bad = (txt.match(/\uFFFD/g) || []).length
+  if (bad / total > 0.05) return true
+  if (/\uFFFD{3,}/.test(txt)) return true
+  return false
+}
 
 function parseRss(xml: string, fallbackSource: string) {
   const out: Omit<NewsItem, 'topic'>[] = []
@@ -365,5 +381,6 @@ Deno.serve(async (req) => {
     return json({ items: [], provider: 'none', error: String(e?.message || e) }, { status: 200 })
   }
 })
+
 
 
