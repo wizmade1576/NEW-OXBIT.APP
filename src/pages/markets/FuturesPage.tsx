@@ -134,7 +134,7 @@ export default function FuturesPage() {
           // --------------------------------------------------------
           const top = [...parsed]
             .sort((a, b) => (b.volume || 0) - (a.volume || 0))
-            .slice(0, 20)
+            .slice(0, 12)
 
           for (const r of top) {
             const sym = r.symbol
@@ -175,7 +175,7 @@ export default function FuturesPage() {
               }
             }
 
-              await sleep(1100)
+              await sleep(1400)
           }
         }
 

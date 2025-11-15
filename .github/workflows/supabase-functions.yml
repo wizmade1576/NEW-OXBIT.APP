@@ -75,5 +75,7 @@ jobs:
       - name: Deploy functions
         run: |
           echo "Using project ref length: ${REF_LEN}"
+          # Set/update function secrets (allowed origins for CORS enforcement)
+          supabase secrets set ALLOWED_ORIGINS="https://new-oxbit-app.vercel.app,http://localhost:5173" --project-ref "$SB_REF"
           supabase functions deploy binance-proxy --project-ref "$SB_REF" --no-verify-jwt --debug
           supabase functions deploy news-proxy --project-ref "$SB_REF" --no-verify-jwt --debug

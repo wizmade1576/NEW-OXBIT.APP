@@ -12,9 +12,11 @@ type EndpointKey =
   | 'cg_simple_price'
   | 'cg_ticker'
 
-function cors(headers: HeadersInit = {}) {
+function cors(headers: HeadersInit = {}, origin?: string | null, allowed = true) {
+  // If whitelist is enforced and origin is not allowed, set ACAO to 'null' to block browsers
+  const acao = allowed ? (origin || '*') : 'null'
   return {
-    'access-control-allow-origin': '*',
+    'access-control-allow-origin': acao,
     'access-control-allow-methods': 'GET, OPTIONS',
     'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
     'content-type': 'application/json; charset=utf-8',
@@ -22,8 +24,8 @@ function cors(headers: HeadersInit = {}) {
   }
 }
 
-function json(body: unknown, init: ResponseInit = {}) {
-  return new Response(JSON.stringify(body), { ...init, headers: cors(init.headers) })
+function json(body: unknown, init: ResponseInit = {}, origin?: string | null, allowed = true) {
+  return new Response(JSON.stringify(body), { ...init, headers: cors(init.headers, origin, allowed) })
 }
 
 // Very light rate limiter: 3 req / sec by client key
@@ -87,7 +89,8 @@ function buildUrl(ep: EndpointKey, qp: URLSearchParams): string | null {
 
 // Tiny in-memory cache: dedupe bursts and reduce upstream rate
 const cache = new Map<string, { ts: number; data: any }>()
-const CACHE_TTL_MS = 5_000
+// 10s cache to soften upstream rate limits
+const CACHE_TTL_MS = 10_000
 
 async function fetchJson(url: string, timeoutMs = 8000): Promise<any> {
   try {
@@ -117,8 +120,19 @@ async function fetchJson(url: string, timeoutMs = 8000): Promise<any> {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors() })
+  const origin = req.headers.get('origin') || null
+  const allowList = (Deno.env.get('ALLOWED_ORIGINS') || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+  const enforce = allowList.length > 0
+  const allowed = !enforce || (origin ? allowList.includes(origin) : true)
+
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors({}, origin, allowed) })
   try {
+    // Block early if origin not allowed
+    if (!allowed) return json({ error: 'forbidden_origin' }, { status: 403 }, origin, false)
+
     const key = clientKey(req)
     if (rateLimited(key)) return json({ error: 'rate_limit' }, { status: 429 })
 
@@ -131,11 +145,11 @@ Deno.serve(async (req) => {
     if (direct) target = direct
     else target = buildUrl(endpoint, qp)
 
-    if (!target) return json({ error: 'invalid_params' }, { status: 400 })
+    if (!target) return json({ error: 'invalid_params' }, { status: 400 }, origin, allowed)
 
     const data = await fetchJson(target)
-    return json(data)
+    return json(data, {}, origin, allowed)
   } catch (e: any) {
-    return json({ error: String(e?.message || e) }, { status: 500 })
+    return json({ error: String(e?.message || e) }, { status: 500 }, origin, true)
   }
 })
