@@ -232,6 +232,38 @@ const cache = new Map<string, { ts: number; data: any }>()
 // thumbnail cache (binary)
 const IMG_CACHE_TTL_MS = 60 * 60 * 1000 // 1h
 const imgCache = new Map<string, { ts: number; buf: Uint8Array; type: string }>()
+
+// ---- Supabase Storage helpers (best-effort) ----
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+const SB_URL = Deno.env.get('SUPABASE_URL')
+const SB_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+const SB_BUCKET = Deno.env.get('THUMBS_BUCKET') || 'thumbs'
+const supabase = (SB_URL && SB_SERVICE) ? createClient(SB_URL, SB_SERVICE, { auth: { persistSession: false } }) : null
+
+async function readFromStorage(key: string): Promise<{ buf: Uint8Array; type: string } | null> {
+  try {
+    if (!supabase) return null
+    const { data, error } = await supabase.storage.from(SB_BUCKET).download(key)
+    if (error || !data) return null
+    const type = (data as any).type || 'image/webp'
+    const buf = new Uint8Array(await data.arrayBuffer())
+    return { buf, type }
+  } catch { return null }
+}
+
+async function writeToStorage(key: string, buf: Uint8Array, type: string) {
+  try {
+    if (!supabase) return
+    await supabase.storage.from(SB_BUCKET).upload(key, new Blob([buf], { type }), { upsert: true, contentType: type })
+  } catch {}
+}
+
+async function hashKey(s: string): Promise<string> {
+  const enc = new TextEncoder().encode(s)
+  const digest = await crypto.subtle.digest('SHA-1', enc)
+  const arr = Array.from(new Uint8Array(digest))
+  return arr.map((b) => b.toString(16).padStart(2, '0')).join('')
+}
 const keyOf = (params: Record<string, unknown>) => Object.entries(params).sort().map(([k,v])=>`${k}=${String(v ?? '')}`).join('&')
 
 Deno.serve(async (req) => {
@@ -245,21 +277,31 @@ Deno.serve(async (req) => {
       const w = Math.max(1, Math.min(640, Number(qp.get('w') || '160') || 160))
       const h = Math.max(1, Math.min(640, Number(qp.get('h') || '90') || 90))
       if (!/^https?:\/\//i.test(src)) return json({ error: 'invalid_url' }, { status: 400 })
-      const key = `t:${w}x${h}:${src}`
-      const cached = imgCache.get(key)
+      const fmt = (qp.get('fmt') || 'webp').toLowerCase()
+      const keyPlain = `t:${w}x${h}:${fmt}:${src}`
+      const key = await hashKey(keyPlain)
+      const cached = imgCache.get(keyPlain)
       if (cached && Date.now() - cached.ts < IMG_CACHE_TTL_MS) {
         return new Response(cached.buf, { status: 200, headers: withCorsHeaders({ 'content-type': cached.type, 'cache-control': 'max-age=3600' }) })
       }
-      // Use images.weserv.nl for resizing; function acts as a caching proxy to avoid client 429s
-      const wsrv = `https://images.weserv.nl/?url=${encodeURIComponent(src)}&w=${w}&h=${h}&fit=cover&we=1&il`
+      // Try Supabase Storage first (persistent cache)
+      const stored = await readFromStorage(key)
+      if (stored) {
+        imgCache.set(keyPlain, { ts: Date.now(), buf: stored.buf, type: stored.type })
+        return new Response(stored.buf, { status: 200, headers: withCorsHeaders({ 'content-type': stored.type, 'cache-control': 'max-age=3600' }) })
+      }
+      // Use images.weserv.nl for resizing; prefer WEBP
+      const wsrv = `https://images.weserv.nl/?url=${encodeURIComponent(src)}&w=${w}&h=${h}&fit=cover&we=1&il&output=${fmt}&q=75`
       const controller = new AbortController()
       const to = setTimeout(() => controller.abort(), 5000)
       try {
         const r = await fetch(wsrv, { signal: controller.signal })
         if (!r.ok) return json({ error: `thumb_upstream_${r.status}` }, { status: 502 })
-        const type = r.headers.get('content-type') || 'image/jpeg'
+        const type = r.headers.get('content-type') || (fmt === 'webp' ? 'image/webp' : 'image/jpeg')
         const buf = new Uint8Array(await r.arrayBuffer())
-        imgCache.set(key, { ts: Date.now(), buf, type })
+        imgCache.set(keyPlain, { ts: Date.now(), buf, type })
+        // store persistently (best-effort)
+        try { await writeToStorage(key, buf, type) } catch {}
         return new Response(buf, { status: 200, headers: withCorsHeaders({ 'content-type': type, 'cache-control': 'max-age=3600' }) })
       } finally { clearTimeout(to) }
     }
@@ -303,11 +345,11 @@ Deno.serve(async (req) => {
         items = items.filter(n => n.title.toLowerCase().includes(qq) || (n.summary || '').toLowerCase().includes(qq))
       }
       if (sort === 'latest') items = items.slice().sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
-      // replace image with function thumbnail proxy
+      // replace image with function thumbnail proxy (webp preferred)
       const base = `${url.origin}/functions/v1/news-proxy`
       const itemsWithThumb = items.map(n => ({
         ...n,
-        image: n.image ? `${base}?thumb=1&u=${encodeURIComponent(n.image)}&w=160&h=90` : undefined,
+        image: n.image ? `${base}?thumb=1&u=${encodeURIComponent(n.image)}&w=160&h=90&fmt=webp` : undefined,
       }))
       return { items: itemsWithThumb, provider }
     }
