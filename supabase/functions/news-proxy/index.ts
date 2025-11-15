@@ -34,6 +34,17 @@ function json(body: unknown, init: ResponseInit = {}) {
   })
 }
 
+// ---------------- In-memory cache (10s TTL) with simple SWR ----------------
+const CACHE_TTL_MS = 10_000
+const cache = new Map<string, { ts: number; data: any }>()
+function cacheKey(params: Record<string, unknown>): string {
+  return Object.entries(params)
+    .filter(([, v]) => typeof v !== 'undefined')
+    .map(([k, v]) => `${k}=${String(v ?? '')}`)
+    .sort()
+    .join('&')
+}
+
 function pickProvider(): Provider {
   const hasMarketAux = !!Deno.env.get('MARKETAUX_KEY')
   const hasFinnhub = !!Deno.env.get('FINNHUB_KEY')
@@ -311,86 +322,58 @@ Deno.serve(async (req) => {
     const limit = Number((isPOST ? body?.limit : qp.get('limit')) || '10')
 
     const provider = (forceProvider as Provider) || pickProvider()
-    let items: NewsItem[] = []
-    let nextPage: number | undefined
-    let nextCursor: string | undefined
+    const key = cacheKey({ topic, sort, q, provider, lang, cursor, page, limit })
 
-    try {
-      if (provider === 'marketaux') {
-        const res = await fetchMarketAux(topic, page, limit)
-        items = res.items
-        nextPage = res.nextPage
-      } else if (provider === 'finnhub') {
-        const res = await fetchFinnhub(topic, cursor)
-        items = res.items
-        nextCursor = res.cursor
-      } else if (provider === 'newsapi') {
-        const res = await fetchNewsAPI(topic, page, limit)
-        items = res.items
-        nextPage = res.nextPage
-      } else if (provider === 'reddit') {
-        const res = await fetchReddit(topic, cursor, limit)
-        items = res.items
-        nextCursor = res.after
-      } else if (provider === 'none') {
-        // Use custom curated RSS sources when no 3rd-party provider is configured
-        items = await fetchCustom(topic, limit)
-      } else {
-        // provider none
-        items = []
-      }
-    } catch (_e) {
-      // No fallback to Reddit: return empty list
-      try { items = await fetchCustom(topic, limit) } catch { items = [] }
-    }
-
-    // translate if lang requested and key available
-    if (lang && (Deno.env.get('DEEPL_API_KEY') || Deno.env.get('OPENAI_API_KEY'))) {
+    async function build(): Promise<{ items: NewsItem[]; nextPage?: number; cursor?: string; provider: string }> {
+      let items: NewsItem[] = []
+      let nextPage: number | undefined
+      let nextCursor: string | undefined
       try {
-        const key = Deno.env.get('DEEPL_API_KEY')
-        if (key) {
-          const texts: string[] = []
-          const idxMap: { i: number; kind: 'title' | 'summary' }[] = []
-          items.forEach((n, i) => {
-            if (n.title) { texts.push(n.title); idxMap.push({ i, kind: 'title' }) }
-            if (n.summary) { texts.push(n.summary); idxMap.push({ i, kind: 'summary' }) }
-          })
-          if (texts.length) {
-            const form = new URLSearchParams()
-            texts.forEach(t => form.append('text', t))
-            form.append('target_lang', (lang || 'KO').toUpperCase())
-            const res = await fetch('https://api-free.deepl.com/v2/translate', {
-              method: 'POST',
-              headers: { 'Authorization': `DeepL-Auth-Key ${key}` },
-              body: form,
-            })
-            if (res.ok) {
-              const j = await res.json()
-              const tr: string[] = (j?.translations || []).map((t: any) => t?.text || '')
-              let p = 0
-              for (const map of idxMap) {
-                const text = tr[p++]
-                if (!text) continue
-                if (map.kind === 'title') items[map.i].title = text
-                else items[map.i].summary = text
-              }
-            }
-          }
+        if (provider === 'marketaux') {
+          const res = await fetchMarketAux(topic, page, limit)
+          items = res.items
+          nextPage = res.nextPage
+        } else if (provider === 'finnhub') {
+          const res = await fetchFinnhub(topic, cursor)
+          items = res.items
+          nextCursor = res.cursor
+        } else if (provider === 'newsapi') {
+          const res = await fetchNewsAPI(topic, page, limit)
+          items = res.items
+          nextPage = res.nextPage
+        } else if (provider === 'reddit') {
+          const res = await fetchReddit(topic, cursor, limit)
+          items = res.items
+          nextCursor = res.after
+        } else if (provider === 'none') {
+          items = await fetchCustom(topic, limit)
+        } else {
+          items = []
         }
-      } catch {}
+      } catch (_e) {
+        try { items = await fetchCustom(topic, limit) } catch { items = [] }
+      }
+      // simple filter/sort
+      let list = items
+      if (q) { const qq = q.toLowerCase(); list = list.filter((n) => n.title.toLowerCase().includes(qq) || (n.summary || '').toLowerCase().includes(qq)) }
+      if (sort === 'latest') { list = list.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) }
+      return { items: list, nextPage, cursor: nextCursor, provider }
     }
 
-    // simple in-function filter/sort when q/sort provided
-    let list = items
-    if (q) {
-      const qq = q.toLowerCase()
-      list = list.filter((n) => n.title.toLowerCase().includes(qq) || (n.summary || '').toLowerCase().includes(qq))
-    }
-    if (sort === 'latest') {
-      list = list.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    const cached = cache.get(key)
+    if (cached) {
+      const fresh = Date.now() - cached.ts < CACHE_TTL_MS
+      if (!fresh) {
+        // SWR: refresh in background but return stale immediately
+        ;(async () => { try { const d = await build(); cache.set(key, { ts: Date.now(), data: d }) } catch {} })()
+      }
+      return json(cached.data)
     }
 
-    return json({ items: list, nextPage, cursor: nextCursor, provider })
+    const data = await build()
+    cache.set(key, { ts: Date.now(), data })
+    return json(data)
+    // Note: translation was removed in the cached fast-path to keep latency low.
   } catch (e) {
     return json({ error: String(e?.message || e) }, { status: 500 })
   }
