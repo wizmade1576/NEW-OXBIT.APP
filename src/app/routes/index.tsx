@@ -7,6 +7,7 @@ import SearchPage from '../../pages/search/SearchPage'
 import NotFoundPage from '../../pages/NotFoundPage'
 import NewsLayout from '../../pages/news/Layout'
 import AllPage from '../../pages/news/AllPage'
+import NewsPage from '../../pages/news/NewsPage'
 import CryptoNewsPage from '../../pages/news/CryptoNewsPage'
 import GlobalStocksNewsPage from '../../pages/news/GlobalStocksNewsPage'
 import FxRatesNewsPage from '../../pages/news/FxRatesNewsPage'
@@ -47,7 +48,7 @@ export const router = createBrowserRouter([
         path: 'news',
         element: <NewsLayout />,
         children: [
-          { index: true, element: <AllPage /> },
+          { index: true, element: <NewsPage /> },
           { path: 'crypto', element: <CryptoNewsPage /> },
           { path: 'global', element: <GlobalStocksNewsPage /> },
           { path: 'fx', element: <FxRatesNewsPage /> },
