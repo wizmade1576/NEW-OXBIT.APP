@@ -1,6 +1,7 @@
 import * as React from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import Header from '../../components/navigation/Header'
+import MobileBottomNav from '../../components/navigation/MobileBottomNav'
 import SearchBar from '../../components/navigation/SearchBar'
 import TickerBar from '../../components/navigation/TickerBar'
 import getSupabase from '../../lib/supabase/client'
@@ -78,9 +79,11 @@ export default function RootLayout() {
           </div>
         </>
       )}
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6">
+      {/* add bottom padding on mobile so content is not hidden behind tab bar */}
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-6 pb-24 sm:pb-6">
         <Outlet />
       </main>
+      <MobileBottomNav />
     </div>
   )
 }
