@@ -119,8 +119,7 @@ function SkeletonCard() {
   )
 }
 
-export default function NewsPage() {
-  const [topic] = React.useState<Topic>('all')
+export default function NewsPage({ topic = 'crypto' as Topic }: { topic?: Topic }) {
   const [q, setQ] = React.useState('')
   const [sort, setSort] = React.useState<'latest' | 'hot'>('latest')
   const { items, loading, error, fetchPage, hasMore } = useInfiniteNews({ topic, q, sort, pageSize: 20 })
