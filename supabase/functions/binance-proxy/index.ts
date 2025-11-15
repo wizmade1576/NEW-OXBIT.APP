@@ -85,14 +85,32 @@ function buildUrl(ep: EndpointKey, qp: URLSearchParams): string | null {
   }
 }
 
+// Tiny in-memory cache: dedupe bursts and reduce upstream rate
+const cache = new Map<string, { ts: number; data: any }>()
+const CACHE_TTL_MS = 5_000
+
 async function fetchJson(url: string, timeoutMs = 8000): Promise<any> {
+  try {
+    const cached = cache.get(url)
+    if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
+      return cached.data
+    }
+  } catch {}
   const controller = new AbortController()
   const id = setTimeout(() => controller.abort(), timeoutMs)
   try {
     const r = await fetch(url, { signal: controller.signal })
     const text = await r.text()
     // If not ok, still pass through body for debugging
-    try { return JSON.parse(text) } catch { return { status: r.status, body: text } }
+    try {
+      const data = JSON.parse(text)
+      try { cache.set(url, { ts: Date.now(), data }) } catch {}
+      return data
+    } catch {
+      const data = { status: r.status, body: text }
+      try { cache.set(url, { ts: Date.now(), data }) } catch {}
+      return data
+    }
   } finally {
     clearTimeout(id)
   }
@@ -121,4 +139,3 @@ Deno.serve(async (req) => {
     return json({ error: String(e?.message || e) }, { status: 500 })
   }
 })
-

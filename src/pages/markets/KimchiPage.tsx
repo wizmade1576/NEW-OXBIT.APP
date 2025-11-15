@@ -270,7 +270,8 @@ async function fetchDomestic(exchange: Domestic, symbols: string[]): Promise<Map
   try {
     if (exchange === 'Upbit') {
       const markets = symbols.map(s=>`KRW-${s}`).join(',')
-      const r = await fetch(`https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(markets)}`)
+      const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy`
+      const r = await fetch(`${base}?url=${encodeURIComponent(`https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(markets)}`)}`)
       if (!r.ok) throw new Error('Upbit 오류')
       const j = await r.json()
       const m = new Map<string, number>()
@@ -278,7 +279,8 @@ async function fetchDomestic(exchange: Domestic, symbols: string[]): Promise<Map
       return m
     }
     if (exchange === 'Bithumb') {
-      const r = await fetch('https://api.bithumb.com/public/ticker/ALL_KRW')
+      const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy`
+      const r = await fetch(`${base}?url=${encodeURIComponent('https://api.bithumb.com/public/ticker/ALL_KRW')}`)
       if (!r.ok) throw new Error('Bithumb 오류')
       const j = await r.json(); const data = j?.data || {}
       const m = new Map<string, number>()
@@ -286,7 +288,8 @@ async function fetchDomestic(exchange: Domestic, symbols: string[]): Promise<Map
       return m
     }
     // Coinone
-    const r = await fetch('https://api.coinone.co.kr/public/v2/ticker?currency=all')
+    const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy`
+    const r = await fetch(`${base}?url=${encodeURIComponent('https://api.coinone.co.kr/public/v2/ticker?currency=all')}`)
     if (!r.ok) throw new Error('Coinone 오류')
     const j = await r.json(); const t = j?.tickers || {}
     const m = new Map<string, number>()
@@ -335,18 +338,21 @@ async function fetchOverseas(exchange: Overseas, symbols: string[]): Promise<Map
 async function listDomesticSymbols(exchange: Domestic): Promise<string[]> {
   try {
     if (exchange === 'Upbit') {
-      const r = await fetch('https://api.upbit.com/v1/market/all?isDetails=false')
+      const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy`
+      const r = await fetch(`${base}?url=${encodeURIComponent('https://api.upbit.com/v1/market/all?isDetails=false')}`)
       if (!r.ok) throw new Error('Upbit list')
       const j = await r.json()
       return j.filter((it: any)=>String(it.market||'').startsWith('KRW-')).map((it:any)=>String(it.market).replace('KRW-',''))
     }
     if (exchange === 'Bithumb') {
-      const r = await fetch('https://api.bithumb.com/public/ticker/ALL_KRW')
+      const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy`
+      const r = await fetch(`${base}?url=${encodeURIComponent('https://api.bithumb.com/public/ticker/ALL_KRW')}`)
       if (!r.ok) throw new Error('Bithumb list')
       const j = await r.json(); const data = j?.data || {}
       return Object.keys(data).filter(k=>k && k.toUpperCase()===k && k.length<=8)
     }
-    const r = await fetch('https://api.coinone.co.kr/public/v2/ticker?currency=all')
+    const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy`
+    const r = await fetch(`${base}?url=${encodeURIComponent('https://api.coinone.co.kr/public/v2/ticker?currency=all')}`)
     if (!r.ok) throw new Error('Coinone list')
     const j = await r.json(); const t = j?.tickers || {}
     return Object.keys(t).map(k=>k.toUpperCase())
