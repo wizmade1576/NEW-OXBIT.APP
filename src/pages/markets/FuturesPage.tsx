@@ -96,11 +96,31 @@ export default function FuturesPage() {
           const r = await fetch(url, { headers }); if (!r.ok) throw new Error('Bybit bundle')
           const j = await r.json(); const parsed: Row[] = (j?.rows || [])
           if (mounted) setRows(parsed)
+          const mm = j?.metrics || {}
+          if (mm && Object.keys(mm).length) {
+            setRows(prev => prev.map(x => {
+              const m = mm[x.symbol]; if (!m) return x
+              const add: Partial<Row> = {}
+              if (typeof m.funding === 'number') add.funding = m.funding
+              if (typeof m.oi === 'number') add.oi = m.oi // Bybit already value in quote currency
+              return { ...x, ...add }
+            }))
+          }
         } else if (exchange === 'OKX') {
           const { url, headers } = prox('op=bundle&ex=okx&topN=10')
           const r = await fetch(url, { headers }); if (!r.ok) throw new Error('OKX bundle')
           const j = await r.json(); const parsed: Row[] = (j?.rows || [])
           if (mounted) setRows(parsed)
+          const mm = j?.metrics || {}
+          if (mm && Object.keys(mm).length) {
+            setRows(prev => prev.map(x => {
+              const m = mm[x.symbol]; if (!m) return x
+              const add: Partial<Row> = {}
+              if (typeof m.funding === 'number') add.funding = m.funding
+              if (typeof m.oi === 'number') add.oi = m.oi
+              return { ...x, ...add }
+            }))
+          }
         }
       } catch (e: any) {
         if (mounted) setError(e?.message || 'error')

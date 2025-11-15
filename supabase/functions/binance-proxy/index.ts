@@ -203,6 +203,7 @@ Deno.serve(async (req) => {
       const ex = (qp.get('ex') || '').toLowerCase()
       const topN = Math.max(1, Math.min(50, Number(qp.get('topN') || '10') || 10))
       const period = (qp.get('period') || '5m')
+      const rankBy = (qp.get('rankBy') || 'volume').toLowerCase() // 'volume' | 'oi'
 
       if (ex === 'binance') {
         const data: any[] = await fetchJson('https://fapi.binance.com/fapi/v1/ticker/24hr', 10_000)
@@ -215,18 +216,31 @@ Deno.serve(async (req) => {
             volume: Number(it.quoteVolume),
             contractType: 'PERP',
           }))
-        const topSymbols = rows
-          .slice()
-          .sort((a, b) => ((b.volume || 0) - (a.volume || 0)))
-          .slice(0, topN)
-          .map(r => r.symbol)
-        // metrics for top symbols (cached 60s)
-        const metrics: Record<string, any> = {}
-        for (const sym of topSymbols) {
-          metrics[sym] = await metricsForSymbol(sym, period)
-          await new Promise(res => setTimeout(res, 150))
+        async function topByVolume(): Promise<{ topSymbols: string[], metrics: Record<string, any> }> {
+          const syms = rows.slice().sort((a, b) => ((b.volume || 0) - (a.volume || 0))).slice(0, topN).map(r => r.symbol)
+          const metrics: Record<string, any> = {}
+          for (const sym of syms) { metrics[sym] = await metricsForSymbol(sym, period); await new Promise(res => setTimeout(res, 150)) }
+          return { topSymbols: syms, metrics }
         }
-        return json({ rows, topSymbols, metrics }, {}, origin, true)
+        async function topByOI(): Promise<{ topSymbols: string[], metrics: Record<string, any> }> {
+          // Limit candidate set to reduce upstream calls
+          const candidates = rows.slice().sort((a, b) => ((b.volume || 0) - (a.volume || 0))).slice(0, Math.max(20, topN * 2))
+          const list: { sym: string; oiUsd: number }[] = []
+          const metrics: Record<string, any> = {}
+          for (const r of candidates) {
+            const m = await metricsForSymbol(r.symbol, period)
+            metrics[r.symbol] = m
+            const oiQty = Number(m?.oi ?? NaN)
+            const price = Number(r.price ?? NaN)
+            const oiUsd = Number.isFinite(oiQty) && Number.isFinite(price) ? oiQty * price : 0
+            list.push({ sym: r.symbol, oiUsd })
+            await new Promise(res => setTimeout(res, 120))
+          }
+          const topSyms = list.sort((a, b) => b.oiUsd - a.oiUsd).slice(0, topN).map(x => x.sym)
+          return { topSymbols: topSyms, metrics }
+        }
+        const result = rankBy === 'oi' ? await topByOI() : await topByVolume()
+        return json({ rows, topSymbols: result.topSymbols, metrics: result.metrics }, {}, origin, true)
       }
 
       if (ex === 'bybit') {
@@ -248,8 +262,19 @@ Deno.serve(async (req) => {
           oi: Number(it.openInterestValue) || Number(it.openInterest),
           contractType: (typeMap.get(String(it.symbol)) as any) || 'PERP',
         }))
-        const topSymbols = rows.slice().sort((a, b) => ((b.volume || 0) - (a.volume || 0))).slice(0, topN).map(r => r.symbol)
-        return json({ rows, topSymbols }, {}, origin, true)
+        const topSymbols = (rankBy === 'oi'
+          ? rows.slice().sort((a, b) => ((b.oi || 0) - (a.oi || 0)))
+          : rows.slice().sort((a, b) => ((b.volume || 0) - (a.volume || 0)))
+        ).slice(0, topN).map(r => r.symbol)
+        // Bybit metrics: reuse row data to avoid extra calls
+        const metrics: Record<string, any> = {}
+        for (const r of rows) {
+          const m: any = {}
+          if (Number.isFinite(r.funding as number)) m.funding = r.funding
+          if (Number.isFinite(r.oi as number)) m.oi = r.oi // already a value in quote currency
+          if (Object.keys(m).length) metrics[r.symbol] = m
+        }
+        return json({ rows, topSymbols, metrics }, {}, origin, true)
       }
 
       if (ex === 'okx') {
@@ -263,8 +288,34 @@ Deno.serve(async (req) => {
           volume: Number(it.volCcy24h || it.vol24h),
           contractType: 'PERP',
         }))
-        const topSymbols = rows.slice().sort((a, b) => ((b.volume || 0) - (a.volume || 0))).slice(0, topN).map(r => r.symbol)
-        return json({ rows, topSymbols }, {}, origin, true)
+        // Compute topSymbols by requested key (default volume)
+        let topSymbols = rows.slice().sort((a, b) => ((b.volume || 0) - (a.volume || 0))).slice(0, topN).map(r => r.symbol)
+        const metrics: Record<string, any> = {}
+        // If rankBy=oi, fetch OI for candidate set (top 2N by volume) and re-rank
+        if (rankBy === 'oi') {
+          const candidates = rows.slice().sort((a, b) => ((b.volume || 0) - (a.volume || 0))).slice(0, Math.max(20, topN * 2))
+          const measured: { sym: string; oiUsd: number }[] = []
+          for (const r of candidates) {
+            try {
+              const fr = await fetchJson(`https://www.okx.com/api/v5/public/funding-rate?instId=${encodeURIComponent(r.symbol + '-SWAP')}`, 60_000)
+              const oir = await fetchJson(`https://www.okx.com/api/v5/public/open-interest?instId=${encodeURIComponent(r.symbol + '-SWAP')}`, 60_000)
+              const frate = Number((fr?.data?.[0]?.fundingRate) ?? NaN)
+              if (Number.isFinite(frate)) { metrics[r.symbol] = { ...(metrics[r.symbol]||{}), funding: Math.abs(frate) <= 1 ? frate * 100 : frate } }
+              const oiCcy = Number((oir?.data?.[0]?.oiCcy) ?? NaN)
+              const oiQty = Number((oir?.data?.[0]?.oi) ?? NaN)
+              // Prefer OI in quote currency if available, else multiply qty * price
+              let oiUsd = 0
+              if (Number.isFinite(oiCcy)) oiUsd = oiCcy
+              else if (Number.isFinite(oiQty) && Number.isFinite(r.price as number)) oiUsd = oiQty * (r.price as number)
+              if (!metrics[r.symbol]) metrics[r.symbol] = {}
+              metrics[r.symbol].oi = oiUsd
+              measured.push({ sym: r.symbol, oiUsd })
+              await new Promise(res => setTimeout(res, 120))
+            } catch {}
+          }
+          topSymbols = measured.sort((a, b) => b.oiUsd - a.oiUsd).slice(0, topN).map(x => x.sym)
+        }
+        return json({ rows, topSymbols, metrics }, {}, origin, true)
       }
 
       return json({ error: 'invalid_ex' }, { status: 400 }, origin, true)
