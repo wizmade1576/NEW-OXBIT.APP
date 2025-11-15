@@ -1,19 +1,17 @@
 // deno-lint-ignore-file no-explicit-any
-// Supabase Edge Function: binance-proxy
-// Path: /functions/v1/binance-proxy
-// - Proxies selected Binance (and optional CoinGecko) endpoints to avoid CORS
-// - Simple in-memory rate limit (3 req / sec per client)
+// Supabase Edge Function: binance-proxy (optimized)
+// - CORS allowlist with wildcard support
+// - Client rate limit (3 req/sec per client)
+// - In-memory cache (default 10s) + symbol metrics cache (60s)
+// - Bulk helpers: op=ticker24h (all futures 24h stats)
+// - Aggregation helpers: op=metrics&symbols=BTCUSDT,ETHUSDT&period=5m
 
 type EndpointKey =
   | 'futures_openInterest'
   | 'futures_longShortRatio'
   | 'futures_premiumIndex'
-  | 'spot_ticker'
-  | 'cg_simple_price'
-  | 'cg_ticker'
 
 function cors(headers: HeadersInit = {}, origin?: string | null, allowed = true) {
-  // If whitelist is enforced and origin is not allowed, set ACAO to 'null' to block browsers
   const acao = allowed ? (origin || '*') : 'null'
   return {
     'access-control-allow-origin': acao,
@@ -29,10 +27,9 @@ function json(body: unknown, init: ResponseInit = {}, origin?: string | null, al
   return new Response(JSON.stringify(body), { ...init, headers: cors(init.headers, origin, allowed) })
 }
 
-// Very light rate limiter: 3 req / sec by client key
+// ---------------- Rate limit (per client) ----------------
 const rateMap = new Map<string, number[]>()
 const MAX_PER_SEC = 3
-
 function clientKey(req: Request): string {
   const h = req.headers
   const ip =
@@ -43,18 +40,41 @@ function clientKey(req: Request): string {
   const ua = h.get('user-agent') || ''
   return `${ip}|${ua}`
 }
-
 function rateLimited(key: string): boolean {
   const now = Date.now()
   const winStart = now - 1000
   const list = (rateMap.get(key) || []).filter((t) => t >= winStart)
-  if (list.length >= MAX_PER_SEC) {
-    rateMap.set(key, list)
-    return true
-  }
-  list.push(now)
-  rateMap.set(key, list)
-  return false
+  if (list.length >= MAX_PER_SEC) { rateMap.set(key, list); return true }
+  list.push(now); rateMap.set(key, list); return false
+}
+
+// ---------------- Small cache helpers ----------------
+const cache = new Map<string, { ts: number; data: any; ttl: number }>()
+function getCache<T = any>(key: string): T | null {
+  const item = cache.get(key)
+  if (!item) return null
+  if (Date.now() - item.ts <= item.ttl) return item.data as T
+  cache.delete(key)
+  return null
+}
+function setCache(key: string, data: any, ttl: number) {
+  cache.set(key, { ts: Date.now(), data, ttl })
+}
+
+async function fetchJson(url: string, ttl = 10_000, timeoutMs = 8000): Promise<any> {
+  const ck = `u:${url}|ttl:${ttl}`
+  const c = getCache<any>(ck)
+  if (c) return c
+  const controller = new AbortController()
+  const id = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const r = await fetch(url, { signal: controller.signal })
+    const text = await r.text()
+    let data: any
+    try { data = JSON.parse(text) } catch { data = { status: r.status, body: text } }
+    setCache(ck, data, ttl)
+    return data
+  } finally { clearTimeout(id) }
 }
 
 function buildUrl(ep: EndpointKey, qp: URLSearchParams): string | null {
@@ -70,54 +90,47 @@ function buildUrl(ep: EndpointKey, qp: URLSearchParams): string | null {
     case 'futures_premiumIndex':
       if (!symbol) return null
       return `https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${encodeURIComponent(symbol)}`
-    case 'spot_ticker':
-      if (!symbol) return null
-      return `https://api.binance.com/api/v3/ticker/24hr?symbol=${encodeURIComponent(symbol)}`
-    case 'cg_simple_price': {
-      // example: vs=usd&ids=bitcoin,ethereum
-      const ids = qp.get('ids') || 'bitcoin'
-      const vs = qp.get('vs') || 'usd'
-      return `https://api.coingecko.com/api/v3/simple/price?ids=${encodeURIComponent(ids)}&vs_currencies=${encodeURIComponent(vs)}`
-    }
-    case 'cg_ticker': {
-      const id = qp.get('id') || 'bitcoin'
-      return `https://api.coingecko.com/api/v3/coins/${encodeURIComponent(id)}`
-    }
     default:
       return null
   }
 }
 
-// Tiny in-memory cache: dedupe bursts and reduce upstream rate
-const cache = new Map<string, { ts: number; data: any }>()
-// 10s cache to soften upstream rate limits
-const CACHE_TTL_MS = 10_000
+async function metricsForSymbol(sym: string, period = '5m'): Promise<{ funding?: number; oi?: number; long?: number; short?: number }> {
+  const key = `m:${sym}:${period}`
+  const cached = getCache<any>(key)
+  if (cached) return cached
 
-async function fetchJson(url: string, timeoutMs = 8000): Promise<any> {
-  try {
-    const cached = cache.get(url)
-    if (cached && Date.now() - cached.ts < CACHE_TTL_MS) {
-      return cached.data
-    }
-  } catch {}
-  const controller = new AbortController()
-  const id = setTimeout(() => controller.abort(), timeoutMs)
-  try {
-    const r = await fetch(url, { signal: controller.signal })
-    const text = await r.text()
-    // If not ok, still pass through body for debugging
-    try {
-      const data = JSON.parse(text)
-      try { cache.set(url, { ts: Date.now(), data }) } catch {}
-      return data
-    } catch {
-      const data = { status: r.status, body: text }
-      try { cache.set(url, { ts: Date.now(), data }) } catch {}
-      return data
-    }
-  } finally {
-    clearTimeout(id)
+  // 60s metrics cache
+  const ttl = 60_000
+  const [fundRes, oiRes, ratioRes] = await Promise.allSettled([
+    fetchJson(`https://fapi.binance.com/fapi/v1/premiumIndex?symbol=${encodeURIComponent(sym)}`, ttl),
+    fetchJson(`https://fapi.binance.com/fapi/v1/openInterest?symbol=${encodeURIComponent(sym)}`, ttl),
+    fetchJson(`https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=${encodeURIComponent(sym)}&period=${encodeURIComponent(period)}&limit=1`, ttl),
+  ])
+
+  let funding: number | undefined
+  if (fundRes.status === 'fulfilled') {
+    const v = Number((fundRes.value?.lastFundingRate) ?? NaN)
+    if (Number.isFinite(v)) funding = Math.abs(v) <= 1 ? v * 100 : v
   }
+  let oi: number | undefined
+  if (oiRes.status === 'fulfilled') {
+    const v = Number((oiRes.value?.openInterest) ?? NaN)
+    if (Number.isFinite(v)) oi = v
+  }
+  let long: number | undefined
+  let short: number | undefined
+  if (ratioRes.status === 'fulfilled') {
+    const arr = Array.isArray(ratioRes.value) ? ratioRes.value : []
+    const item = arr[arr.length - 1]
+    const lp = Number((item?.longAccount) ?? NaN)
+    const sp = Number((item?.shortAccount) ?? NaN)
+    if (Number.isFinite(lp) && Number.isFinite(sp)) { long = lp; short = sp }
+  }
+
+  const out = { funding, oi, long, short }
+  setCache(key, out, ttl)
+  return out
 }
 
 Deno.serve(async (req) => {
@@ -134,25 +147,15 @@ Deno.serve(async (req) => {
       const oProto = u.protocol
       const oHost = u.hostname
       const oPort = u.port
-
-      // Expect tokens like https://example.com, https://*.vercel.app, http://localhost:*, http://127.0.0.1:*
       const m = token.match(/^(https?:)\/\/(.+)$/)
       if (!m) return token === org
       const tProto = m[1]
       let hostPort = m[2]
-      // port wildcard
       const anyPort = hostPort.endsWith(':*')
       if (anyPort) hostPort = hostPort.slice(0, -2)
-
-      // exact host or wildcard subdomain
       let tHost = hostPort
       let tPort: string | undefined
-      if (hostPort.includes(':')) {
-        const [h, p] = hostPort.split(':')
-        tHost = h
-        tPort = p
-      }
-
+      if (hostPort.includes(':')) { const [h, p] = hostPort.split(':'); tHost = h; tPort = p }
       if (tProto !== oProto) return false
       const wildcard = tHost.startsWith('*.')
       const base = wildcard ? tHost.slice(2) : tHost
@@ -165,28 +168,46 @@ Deno.serve(async (req) => {
   }
 
   const allowed = !enforce || (origin ? allowList.some(t => matchOrigin(t, origin)) : true)
-
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors({}, origin, allowed) })
+
   try {
-    // Block early if origin not allowed
     if (!allowed) return json({ error: 'forbidden_origin' }, { status: 403 }, origin, false)
 
     const key = clientKey(req)
-    if (rateLimited(key)) return json({ error: 'rate_limit' }, { status: 429 })
+    if (rateLimited(key)) return json({ error: 'rate_limit' }, { status: 429 }, origin, true)
 
     const url = new URL(req.url)
     const qp = url.searchParams
+
+    // Aggregated / optimized ops
+    const op = (qp.get('op') || '').trim()
+    if (op === 'ticker24h') {
+      // Bulk futures 24h stats
+      const data = await fetchJson('https://fapi.binance.com/fapi/v1/ticker/24hr', 10_000)
+      return json(data, {}, origin, true)
+    }
+    if (op === 'metrics') {
+      const symbols = (qp.get('symbols') || '').split(',').map(s => s.trim()).filter(Boolean).slice(0, 50)
+      const period = (qp.get('period') || '5m')
+      const out: Record<string, any> = {}
+      // Limit parallelism to avoid upstream rate limits
+      for (const sym of symbols) {
+        // Sequential to stay within ~3 req/s (3 per symbol but all cached 60s)
+        out[sym] = await metricsForSymbol(sym, period)
+        await new Promise(res => setTimeout(res, 200))
+      }
+      return json(out, {}, origin, true)
+    }
+
+    // Pass-through: either direct url=... or endpoint=...
     const endpoint = (qp.get('endpoint') || '').trim() as EndpointKey
     const direct = qp.get('url')
-
     let target: string | null = null
     if (direct) target = direct
     else target = buildUrl(endpoint, qp)
-
-    if (!target) return json({ error: 'invalid_params' }, { status: 400 }, origin, allowed)
-
-    const data = await fetchJson(target)
-    return json(data, {}, origin, allowed)
+    if (!target) return json({ error: 'invalid_params' }, { status: 400 }, origin, true)
+    const data = await fetchJson(target, 10_000)
+    return json(data, {}, origin, true)
   } catch (e: any) {
     return json({ error: String(e?.message || e) }, { status: 500 }, origin, true)
   }
