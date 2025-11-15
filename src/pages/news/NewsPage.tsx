@@ -46,15 +46,17 @@ function useInfiniteNews(params: { topic: Topic; q?: string; sort?: 'latest' | '
     if (busyRef.current || !hasMore) return
     busyRef.current = true
     setLoading(true)
-    const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/news-proxy`
-    const url = new URL(base)
-    url.searchParams.set('topic', topic)
-    url.searchParams.set('sort', sort)
-    url.searchParams.set('limit', String(pageSize))
-    if (q) url.searchParams.set('q', q)
-    if (cursor) url.searchParams.set('cursor', cursor)
-    else url.searchParams.set('page', String(page))
     try {
+      const baseEnv = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined
+      if (!baseEnv) throw new Error('Missing VITE_SUPABASE_URL')
+      const url = new URL(`${baseEnv}/functions/v1/news-proxy`)
+      url.searchParams.set('topic', topic)
+      url.searchParams.set('sort', sort)
+      url.searchParams.set('limit', String(pageSize))
+      if (q) url.searchParams.set('q', q)
+      if (cursor) url.searchParams.set('cursor', cursor)
+      else url.searchParams.set('page', String(page))
+
       const r = await fetch(url.toString())
       if (!r.ok) throw new Error(String(r.status))
       const j = await r.json()
@@ -73,7 +75,7 @@ function useInfiniteNews(params: { topic: Topic; q?: string; sort?: 'latest' | '
       setLoading(false)
       busyRef.current = false
     }
-  }, [topic, q, sort, pageSize, page, cursor, hasMore, loading, cacheKey])
+  }, [topic, q, sort, pageSize, page, cursor, hasMore, cacheKey])
 
   return { items, loading, error, fetchPage, hasMore }
 }
