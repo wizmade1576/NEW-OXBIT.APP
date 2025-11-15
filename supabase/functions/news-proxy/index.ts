@@ -367,7 +367,7 @@ Deno.serve(async (req) => {
         ...n,
         image: n.image ? `${base}?thumb=1&u=${encodeURIComponent(n.image)}&w=160&h=90&fmt=webp` : undefined,
       }))
-      items = items.filter(n => !isGarbled(n.title) && !isGarbled(n.summary)); return { items: itemsWithThumb.filter(n => !isGarbled(n.title) && !isGarbled(n.summary)), provider }
+      items = items.filter(n => !isGarbled(n.title) && !isGarbled(n.summary)); return { items: itemsWithThumb, provider }
     }
 
     const cacheKey = keyOf({ topic, sort, q, limit })
