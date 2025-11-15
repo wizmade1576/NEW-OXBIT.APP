@@ -89,6 +89,9 @@ const NewsCard = React.memo(function NewsCard({ n }: { n: NewsItem }) {
         onError={() => setSrc(DEFAULT_THUMB)}
         alt={n.title}
         loading="lazy"
+        decoding="async"
+        fetchpriority="low"
+        referrerPolicy="no-referrer"
         width={160}
         height={90}
         className="h-[90px] w-[160px] rounded object-cover bg-neutral-900 flex-shrink-0"

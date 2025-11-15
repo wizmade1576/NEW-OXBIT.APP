@@ -48,7 +48,7 @@ export const router = createBrowserRouter([
         path: 'news',
         element: <NewsLayout />,
         children: [
-          { index: true, element: <NewsPage /> },
+          { index: true, element: <AllPage /> },
           { path: 'crypto', element: <CryptoNewsPage /> },
           { path: 'global', element: <GlobalStocksNewsPage /> },
           { path: 'fx', element: <FxRatesNewsPage /> },
