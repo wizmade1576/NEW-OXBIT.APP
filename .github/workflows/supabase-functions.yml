@@ -33,6 +33,18 @@ jobs:
           test -n "$SUPABASE_ACCESS_TOKEN" || (echo "SUPABASE_ACCESS_TOKEN is not set" && exit 1)
           test -n "$SUPABASE_PROJECT_REF" || (echo "SUPABASE_PROJECT_REF is not set" && exit 1)
 
+      - name: Normalize project ref
+        run: |
+          set -e
+          REF=$(echo -n "$SUPABASE_PROJECT_REF" | tr -d '[:space:]' | tr -d '"\'"'')
+          LEN=$(echo -n "$REF" | wc -c)
+          if ! echo "$REF" | grep -Eq '^[a-z]{20}$'; then
+            echo "Invalid SUPABASE_PROJECT_REF. Expect 20 lowercase letters. Got length=$LEN"
+            exit 1
+          fi
+          echo "SB_REF=$REF" >> "$GITHUB_ENV"
+          echo "REF_LEN=$LEN" >> "$GITHUB_ENV"
+
       - name: Login to Supabase
         run: |
           supabase login --token "$SUPABASE_ACCESS_TOKEN"
@@ -50,8 +62,9 @@ jobs:
 
       - name: Link project
         run: |
-          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+          supabase link --project-ref "$SB_REF"
 
       - name: Deploy functions
         run: |
-          supabase functions deploy binance-proxy news-proxy --project-ref "$SUPABASE_PROJECT_REF"
+          echo "Using project ref length: ${REF_LEN}"
+          supabase functions deploy binance-proxy news-proxy --project-ref "$SB_REF" --debug
