@@ -145,7 +145,7 @@ function parseRssFallback(xml: string, source: string): Omit<NewsItem, 'topic'>[
 
 async function fetchRss(url: string, name: string): Promise<Omit<NewsItem, 'topic'>[]> {
   const controller = new AbortController()
-  const to = setTimeout(() => controller.abort(), 3500)
+  const to = setTimeout(() => controller.abort(), 5000)
   try {
     const res = await fetch(url, {
       headers: {
@@ -155,10 +155,20 @@ async function fetchRss(url: string, name: string): Promise<Omit<NewsItem, 'topi
       signal: controller.signal,
     })
     if (!res.ok) return []
-    const xml = await res.text()
-    const list = parseRss(xml, name)
-    if (list.length) return list
-    return parseRssFallback(xml, name)
+    // Try multiple decoders for KR feeds (euc-kr/cp949)
+    const buf = new Uint8Array(await res.arrayBuffer())
+    const encs = ['utf-8','euc-kr','ks_c_5601-1987','cp949'] as const
+    for (const enc of encs) {
+      try {
+        // @ts-ignore: some runtimes support extended encodings
+        const dec = new TextDecoder(enc as any, { fatal: false })
+        const xml = dec.decode(buf)
+        let list = parseRss(xml, name)
+        if (!list.length) list = parseRssFallback(xml, name)
+        if (list.length) return list
+      } catch {}
+    }
+    return []
   } catch { return [] } finally { clearTimeout(to) }
 }
 
