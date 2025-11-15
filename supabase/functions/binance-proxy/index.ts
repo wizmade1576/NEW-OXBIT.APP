@@ -19,6 +19,7 @@ function cors(headers: HeadersInit = {}, origin?: string | null, allowed = true)
     'access-control-allow-origin': acao,
     'access-control-allow-methods': 'GET, OPTIONS',
     'access-control-allow-headers': 'authorization, x-client-info, apikey, content-type',
+    'vary': 'Origin',
     'content-type': 'application/json; charset=utf-8',
     ...headers,
   }
@@ -126,7 +127,44 @@ Deno.serve(async (req) => {
     .map(s => s.trim())
     .filter(Boolean)
   const enforce = allowList.length > 0
-  const allowed = !enforce || (origin ? allowList.includes(origin) : true)
+
+  function matchOrigin(token: string, org: string): boolean {
+    try {
+      const u = new URL(org)
+      const oProto = u.protocol
+      const oHost = u.hostname
+      const oPort = u.port
+
+      // Expect tokens like https://example.com, https://*.vercel.app, http://localhost:*, http://127.0.0.1:*
+      const m = token.match(/^(https?:)\/\/(.+)$/)
+      if (!m) return token === org
+      const tProto = m[1]
+      let hostPort = m[2]
+      // port wildcard
+      const anyPort = hostPort.endsWith(':*')
+      if (anyPort) hostPort = hostPort.slice(0, -2)
+
+      // exact host or wildcard subdomain
+      let tHost = hostPort
+      let tPort: string | undefined
+      if (hostPort.includes(':')) {
+        const [h, p] = hostPort.split(':')
+        tHost = h
+        tPort = p
+      }
+
+      if (tProto !== oProto) return false
+      const wildcard = tHost.startsWith('*.')
+      const base = wildcard ? tHost.slice(2) : tHost
+      const hostOk = wildcard ? (oHost === base || oHost.endsWith('.' + base)) : (oHost === tHost)
+      if (!hostOk) return false
+      if (anyPort) return true
+      if (!tPort) return oPort === ''
+      return oPort === tPort
+    } catch { return false }
+  }
+
+  const allowed = !enforce || (origin ? allowList.some(t => matchOrigin(t, origin)) : true)
 
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors({}, origin, allowed) })
   try {
