@@ -33,7 +33,25 @@ jobs:
           test -n "$SUPABASE_ACCESS_TOKEN" || (echo "SUPABASE_ACCESS_TOKEN is not set" && exit 1)
           test -n "$SUPABASE_PROJECT_REF" || (echo "SUPABASE_PROJECT_REF is not set" && exit 1)
 
+      - name: Login to Supabase
+        run: |
+          supabase login --token "$SUPABASE_ACCESS_TOKEN"
+
+      - name: Show functions directory
+        run: |
+          ls -la
+          echo "--- supabase dir ---"
+          ls -la supabase || true
+          echo "--- functions dir ---"
+          ls -la supabase/functions || true
+          echo "--- function entries ---"
+          ls -la supabase/functions/binance-proxy || true
+          ls -la supabase/functions/news-proxy || true
+
+      - name: Link project
+        run: |
+          supabase link --project-ref "$SUPABASE_PROJECT_REF"
+
       - name: Deploy functions
         run: |
           supabase functions deploy binance-proxy news-proxy --project-ref "$SUPABASE_PROJECT_REF"
-
