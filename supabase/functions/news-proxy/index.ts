@@ -2,7 +2,7 @@
 // Supabase Edge Function: news-proxy
 // GET /news-proxy?topic=crypto|stocks|fx&sort=latest|hot&q=...&cursor=...&page=...
 
-type Topic = 'crypto' | 'stocks' | 'fx'
+type Topic = 'crypto' | 'stocks' | 'fx' | 'all'
 
 type Provider = 'marketaux' | 'finnhub' | 'newsapi' | 'reddit' | 'none'
 
@@ -324,34 +324,91 @@ Deno.serve(async (req) => {
     const provider = (forceProvider as Provider) || pickProvider()
     const key = cacheKey({ topic, sort, q, provider, lang, cursor, page, limit })
 
-    async function build(): Promise<{ items: NewsItem[]; nextPage?: number; cursor?: string; provider: string }> {
+    async function buildTopic(t: Exclude<Topic, 'all'>): Promise<{ items: NewsItem[]; nextPage?: number; cursor?: string }> {
       let items: NewsItem[] = []
       let nextPage: number | undefined
       let nextCursor: string | undefined
       try {
         if (provider === 'marketaux') {
-          const res = await fetchMarketAux(topic, page, limit)
+          const res = await fetchMarketAux(t, page, limit)
           items = res.items
           nextPage = res.nextPage
         } else if (provider === 'finnhub') {
-          const res = await fetchFinnhub(topic, cursor)
+          const res = await fetchFinnhub(t, cursor)
           items = res.items
           nextCursor = res.cursor
         } else if (provider === 'newsapi') {
-          const res = await fetchNewsAPI(topic, page, limit)
+          const res = await fetchNewsAPI(t, page, limit)
           items = res.items
           nextPage = res.nextPage
         } else if (provider === 'reddit') {
-          const res = await fetchReddit(topic, cursor, limit)
+          const res = await fetchReddit(t, cursor, limit)
           items = res.items
           nextCursor = res.after
         } else if (provider === 'none') {
-          items = await fetchCustom(topic, limit)
+          items = await fetchCustom(t, limit)
         } else {
           items = []
         }
       } catch (_e) {
-        try { items = await fetchCustom(topic, limit) } catch { items = [] }
+        try { items = await fetchCustom(t, limit) } catch { items = [] }
+      }
+      // filter/sort
+      let list = items
+      if (q) { const qq = q.toLowerCase(); list = list.filter((n) => n.title.toLowerCase().includes(qq) || (n.summary || '').toLowerCase().includes(qq)) }
+      if (sort === 'latest') { list = list.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()) }
+      return { items: list, nextPage, cursor: nextCursor }
+    }
+
+    function dedupeNews(arr: NewsItem[]): NewsItem[] {
+      const seen = new Set<string>()
+      const out: NewsItem[] = []
+      for (const it of arr) {
+        const key = (it.url || it.id).trim().toLowerCase()
+        if (key && !seen.has(key)) { seen.add(key); out.push(it) }
+      }
+      return out
+    }
+
+    async function build(): Promise<{ items: NewsItem[]; nextPage?: number; cursor?: string; provider: string }> {
+      if (topic === 'all') {
+        const [c, s, f] = await Promise.all([
+          buildTopic('crypto'),
+          buildTopic('stocks'),
+          buildTopic('fx'),
+        ])
+        const merged = dedupeNews([...(c.items||[]), ...(s.items||[]), ...(f.items||[])])
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+          .slice(0, limit)
+        return { items: merged, provider }
+      }
+      let items: NewsItem[] = []
+      let nextPage: number | undefined
+      let nextCursor: string | undefined
+      try {
+        if (provider === 'marketaux') {
+          const res = await fetchMarketAux(topic as Exclude<Topic,'all'>, page, limit)
+          items = res.items
+          nextPage = res.nextPage
+        } else if (provider === 'finnhub') {
+          const res = await fetchFinnhub(topic as Exclude<Topic,'all'>, cursor)
+          items = res.items
+          nextCursor = res.cursor
+        } else if (provider === 'newsapi') {
+          const res = await fetchNewsAPI(topic as Exclude<Topic,'all'>, page, limit)
+          items = res.items
+          nextPage = res.nextPage
+        } else if (provider === 'reddit') {
+          const res = await fetchReddit(topic as Exclude<Topic,'all'>, cursor, limit)
+          items = res.items
+          nextCursor = res.after
+        } else if (provider === 'none') {
+          items = await fetchCustom(topic as Exclude<Topic,'all'>, limit)
+        } else {
+          items = []
+        }
+      } catch (_e) {
+        try { items = await fetchCustom(topic as Exclude<Topic,'all'>, limit) } catch { items = [] }
       }
       // simple filter/sort
       let list = items

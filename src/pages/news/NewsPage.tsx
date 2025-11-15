@@ -10,7 +10,7 @@ type NewsItem = {
   source: string
 }
 
-type Topic = 'crypto' | 'stocks' | 'fx'
+type Topic = 'crypto' | 'stocks' | 'fx' | 'all'
 
 const DEFAULT_THUMB = 'https://images.weserv.nl/?url=via.placeholder.com/160x90.png?text=NEWS&h=90&w=160&fit=cover&we=1'
 
@@ -117,7 +117,7 @@ function SkeletonCard() {
 }
 
 export default function NewsPage() {
-  const [topic, setTopic] = React.useState<Topic>('crypto')
+  const [topic] = React.useState<Topic>('all')
   const [q, setQ] = React.useState('')
   const [sort, setSort] = React.useState<'latest' | 'hot'>('latest')
   const { items, loading, error, fetchPage, hasMore } = useInfiniteNews({ topic, q, sort, pageSize: 20 })
