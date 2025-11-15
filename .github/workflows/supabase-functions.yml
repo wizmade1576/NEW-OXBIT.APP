@@ -75,4 +75,5 @@ jobs:
       - name: Deploy functions
         run: |
           echo "Using project ref length: ${REF_LEN}"
-          supabase functions deploy binance-proxy news-proxy --project-ref "$SB_REF" --debug
+          supabase functions deploy binance-proxy --project-ref "$SB_REF" --no-verify-jwt --debug
+          supabase functions deploy news-proxy --project-ref "$SB_REF" --no-verify-jwt --debug
