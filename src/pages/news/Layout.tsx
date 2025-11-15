@@ -8,6 +8,7 @@ export default function NewsLayout() {
     { to: '/news/fx', label: '환율/금리' },
   ]
   return (
+    <div className="w-full mx-auto px-2 sm:px-3 md:px-4 max-w-full sm:max-w-[640px] md:max-w-[760px] lg:max-w-[900px]">
     <section className="space-y-6">
       <h2 className="text-2xl font-semibold">뉴스룸</h2>
 
@@ -33,6 +34,6 @@ export default function NewsLayout() {
 
       <Outlet />
     </section>
+    </div>
   )
 }
-

@@ -2,6 +2,7 @@ import { createBrowserRouter } from 'react-router-dom'
 import RootLayout from '../layouts/RootLayout'
 import HomePage from '../../pages/home/HomePage'
 import BreakingPage from '../../pages/breaking/BreakingPage'
+import BreakingDetailPage from '../../pages/breaking/BreakingDetailPage'
 import SearchPage from '../../pages/search/SearchPage'
 import NotFoundPage from '../../pages/NotFoundPage'
 import NewsLayout from '../../pages/news/Layout'
@@ -26,9 +27,9 @@ import PaperTradingPage from '../../pages/paper/PaperTradingPage'
 import MoreLayout from '../../pages/more/MoreLayout'
 import NoticesPage from '../../pages/notices/NoticesPage'
 import GuidePage from '../../pages/guide/GuidePage'
-import LoginPage from '../../pages/auth/LoginPage'
-import RegisterPage from '../../pages/auth/RegisterPage'
-import ForgotPasswordPage from '../../pages/auth/ForgotPasswordPage'
+import LoginPage from '@/pages/auth/LoginPage'
+import RegisterPage from '@/pages/auth/RegisterPage'
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
 import AdsPage from '../../pages/ads/AdsPage'
 import RequireAdmin from '../../components/auth/RequireAdmin'
 import AdminLayout from '../../pages/admin/Layout'
@@ -84,6 +85,7 @@ export const router = createBrowserRouter([
         ],
       },
       { path: 'breaking', element: <BreakingPage /> },
+      { path: 'breaking/:key', element: <BreakingDetailPage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <RegisterPage /> },
       { path: 'forgot', element: <ForgotPasswordPage /> },

@@ -108,7 +108,7 @@ export default function WhalesPage() {
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
               <CardTitle>고래 추적</CardTitle>
-              <CardDescription>거래소 대규모 체결(선물 aggTrade) · 기준 {thresholdKrw.toLocaleString()}원 이상</CardDescription>
+              <CardDescription>거래소 대규모 체결 · 기준 {thresholdKrw.toLocaleString()}원 이상</CardDescription>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
               <div className="inline-flex rounded-md border border-neutral-700 overflow-hidden">

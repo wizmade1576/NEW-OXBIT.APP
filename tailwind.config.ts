@@ -15,6 +15,21 @@ const config: Config = {
       },
     },
     extend: {
+      fontFamily: {
+        sans: [
+          'Pretendard Variable',
+          'Inter',
+          'system-ui',
+          '-apple-system',
+          'Segoe UI',
+          'Roboto',
+          'Noto Sans KR',
+          'Apple SD Gothic Neo',
+          'Helvetica Neue',
+          'Arial',
+          'sans-serif',
+        ],
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',

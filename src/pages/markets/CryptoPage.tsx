@@ -174,17 +174,12 @@ export default function CryptoPage() {
     <section className="space-y-4">
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1">
-          <button onClick={()=>{setCategory('ALL'); setPage(1)}} className={`px-2 py-1 rounded border border-neutral-700 text-sm ${category==='ALL'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>전체</button>
-          <button onClick={()=>{setCategory('BTC'); setPage(1)}} className={`px-2 py-1 rounded border border-neutral-700 text-sm ${category==='BTC'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>BTC</button>
-          <button onClick={()=>{setCategory('ETH'); setPage(1)}} className={`px-2 py-1 rounded border border-neutral-700 text-sm ${category==='ETH'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>ETH</button>
-          <button onClick={()=>{setCategory('ALTS'); setPage(1)}} className={`px-2 py-1 rounded border border-neutral-700 text-sm ${category==='ALTS'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>알트</button>
-          <button onClick={()=>{setCategory('FAV'); setPage(1)}} className={`px-2 py-1 rounded border border-neutral-700 text-sm ${category==='FAV'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>즐겨찾기</button>
-        </div>
+        <div className="flex items-center gap-1"></div>
         <input value={query} onChange={(e)=>{ setQuery(e.target.value); setPage(1) }} placeholder="코인 검색 (예: btc, eth)" className="px-3 py-2 rounded border border-neutral-700 bg-[#1a1a1a] focus:outline-none" />
         <div className="ml-auto flex items-center gap-1">
           <button onClick={()=>setCurrency('USD')} className={`px-2 py-1 rounded border border-neutral-700 ${currency==='USD'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>USD</button>
           <button onClick={()=>setCurrency('KRW')} className={`px-2 py-1 rounded border border-neutral-700 ${currency==='KRW'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>KRW</button>
+          <button onClick={()=>{setCategory('FAV'); setPage(1)}} className={`px-2 py-1 rounded border border-neutral-700 text-sm ${category==='FAV'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>즐겨찾기</button>
         </div>
       </div>
       {false && status==='rate_limited' && (

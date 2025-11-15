@@ -1,4 +1,4 @@
-import { fetchCrypto, fetchStocks, fetchFx, type NewsItem } from './providers'
+import { fetchCrypto, fetchStocks, fetchFx, type NewsItem, normalizeNewsUrl } from './providers'
 
 export type TopicKey = 'crypto' | 'stocks' | 'fx'
 
@@ -36,12 +36,21 @@ export async function fetchAllTopics(
   const merged = [...c.items, ...s.items, ...f.items]
   // dedupe by id or url
   const seen = new Set<string>()
+  const seenTitle = new Set<string>()
   const items: NewsItem[] = []
   for (const it of merged) {
-    const key = (it.id || it.url).toString()
+    const key = normalizeNewsUrl(it.url || it.id as any) || (it.id || it.url).toString()
     if (seen.has(key)) continue
+    const tkey = (it.title || '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .replace(/[^a-z0-9가-힣\s]/gi, '')
+      .trim()
+      .slice(0, 80)
+    if (tkey && seenTitle.has(tkey)) continue
     seen.add(key)
-    items.push(it)
+    if (tkey) seenTitle.add(tkey)
+    items.push({ ...it, id: key, url: key })
   }
   // newest first
   items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -58,4 +67,3 @@ export async function fetchAllTopics(
 }
 
 export default fetchAllTopics
-

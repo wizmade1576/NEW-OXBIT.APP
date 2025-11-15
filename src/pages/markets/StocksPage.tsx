@@ -4,10 +4,31 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 type Tile = { id: string; label: string; value: string; change: string; up: boolean; symbol: string }
 
 export default function StocksPage() {
+  const prettyExchange = (sym: string): string => {
+    try {
+      const exch = (sym.split(':')[0] || '').toUpperCase()
+      if (exch === 'CAPITALCOM') return 'Capital.com'
+      if (exch === 'CURRENCYCOM') return 'Currency.com'
+      if (exch === 'OANDA') return 'OANDA'
+      if (exch === 'TVC') return 'TVC'
+      if (exch === 'ICEUS') return 'ICE'
+      if (exch === 'AMEX') return 'AMEX'
+      return exch || sym
+    } catch { return sym }
+  }
+  const prettyName = (sym: string): string => {
+    try {
+      const p = sym.toUpperCase()
+      if (p.includes('USDX') || p.includes('DXY') || p.includes('DX1!')) return 'AMEX'
+      if (p.includes('NAS100')) return 'US100 Cash CFD'
+      if (p.includes('SPX500')) return 'S&P 500 Index'
+      return sym
+    } catch { return sym }
+  }
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [loaded, setLoaded] = React.useState(false)
   // Stocks 첫 화면을 나스닥(ETF QQQ)으로 시작
-  const [symbol, setSymbol] = React.useState<string>('NASDAQ:QQQ')
+  const [symbol, setSymbol] = React.useState<string>('OANDA:NAS100USD')
   const [interval, setIntervalState] = React.useState<string>('15')
   const [theme, setTheme] = React.useState<'dark' | 'light'>('dark')
 
@@ -25,7 +46,7 @@ export default function StocksPage() {
     containerRef.current.innerHTML = ''
     try {
       // @ts-ignore
-      new (window as any).TradingView.widget({
+      const widget = new (window as any).TradingView.widget({
         container_id: 'tv_chart_container',
         autosize: true,
         symbol,
@@ -38,13 +59,50 @@ export default function StocksPage() {
         allow_symbol_change: false,
         withdateranges: true,
       })
+      // Ensure the intended symbol is applied; add robust fallback for DXY
+      if (typeof (widget as any)?.onChartReady === 'function') {
+        ;(widget as any).onChartReady(() => {
+          const applySymbol = (target: string) => {
+            try { (widget as any).activeChart?.().setSymbol?.(target) } catch {}
+            try { (widget as any).chart?.().setSymbol?.(target, undefined) } catch {}
+          }
+          const getCurrent = (): string => {
+            try { return (widget as any).activeChart?.().symbol?.() || '' } catch {}
+            try { return (widget as any).chart?.().symbol?.() || '' } catch {}
+            return ''
+          }
+          const verifyAndFallback = (desired: string) => {
+            const isUsdIndex = /DXY|USDX|DX1!|UUP/i.test(desired)
+            const candidates = isUsdIndex
+              ? ['CAPITALCOM:USDX', 'CURRENCYCOM:USDX', 'TVC:DXY', 'ICEUS:DX1!', 'AMEX:UUP']
+              : [desired]
+            let i = 0
+            const tryNext = () => {
+              if (i >= candidates.length) return
+              const tgt = candidates[i++]
+              applySymbol(tgt)
+              let attempts = 0
+              const check = () => {
+                attempts++
+                const cur = (getCurrent() || '').toUpperCase()
+                if (cur === tgt.toUpperCase()) return
+                if (attempts < 6) { setTimeout(check, 400); return }
+                tryNext()
+              }
+              setTimeout(check, 400)
+            }
+            tryNext()
+          }
+          verifyAndFallback(symbol)
+        })
+      }
     } catch {}
   }, [loaded, symbol, interval, theme])
 
   const [tiles, setTiles] = React.useState<Tile[]>([
     // 일부 TVC 지수는 임베드 제한이 있어 ETF 프록시로 매핑
-    { id: 'nasdaq', label: 'NASDAQ 100', symbol: 'NASDAQ:QQQ', value: '15,636.0', change: '+0.32%', up: true },
-    { id: 'spx', label: 'S&P 500', symbol: 'AMEX:SPY', value: '4,980.2', change: '+0.16%', up: true },
+    { id: 'nasdaq', label: 'NASDAQ 100', symbol: 'OANDA:NAS100USD', value: '25,000', change: '+0.10%', up: true },
+    { id: 'spx', label: 'S&P 500 Index', symbol: 'OANDA:SPX500USD', value: '6,740', change: '+0.16%', up: true },
     { id: 'dxy', label: '달러 인덱스', symbol: 'AMEX:UUP', value: '106.12', change: '-0.08%', up: false },
     { id: 'btcd', label: 'BTC Dominance', symbol: 'CRYPTOCAP:BTC.D', value: '60.11%', change: '+0.10%', up: true },
     { id: 'btc', label: 'BTC 가격', symbol: 'BINANCE:BTCUSDT', value: '102,990', change: '-0.30%', up: false },
@@ -203,9 +261,10 @@ export default function StocksPage() {
           const val = (!t.value || t.value === 'NaN') ? '--' : t.value
           const chg = (!t.change || /NaN/.test(t.change)) ? '--' : t.change
           const chgClass = (!t.change || /NaN/.test(t.change)) ? 'text-gray-400 text-sm' : (t.up ? 'text-emerald-400 text-sm' : 'text-red-400 text-sm')
+          const mappedSymbol = t.id==='dxy' ? 'CAPITALCOM:USDX' : t.symbol
           return (
-            <button key={t.id} onClick={() => setSymbol(t.symbol)} className={`text-left rounded-lg border border-neutral-800 bg-[#121212] p-3 hover:bg-[#1e1e1e] transition-colors ${symbol===t.symbol ? 'ring-1 ring-emerald-400' : ''}`}>
-              <div className="text-xs text-gray-400">{t.label}</div>
+            <button key={t.id} onClick={() => setSymbol(mappedSymbol)} className={`text-left rounded-lg border border-neutral-800 bg-[#121212] p-3 hover:bg-[#1e1e1e] transition-colors ${symbol===mappedSymbol ? 'ring-1 ring-emerald-400' : ''}`}>
+              <div className="text-xs text-gray-400">{t.id==='dxy' ? 'USD Index' : t.label}</div>
               <div className="mt-1 flex items-end justify-between">
                 <div className="text-lg font-semibold text-white">{val}</div>
                 <div className={chgClass}>{chg}</div>
@@ -243,18 +302,9 @@ export default function StocksPage() {
         <CardHeader>
           <div className="flex flex-col gap-2">
             <CardTitle className="text-white">실시간 차트</CardTitle>
-            <div className="flex gap-2 text-sm">
-              <div className="flex items-center gap-1">
-                {['1','5','15','60','D'].map(iv => (
-                  <button key={iv} onClick={()=>setIntervalState(iv)} className={`px-2 py-1 rounded border border-neutral-700 ${interval===iv?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>{iv}</button>
-                ))}
-              </div>
-              <div className="ml-2 flex items-center gap-1">
-                <button onClick={()=>setTheme('dark')} className={`px-2 py-1 rounded border border-neutral-700 ${theme==='dark'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>Dark</button>
-                <button onClick={()=>setTheme('light')} className={`px-2 py-1 rounded border border-neutral-700 ${theme==='light'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>Light</button>
-              </div>
-            </div>
-            <CardDescription>TradingView {interval} 간격 · {symbol}</CardDescription>
+            <CardDescription>
+              {prettyName(symbol)} · {interval} · {prettyExchange(symbol)}
+            </CardDescription>
           </div>
         </CardHeader>
         <CardContent>

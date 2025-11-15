@@ -4,7 +4,7 @@
 
 type Topic = 'crypto' | 'stocks' | 'fx'
 
-type Provider = 'marketaux' | 'finnhub' | 'newsapi' | 'reddit'
+type Provider = 'marketaux' | 'finnhub' | 'newsapi' | 'reddit' | 'none'
 
 interface NewsItem {
   id: string
@@ -41,7 +41,135 @@ function pickProvider(): Provider {
   if (hasMarketAux) return 'marketaux'
   if (hasFinnhub) return 'finnhub'
   if (hasNewsAPI) return 'newsapi'
-  return 'reddit'
+  return 'none'
+}
+
+// -------- Custom RSS aggregator (for curated Korean media) --------
+function parseDate(input?: string | null): string {
+  if (!input) return new Date().toISOString()
+  const d = new Date(input)
+  if (!Number.isNaN(d.getTime())) return d.toISOString()
+  // Some feeds use numeric timestamps
+  const n = Number(input)
+  if (!Number.isNaN(n)) return new Date(n).toISOString()
+  return new Date().toISOString()
+}
+
+function firstText(el: Element | null, selectors: string[]): string | undefined {
+  for (const sel of selectors) {
+    const n = el?.querySelector(sel)
+    const t = n?.textContent?.trim()
+    if (t) return t
+  }
+  return undefined
+}
+
+function extractImageFromDescription(html?: string): string | undefined {
+  if (!html) return undefined
+  try {
+    const m = html.match(/<img[^>]*src=["']([^"']+)["']/i)
+    if (m && m[1]) return m[1]
+  } catch {}
+  return undefined
+}
+
+function parseRss(xml: string, fallbackSource: string): NewsItem[] {
+  const out: NewsItem[] = []
+  try {
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(xml, 'text/xml')
+    const channelItems = Array.from(doc.querySelectorAll('rss channel item'))
+    const atomEntries = Array.from(doc.querySelectorAll('feed entry'))
+    if (channelItems.length) {
+      for (const it of channelItems) {
+        const title = firstText(it, ['title']) || ''
+        const url = firstText(it, ['link']) || ''
+        const desc = firstText(it, ['description', 'content\:encoded'])
+        const date = firstText(it, ['pubDate', 'published', 'updated'])
+        const media = (it.querySelector('media\\:content')?.getAttribute('url')) || extractImageFromDescription(desc)
+        const source = firstText(it, ['source']) || fallbackSource
+        if (title && url) {
+          out.push({
+            id: url,
+            title,
+            summary: desc,
+            url,
+            image: media || undefined,
+            date: parseDate(date),
+            source,
+          })
+        }
+      }
+    } else if (atomEntries.length) {
+      for (const it of atomEntries) {
+        const title = firstText(it, ['title']) || ''
+        const linkEl = it.querySelector('link')
+        const url = (linkEl?.getAttribute('href') || linkEl?.textContent || '').trim()
+        const summary = firstText(it, ['summary', 'content'])
+        const date = firstText(it, ['updated', 'published'])
+        const source = fallbackSource
+        if (title && url) {
+          out.push({ id: url, title, summary, url, image: extractImageFromDescription(summary), date: parseDate(date), source })
+        }
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return out
+}
+
+async function fetchRss(url: string, name: string): Promise<NewsItem[]> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return []
+    const xml = await res.text()
+    return parseRss(xml, name)
+  } catch {
+    return []
+  }
+}
+
+type CustomSource = { name: string; url: string; topics?: Topic[] }
+
+function getCustomSources(): CustomSource[] {
+  const raw = Deno.env.get('CUSTOM_RSS_SOURCES') || ''
+  try {
+    const arr = JSON.parse(raw)
+    if (Array.isArray(arr)) return arr
+  } catch {}
+  // Fallback defaults (can be overridden by secrets). These may need updating per site.
+  return [
+    { name: 'TokenPost', url: 'https://www.tokenpost.kr/rss' },
+    { name: 'BlockMedia', url: 'https://www.blockmedia.co.kr/rss' },
+    { name: 'CoinReaders', url: 'https://m.coinreaders.com/plugin/rss' },
+    { name: 'BonMedia', url: 'https://www.bonmedia.kr/rss' },
+    { name: 'TheGuru', url: 'https://www.theguru.co.kr/rss' },
+  ]
+}
+
+async function fetchCustom(topic: Topic, limit = 20): Promise<NewsItem[]> {
+  const sources = getCustomSources()
+  const results = await Promise.all(sources.map((s) => fetchRss(s.url, s.name)))
+  let items = results.flat()
+  // Very light topic filter by keywords (optional)
+  const kwCrypto = /bitcoin|btc|crypto|ethereum|eth|코인|암호|블록체인|가상화폐/i
+  const kwFx = /forex|fx|환율|금리|달러|usd|eur|jpy|환전/i
+  const kwStocks = /stocks|주식|증시|나스닥|s&p|kospi|코스피|코스닥|기업/i
+  items = items.filter((n) => {
+    const t = (n.title + ' ' + (n.summary || '')).toLowerCase()
+    if (topic === 'crypto') return kwCrypto.test(t)
+    if (topic === 'fx') return kwFx.test(t)
+    return kwStocks.test(t) || (!kwCrypto.test(t) && !kwFx.test(t))
+  })
+  // Dedupe by URL
+  const seen = new Set<string>()
+  const dedup: NewsItem[] = []
+  for (const it of items) {
+    if (!seen.has(it.url)) { seen.add(it.url); dedup.push(it) }
+  }
+  dedup.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+  return dedup.slice(0, limit)
 }
 
 function toItems(arr: any[], map: (d: any) => NewsItem | null): NewsItem[] {
@@ -182,7 +310,7 @@ Deno.serve(async (req) => {
     const page = Number((isPOST ? body?.page : qp.get('page')) || '1')
     const limit = Number((isPOST ? body?.limit : qp.get('limit')) || '10')
 
-    const provider = forceProvider || pickProvider()
+    const provider = (forceProvider as Provider) || pickProvider()
     let items: NewsItem[] = []
     let nextPage: number | undefined
     let nextCursor: string | undefined
@@ -200,16 +328,20 @@ Deno.serve(async (req) => {
         const res = await fetchNewsAPI(topic, page, limit)
         items = res.items
         nextPage = res.nextPage
-      } else {
+      } else if (provider === 'reddit') {
         const res = await fetchReddit(topic, cursor, limit)
         items = res.items
         nextCursor = res.after
+      } else if (provider === 'none') {
+        // Use custom curated RSS sources when no 3rd-party provider is configured
+        items = await fetchCustom(topic, limit)
+      } else {
+        // provider none
+        items = []
       }
-    } catch (e) {
-      // fallback to reddit
-      const res = await fetchReddit(topic, cursor, limit)
-      items = res.items
-      nextCursor = res.after
+    } catch (_e) {
+      // No fallback to Reddit: return empty list
+      try { items = await fetchCustom(topic, limit) } catch { items = [] }
     }
 
     // translate if lang requested and key available
