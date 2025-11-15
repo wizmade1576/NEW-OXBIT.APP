@@ -1,4 +1,4 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 
 type NewsItem = {
   id: string
@@ -34,12 +34,10 @@ function useInfiniteNews(params: { topic: Topic; q?: string; sort?: 'latest' | '
   const cacheKey = React.useMemo(() => `news_cache_v3_${topic}_${sort}_${q}`, [topic, sort, q])
   const busyRef = React.useRef(false)
 
-  // initial fast paint from session cache
   React.useEffect(() => {
     try { const cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null'); if (cached?.items) setItems(cached.items as NewsItem[]) } catch {}
   }, [cacheKey])
 
-  // reset when query changes
   React.useEffect(() => { setItems([]); setPage(1); setCursor(undefined); setHasMore(true) }, [topic, q, sort])
 
   const fetchPage = React.useCallback(async () => {
@@ -125,18 +123,16 @@ function SkeletonCard() {
 }
 
 export default function NewsPage({ topic = 'crypto' as Topic }: { topic?: Topic }) {
-  const [q, setQ] = React.useState('')
-  const [sort, setSort] = React.useState<'latest' | 'hot'>('latest')
+  const [q] = React.useState('')
+  const [sort] = React.useState<'latest' | 'hot'>('latest')
   const { items, loading, error, fetchPage, hasMore } = useInfiniteNews({ topic, q, sort, pageSize: 20 })
 
   const list = React.useMemo(() => items, [items])
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
 
   React.useEffect(() => {
-    // initial load
     fetchPage()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [topic, q, sort])
+  }, [topic, fetchPage])
 
   React.useEffect(() => {
     const el = sentinelRef.current; if (!el) return
@@ -150,7 +146,7 @@ export default function NewsPage({ topic = 'crypto' as Topic }: { topic?: Topic 
   return (
     <section className="space-y-4">
       {error && (
-        <div className="text-xs text-amber-300">로딩 오류: {error} (캐시/네트워크 확인)</div>
+        <div className="text-xs text-amber-300">로딩 오류: {error}</div>
       )}
 
       <div className="grid grid-cols-1 gap-3">
