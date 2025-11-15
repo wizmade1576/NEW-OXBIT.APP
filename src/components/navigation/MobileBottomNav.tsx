@@ -10,6 +10,7 @@ type Item = {
 const items: Item[] = [
   { to: '/paper', label: '모의투자', icon: <span className="text-lg">📊</span> },
   { to: '/breaking', label: '속보', icon: <span className="text-lg">🕒</span> },
+  { to: '/news', label: '뉴스', icon: <span className="text-lg">📰</span> },
   { to: '/markets', label: '마켓', icon: <span className="text-lg">📈</span> },
   { to: '/positions', label: '포지션', icon: <span className="text-lg">📡</span> },
   { to: '/community', label: '커뮤니티', icon: <span className="text-lg">👥</span> },
@@ -23,7 +24,7 @@ export default function MobileBottomNav() {
       className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-neutral-800 bg-[#101214] backdrop-blur supports-[backdrop-filter]:bg-[#101214]/85"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <ul className="grid grid-cols-5 h-14">
+      <ul className="grid grid-cols-6 h-14">
         {items.map((it) => {
           const active = pathname === it.to || pathname.startsWith(it.to + '/')
           return (
@@ -45,4 +46,3 @@ export default function MobileBottomNav() {
     </nav>
   )
 }
-
