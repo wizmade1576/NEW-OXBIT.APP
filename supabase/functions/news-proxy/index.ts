@@ -361,7 +361,8 @@ Deno.serve(async (req) => {
     cache.set(cacheKey, { ts: Date.now(), data })
     return json(data)
   } catch (e) {
-    return json({ error: String(e?.message || e), provider: 'none' }, { status: 500 })
+    // Never hard‑fail: return empty list so UI doesn't show 500
+    return json({ items: [], provider: 'none', error: String(e?.message || e) }, { status: 200 })
   }
 })
 
