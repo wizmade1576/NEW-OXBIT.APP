@@ -199,6 +199,77 @@ Deno.serve(async (req) => {
       return json(out, {}, origin, true)
     }
 
+    if (op === 'bundle') {
+      const ex = (qp.get('ex') || '').toLowerCase()
+      const topN = Math.max(1, Math.min(50, Number(qp.get('topN') || '10') || 10))
+      const period = (qp.get('period') || '5m')
+
+      if (ex === 'binance') {
+        const data: any[] = await fetchJson('https://fapi.binance.com/fapi/v1/ticker/24hr', 10_000)
+        const rows = (Array.isArray(data) ? data : [])
+          .filter(it => String(it.symbol).endsWith('USDT'))
+          .map((it: any) => ({
+            symbol: String(it.symbol),
+            price: Number(it.lastPrice),
+            change24h: Number(it.priceChangePercent),
+            volume: Number(it.quoteVolume),
+            contractType: 'PERP',
+          }))
+        const topSymbols = rows
+          .slice()
+          .sort((a, b) => ((b.volume || 0) - (a.volume || 0)))
+          .slice(0, topN)
+          .map(r => r.symbol)
+        // metrics for top symbols (cached 60s)
+        const metrics: Record<string, any> = {}
+        for (const sym of topSymbols) {
+          metrics[sym] = await metricsForSymbol(sym, period)
+          await new Promise(res => setTimeout(res, 150))
+        }
+        return json({ rows, topSymbols, metrics }, {}, origin, true)
+      }
+
+      if (ex === 'bybit') {
+        const tickers = await fetchJson('https://api.bybit.com/v5/market/tickers?category=linear', 10_000)
+        const info = await fetchJson('https://api.bybit.com/v5/market/instruments-info?category=linear', 10_000)
+        const infoList: any[] = info?.result?.list || []
+        const typeMap = new Map<string, string>()
+        for (const it of infoList) {
+          const ct = String(it?.contractType || '').toLowerCase().includes('perpetual') ? 'PERP' : 'FUTURES'
+          if (it?.symbol) typeMap.set(String(it.symbol), ct)
+        }
+        const list: any[] = tickers?.result?.list || []
+        const rows = list.map((it: any) => ({
+          symbol: String(it.symbol),
+          price: Number(it.lastPrice),
+          change24h: Math.abs(Number(it.price24hPcnt)) <= 1 ? Number(it.price24hPcnt) * 100 : Number(it.price24hPcnt),
+          funding: Math.abs(Number(it.fundingRate)) <= 1 ? Number(it.fundingRate) * 100 : Number(it.fundingRate),
+          volume: Number(it.turnover24h),
+          oi: Number(it.openInterestValue) || Number(it.openInterest),
+          contractType: (typeMap.get(String(it.symbol)) as any) || 'PERP',
+        }))
+        const topSymbols = rows.slice().sort((a, b) => ((b.volume || 0) - (a.volume || 0))).slice(0, topN).map(r => r.symbol)
+        return json({ rows, topSymbols }, {}, origin, true)
+      }
+
+      if (ex === 'okx') {
+        const j = await fetchJson('https://www.okx.com/api/v5/market/tickers?instType=SWAP', 10_000)
+        const list: any[] = j?.data || []
+        const rows = list.map((it: any) => ({
+          symbol: String(it.instId || '').replace(/-SWAP$/, '').replace('-', ''),
+          instId: String(it.instId || ''),
+          price: Number(it.last),
+          change24h: Math.abs(Number(it.sodUtc8 || it.change24h)) <= 1 ? Number(it.sodUtc8 || it.change24h) * 100 : Number(it.sodUtc8 || it.change24h),
+          volume: Number(it.volCcy24h || it.vol24h),
+          contractType: 'PERP',
+        }))
+        const topSymbols = rows.slice().sort((a, b) => ((b.volume || 0) - (a.volume || 0))).slice(0, topN).map(r => r.symbol)
+        return json({ rows, topSymbols }, {}, origin, true)
+      }
+
+      return json({ error: 'invalid_ex' }, { status: 400 }, origin, true)
+    }
+
     // Pass-through: either direct url=... or endpoint=...
     const endpoint = (qp.get('endpoint') || '').trim() as EndpointKey
     const direct = qp.get('url')

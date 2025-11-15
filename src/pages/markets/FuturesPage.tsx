@@ -62,7 +62,7 @@ export default function FuturesPage() {
     pull(); return () => { mounted = false }
   }, [currency])
 
-  // Main fetch (every 3 minutes). Binance uses bulk 24hr endpoint via Edge Function
+  // Main fetch (every 3 minutes). Use Edge Function bundle for all exchanges
   React.useEffect(() => {
     let mounted = true
     let timer: any
@@ -71,34 +71,35 @@ export default function FuturesPage() {
       try {
         setLoading(true); setError(null)
         if (exchange === 'Binance') {
-          const { url, headers } = prox('op=ticker24h')
+          const { url, headers } = prox('op=bundle&ex=binance&topN=10&period=5m')
           const r = await fetch(url, { headers })
-          if (!r.ok) throw new Error('Binance ticker24h')
-          const data: any[] = await r.json()
-          const parsed: Row[] = data.filter(it => String(it.symbol).endsWith('USDT')).map((it: any) => ({
-            symbol: String(it.symbol),
-            price: num(it.lastPrice),
-            change24h: num(it.priceChangePercent),
-            volume: num(it.quoteVolume),
-            contractType: 'PERP',
-          }))
+          if (!r.ok) throw new Error('Binance bundle')
+          const j = await r.json()
+          const parsed: Row[] = (j?.rows || [])
           if (mounted) setRows(parsed)
+          // merge metrics if present
+          const mm = j?.metrics || {}
+          if (mm && Object.keys(mm).length) {
+            setRows(prev => prev.map(x => {
+              const m = mm[x.symbol]; if (!m) return x
+              const add: Partial<Row> = {}
+              if (typeof m.funding === 'number') add.funding = m.funding
+              if (typeof m.oi === 'number' && typeof x.price === 'number') add.oi = m.oi * x.price
+              return { ...x, ...add }
+            }))
+            const nextRatio: Record<string, { long: number; short: number }> = {}
+            Object.keys(mm).forEach(sym => { const m = mm[sym]; if (typeof m.long === 'number' && typeof m.short === 'number') nextRatio[sym] = { long: m.long, short: m.short } })
+            if (Object.keys(nextRatio).length) setRatioMap(prev => ({ ...prev, ...nextRatio }))
+          }
         } else if (exchange === 'Bybit') {
-          const tUrl = 'https://api.bybit.com/v5/market/tickers?category=linear'
-          const iUrl = 'https://api.bybit.com/v5/market/instruments-info?category=linear'
-          const [tRes, iRes] = await Promise.all([fetch(tUrl), fetch(iUrl)])
-          if (!tRes.ok || !iRes.ok) throw new Error('Bybit API error')
-          const tJson = await tRes.json(); const iJson = await iRes.json(); const infoList: any[] = iJson?.result?.list || []
-          const typeMap = new Map<string, ContractType>()
-          for (const it of infoList) { const ct = String(it?.contractType || '').toLowerCase().includes('perpetual') ? 'PERP' : 'FUTURES'; if (it?.symbol) typeMap.set(String(it.symbol), ct as ContractType) }
-          const list: any[] = tJson?.result?.list || []
-          const parsed: Row[] = list.map((it: any) => ({ symbol: String(it.symbol), price: num(it.lastPrice), change24h: percent(it.price24hPcnt), funding: percent(it.fundingRate), volume: num(it.turnover24h), oi: num(it.openInterestValue) || num(it.openInterest), contractType: typeMap.get(String(it.symbol)) || 'PERP' }))
+          const { url, headers } = prox('op=bundle&ex=bybit&topN=10')
+          const r = await fetch(url, { headers }); if (!r.ok) throw new Error('Bybit bundle')
+          const j = await r.json(); const parsed: Row[] = (j?.rows || [])
           if (mounted) setRows(parsed)
         } else if (exchange === 'OKX') {
-          const res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SWAP')
-          if (!res.ok) throw new Error('OKX API error')
-          const j = await res.json(); const list: any[] = j?.data || []
-          const parsed: Row[] = list.map((it: any) => ({ symbol: String(it.instId || '').replace(/-SWAP$/, '').replace('-', ''), instId: String(it.instId || ''), price: num(it.last), change24h: percent(it.sodUtc8 || it.change24h), volume: num(it.volCcy24h || it.vol24h), contractType: 'PERP' }))
+          const { url, headers } = prox('op=bundle&ex=okx&topN=10')
+          const r = await fetch(url, { headers }); if (!r.ok) throw new Error('OKX bundle')
+          const j = await r.json(); const parsed: Row[] = (j?.rows || [])
           if (mounted) setRows(parsed)
         }
       } catch (e: any) {
@@ -110,33 +111,7 @@ export default function FuturesPage() {
     pull(); return () => { mounted = false; if (timer) clearTimeout(timer) }
   }, [exchange, prox])
 
-  // Binance metrics fetch for top 10 only, at most every 5 minutes (server caches ~60s)
-  const lastMetricsAt = React.useRef<number>(0)
-  React.useEffect(() => {
-    if (exchange !== 'Binance') return
-    const now = Date.now(); if (now - lastMetricsAt.current < 5 * 60 * 1000) return
-    const list = [...rows].filter(r => r.volume && r.symbol.endsWith('USDT')).sort((a, b) => ((b.volume || 0) - (a.volume || 0))).slice(0, 10)
-    if (!list.length) return
-    ;(async () => {
-      try {
-        const symbols = list.map(r => r.symbol).join(',')
-        const { url, headers } = prox(`op=metrics&period=5m&symbols=${encodeURIComponent(symbols)}`)
-        const r = await fetch(url, { headers }); if (!r.ok) return
-        const j = await r.json() as Record<string, { funding?: number; oi?: number; long?: number; short?: number }>
-        setRows(prev => prev.map(x => {
-          const m = j[x.symbol]; if (!m) return x
-          const add: Partial<Row> = {}
-          if (typeof m.funding === 'number') add.funding = m.funding
-          if (typeof m.oi === 'number' && typeof x.price === 'number') add.oi = m.oi * x.price
-          return { ...x, ...add }
-        }))
-        const nextRatio: Record<string, { long: number; short: number }> = {}
-        Object.keys(j).forEach(sym => { const m = j[sym]; if (typeof m.long === 'number' && typeof m.short === 'number') nextRatio[sym] = { long: m.long, short: m.short } })
-        if (Object.keys(nextRatio).length) setRatioMap(prev => ({ ...prev, ...nextRatio }))
-        lastMetricsAt.current = Date.now()
-      } catch {}
-    })()
-  }, [exchange, rows, prox])
+  // No extra metrics effect needed; binance bundle already returns metrics
 
   // Filter + sort
   const filteredSorted = React.useMemo(() => {
@@ -261,4 +236,3 @@ function fmtPct(v?: number) { if (!Number.isFinite(v as number)) return '--'; co
 function pctClass(v?: number) { if (!Number.isFinite(v as number)) return 'text-muted-foreground'; return (v as number) >= 0 ? 'text-emerald-400' : 'text-red-400' }
 function convert(value?: number, currency: 'USD' | 'KRW' = 'USD', usdkrw = 0) { if (!Number.isFinite(value as number)) return undefined; if (currency === 'USD') return value; if (usdkrw > 0) return (value as number) * usdkrw; return undefined }
 function formatCurrency(v?: number, currency: 'USD' | 'KRW' = 'USD') { if (!Number.isFinite(v as number)) return '--'; return currency === 'USD' ? `$${(v as number).toLocaleString('en-US')}` : `${Math.round(v as number).toLocaleString('ko-KR')}원` }
-
