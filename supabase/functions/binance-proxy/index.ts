@@ -133,6 +133,38 @@ async function metricsForSymbol(sym: string, period = '5m'): Promise<{ funding?:
   return out
 }
 
+// Optional: Bybit long/short ratio (best-effort; may not be available in all regions)
+async function bybitLongShortRatio(symbol: string, period = '5m'): Promise<{ long?: number; short?: number }> {
+  try {
+    // Bybit period typically like 5min/15min/1h
+    const p = period.replace(/m$/, 'min')
+    const j = await fetchJson(`https://api.bybit.com/v5/market/account-ratio?symbol=${encodeURIComponent(symbol)}&period=${encodeURIComponent(p)}&limit=1`, 60_000)
+    const list: any[] = j?.result?.list || []
+    const item = list[list.length - 1]
+    const lp = Number((item?.buyRatio) ?? (item?.longRatio) ?? NaN) // field names may vary
+    const sp = Number((item?.sellRatio) ?? (item?.shortRatio) ?? NaN)
+    const out: { long?: number; short?: number } = {}
+    if (Number.isFinite(lp)) out.long = lp
+    if (Number.isFinite(sp)) out.short = sp
+    return out
+  } catch { return {} }
+}
+
+// Optional: OKX long/short ratio (best-effort)
+async function okxLongShortRatio(instId: string, period = '5m'): Promise<{ long?: number; short?: number }> {
+  try {
+    const j = await fetchJson(`https://www.okx.com/api/v5/public/long-short-ratio?instId=${encodeURIComponent(instId)}&period=${encodeURIComponent(period)}&limit=1`, 60_000)
+    const list: any[] = j?.data || []
+    const item = list[list.length - 1]
+    const lp = Number((item?.longRatio) ?? NaN)
+    const sp = Number((item?.shortRatio) ?? NaN)
+    const out: { long?: number; short?: number } = {}
+    if (Number.isFinite(lp)) out.long = lp
+    if (Number.isFinite(sp)) out.short = sp
+    return out
+  } catch { return {} }
+}
+
 Deno.serve(async (req) => {
   const origin = req.headers.get('origin') || null
   const allowList = (Deno.env.get('ALLOWED_ORIGINS') || '')
@@ -266,13 +298,23 @@ Deno.serve(async (req) => {
           ? rows.slice().sort((a, b) => ((b.oi || 0) - (a.oi || 0)))
           : rows.slice().sort((a, b) => ((b.volume || 0) - (a.volume || 0)))
         ).slice(0, topN).map(r => r.symbol)
-        // Bybit metrics: reuse row data to avoid extra calls
+        // Bybit metrics: reuse row data; try to add long/short for topSymbols (best-effort)
         const metrics: Record<string, any> = {}
         for (const r of rows) {
           const m: any = {}
           if (Number.isFinite(r.funding as number)) m.funding = r.funding
           if (Number.isFinite(r.oi as number)) m.oi = r.oi // already a value in quote currency
           if (Object.keys(m).length) metrics[r.symbol] = m
+        }
+        // add long/short for topSymbols only to limit calls
+        for (const sym of topSymbols) {
+          try {
+            const rs = await bybitLongShortRatio(sym, period)
+            if (!metrics[sym]) metrics[sym] = {}
+            if (typeof rs.long === 'number') metrics[sym].long = rs.long
+            if (typeof rs.short === 'number') metrics[sym].short = rs.short
+            await new Promise(res => setTimeout(res, 120))
+          } catch {}
         }
         return json({ rows, topSymbols, metrics }, {}, origin, true)
       }
@@ -309,11 +351,28 @@ Deno.serve(async (req) => {
               else if (Number.isFinite(oiQty) && Number.isFinite(r.price as number)) oiUsd = oiQty * (r.price as number)
               if (!metrics[r.symbol]) metrics[r.symbol] = {}
               metrics[r.symbol].oi = oiUsd
+              // try to add long/short
+              try {
+                const rs = await okxLongShortRatio(r.symbol + '-USDT', period)
+                if (typeof rs.long === 'number') metrics[r.symbol].long = rs.long
+                if (typeof rs.short === 'number') metrics[r.symbol].short = rs.short
+              } catch {}
               measured.push({ sym: r.symbol, oiUsd })
               await new Promise(res => setTimeout(res, 120))
             } catch {}
           }
           topSymbols = measured.sort((a, b) => b.oiUsd - a.oiUsd).slice(0, topN).map(x => x.sym)
+        } else {
+          // rankBy volume: add long/short for topSymbols only
+          for (const sym of topSymbols) {
+            try {
+              const rs = await okxLongShortRatio(sym + '-USDT', period)
+              if (!metrics[sym]) metrics[sym] = {}
+              if (typeof rs.long === 'number') metrics[sym].long = rs.long
+              if (typeof rs.short === 'number') metrics[sym].short = rs.short
+              await new Promise(res => setTimeout(res, 120))
+            } catch {}
+          }
         }
         return json({ rows, topSymbols, metrics }, {}, origin, true)
       }

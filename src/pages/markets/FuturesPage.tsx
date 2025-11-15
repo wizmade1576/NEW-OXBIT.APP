@@ -33,6 +33,7 @@ export default function FuturesPage() {
   const [query, setQuery] = React.useState('')
   const [typeFilter, setTypeFilter] = React.useState<'ALL' | ContractType>('ALL')
   const [rows, setRows] = React.useState<Row[]>([])
+  const [rankBy, setRankBy] = React.useState<'volume'|'oi'>('volume')
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [ratioMap, setRatioMap] = React.useState<Record<string, { long: number; short: number }>>({})
@@ -71,7 +72,7 @@ export default function FuturesPage() {
       try {
         setLoading(true); setError(null)
         if (exchange === 'Binance') {
-          const { url, headers } = prox('op=bundle&ex=binance&topN=10&period=5m')
+          const { url, headers } = prox(`op=bundle&ex=binance&topN=10&period=5m&rankBy=${rankBy}`)
           const r = await fetch(url, { headers })
           if (!r.ok) throw new Error('Binance bundle')
           const j = await r.json()
@@ -92,7 +93,7 @@ export default function FuturesPage() {
             if (Object.keys(nextRatio).length) setRatioMap(prev => ({ ...prev, ...nextRatio }))
           }
         } else if (exchange === 'Bybit') {
-          const { url, headers } = prox('op=bundle&ex=bybit&topN=10')
+          const { url, headers } = prox(`op=bundle&ex=bybit&topN=10&rankBy=${rankBy}`)
           const r = await fetch(url, { headers }); if (!r.ok) throw new Error('Bybit bundle')
           const j = await r.json(); const parsed: Row[] = (j?.rows || [])
           if (mounted) setRows(parsed)
@@ -107,7 +108,7 @@ export default function FuturesPage() {
             }))
           }
         } else if (exchange === 'OKX') {
-          const { url, headers } = prox('op=bundle&ex=okx&topN=10')
+          const { url, headers } = prox(`op=bundle&ex=okx&topN=10&rankBy=${rankBy}`)
           const r = await fetch(url, { headers }); if (!r.ok) throw new Error('OKX bundle')
           const j = await r.json(); const parsed: Row[] = (j?.rows || [])
           if (mounted) setRows(parsed)
@@ -129,7 +130,7 @@ export default function FuturesPage() {
       }
     }
     pull(); return () => { mounted = false; if (timer) clearTimeout(timer) }
-  }, [exchange, prox])
+  }, [exchange, prox, rankBy])
 
   // No extra metrics effect needed; binance bundle already returns metrics
 
@@ -170,6 +171,10 @@ export default function FuturesPage() {
                 <option value="funding">펀딩비</option>
                 <option value="oi">미결제약정(OI)</option>
                 <option value="change24h">24h 변동률</option>
+              </select>
+              <select value={rankBy} onChange={e => setRankBy(e.target.value as any)} className="px-2 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm">
+                <option value="volume">상위 기준: 거래량</option>
+                <option value="oi">상위 기준: OI</option>
               </select>
               <button onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')} className="px-2 py-1 rounded border border-neutral-700 bg-[#1a1a1a] hover:bg-[#1e1e1e] text-sm">{sortDir === 'desc' ? '내림차순' : '오름차순'}</button>
               <div className="flex items-center gap-1">
