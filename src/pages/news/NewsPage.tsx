@@ -142,19 +142,6 @@ export default function NewsPage() {
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center gap-2 flex-wrap">
-        <select value={topic} onChange={(e)=>setTopic(e.target.value as Topic)} className="px-2 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm">
-          <option value="crypto">암호화폐</option>
-          <option value="stocks">증시</option>
-          <option value="fx">환율/외환</option>
-        </select>
-        <select value={sort} onChange={(e)=>setSort(e.target.value as any)} className="px-2 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm">
-          <option value="latest">최신순</option>
-          <option value="hot">인기순</option>
-        </select>
-        <input value={q} onChange={(e)=>setQ(e.target.value)} placeholder="검색(예: bitcoin)" className="px-2 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm flex-1 min-w-[200px]" />
-      </div>
-
       {error && (
         <div className="text-xs text-amber-300">로딩 오류: {error} (캐시/네트워크 확인)</div>
       )}
