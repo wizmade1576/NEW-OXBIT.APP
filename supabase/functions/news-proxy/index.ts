@@ -113,9 +113,11 @@ function parseRss(xml: string, fallbackSource: string) {
         const title = cleanText(firstText(it, ['title']) || '')
         const linkEl = it.querySelector('link')
         const url = cleanText((linkEl?.getAttribute('href') || linkEl?.textContent || '').trim())
-        const summary = cleanText(firstText(it, ['summary', 'content']))
+        const rawSummary = cleanText(firstText(it, ['summary', 'content']))
+        const summary = stripHtml(rawSummary)
         const date = firstText(it, ['updated', 'published'])
-        const image = sanitizeImage(extractImageFromDescription(summary))
+        let image = sanitizeImage(extractImageFromDescription(rawSummary))
+        if (!image) image = absoluteFrom(url, extractImageFromDescription(rawSummary))
         if (title && url) out.push({ id: url, title, summary, url, image, date: parseDate(date), source: fallbackSource })
       }
     }
@@ -294,4 +296,5 @@ Deno.serve(async (req) => {
     return json({ error: String(e?.message || e), provider: 'none' }, { status: 500 })
   }
 })
+
 
