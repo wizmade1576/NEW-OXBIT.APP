@@ -270,6 +270,20 @@ Deno.serve(async (req) => {
 
     const provider = pickProvider() // 'none'
 
+    function finalizeItem(n: NewsItem): NewsItem {
+      // ensure summary is clean plain text and not too long
+      let summary = stripHtml(cleanText(n.summary))
+      if (summary.length > 240) summary = summary.slice(0, 240) + '…'
+      let image = n.image
+      if (!image) {
+        // last attempt: try to read from raw summary html if any leftover
+        const raw = cleanText(n.summary)
+        image = sanitizeImage(extractImageFromDescription(raw))
+        if (!image) image = absoluteFrom(n.url, extractImageFromDescription(raw))
+      }
+      return { ...n, summary, image }
+    }
+
     async function build() {
       let items: NewsItem[]
       if (topic === 'all') {
@@ -278,9 +292,11 @@ Deno.serve(async (req) => {
           fetchCustom('stocks', limit),
           fetchCustom('fx', limit),
         ])
-        items = [...c, ...s, ...f].sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
+        items = [...c, ...s, ...f]
+          .sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
+          .map(finalizeItem)
       } else {
-        items = await fetchCustom(topic, limit)
+        items = (await fetchCustom(topic, limit)).map(finalizeItem)
       }
       if (q) {
         const qq = q.toLowerCase()
