@@ -303,7 +303,7 @@ export async function fetchTopic(topic: Topic, cursorOrPage?: string | number, l
       })
       clearTimeout(timer)
       if (!error && data?.items) {
-        return { items: data.items, cursor: data.cursor, nextPage: data.nextPage, provider: (data as any).provider || 'reddit' }
+        return { items: data.items, cursor: (data as any).nextCursor, nextPage: data.nextPage, provider: (data as any).provider || 'reddit' }
       }
     } catch {
       // Try direct GET to the Edge Function before falling back to client-side proxies
@@ -324,7 +324,7 @@ export async function fetchTopic(topic: Topic, cursorOrPage?: string | number, l
           const r = await fetchWithTimeout(url.toString(), 10000, { headers })
           if (r.ok) {
             const data = await r.json()
-            if (data?.items) return { items: data.items, cursor: data.cursor, nextPage: data.nextPage, provider: (data as any).provider || 'none' }
+            if (data?.items) return { items: data.items, cursor: (data as any).nextCursor, nextPage: data.nextPage, provider: (data as any).provider || 'none' }
           }
         }
       } catch {

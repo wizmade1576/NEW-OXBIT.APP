@@ -91,8 +91,8 @@ function useInfiniteNews(params: {
           if (r.ok) {
             const j = await r.json()
             list = Array.isArray(j?.items) ? j.items : []
-            nextPage = j?.nextPage as number | undefined
-            nextCursor = j?.cursor as string | undefined
+            nextPage = (j?.nextPage ?? null) || undefined
+            nextCursor = (j?.nextCursor ?? null) || undefined
           }
         }
       } catch {}
@@ -101,7 +101,7 @@ function useInfiniteNews(params: {
         const resp = await fetchTopic(topic as any, cursor ?? page, pageSize)
         list = Array.isArray(resp?.items) ? (resp.items as NewsItem[]) : []
         nextPage = resp?.nextPage as number | undefined
-        nextCursor = resp?.cursor as string | undefined
+        nextCursor = (resp as any)?.nextCursor as string | undefined
       }
       setItems((prev) => (page === 1 ? list : prev.concat(list)))
       setPage((p) => (nextPage ? nextPage : p + 1))

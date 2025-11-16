@@ -1,4 +1,4 @@
-ï»¿// deno-lint-ignore-file no-explicit-any
+// deno-lint-ignore-file no-explicit-any
 // Supabase Edge Function: news-proxy (KR RSS only)
 // GET /news-proxy?topic=crypto|stocks|fx|all&sort=latest&q=&limit=30
 
@@ -253,9 +253,9 @@ function classifyTopic(title?: string, summary?: string, fallback: Topic = 'cryp
   const s = (summary || '').toLowerCase()
   const txt = `${t} ${s}`
   const has = (...ks: string[]) => ks.some(k => txt.includes(k.toLowerCase()))
-  if (has('ë¹„íŠ¸ì½”ì¸','ì½”ì¸','ì•”í˜¸í™”í','ë¸”ë¡ì²´ì¸','ê°€ìƒìžì‚°','ì—…ë¹„íŠ¸','ë°”ì´ë‚¸ìŠ¤')) return 'crypto'
-  if (has('ì£¼ì‹','ì¦ì‹œ','ë‚˜ìŠ¤ë‹¥','ê¸°ì—…','ê¸€ë¡œë²Œ','ê²½ì œ','s&p','ì½”ìŠ¤í”¼','ì½”ìŠ¤ë‹¥','ë‹¤ìš°')) return 'stocks'
-  if (has('í™˜ìœ¨','ê¸ˆë¦¬','ë‹¬ëŸ¬','usd','í™˜ì „','ì™¸í™˜','ì±„ê¶Œ','ì—°ì¤€','fed')) return 'fx'
+  if (has('ºñÆ®ÄÚÀÎ','ÄÚÀÎ','¾ÏÈ£È­Æó','ºí·ÏÃ¼ÀÎ','°¡»óÀÚ»ê','¾÷ºñÆ®','¹ÙÀÌ³½½º')) return 'crypto'
+  if (has('ÁÖ½Ä','Áõ½Ã','³ª½º´Ú','±â¾÷','±Û·Î¹ú','°æÁ¦','s&p','ÄÚ½ºÇÇ','ÄÚ½º´Ú','´Ù¿ì')) return 'stocks'
+  if (has('È¯À²','±Ý¸®','´Þ·¯','usd','È¯Àü','¿ÜÈ¯','Ã¤±Ç','¿¬ÁØ','fed')) return 'fx'
   return fallback
 }
 
@@ -448,7 +448,7 @@ Deno.serve(async (req) => {
       const paged = itemsWithThumb.slice(offset, offset + limit)
       const hasMore = itemsWithThumb.length > offset + paged.length
       const nextPage = hasMore ? page + 1 : undefined
-      return { items: paged, provider, nextPage }
+      return { items: paged, nextPage: nextPage ?? null, nextCursor: null }
     }
 
     const cacheKey = keyOf({ topic, sort, q, limit, page })
@@ -456,12 +456,14 @@ Deno.serve(async (req) => {
     if (c && Date.now() - c.ts < CACHE_TTL_MS) return json(c.data)
     const data = await build()
     cache.set(cacheKey, { ts: Date.now(), data })
-    return json(data)
+    const normalized = { items: data.items || [], nextPage: data.nextPage ?? null, nextCursor: data.nextCursor ?? null }
+    return json(normalized)
   } catch (e) {
-    // Never hardâ€‘fail: return empty list so UI doesn't show 500
-    return json({ items: [], provider: 'none', error: String(e?.message || e) }, { status: 200 })
+    // Never hard-fail: return empty list so UI does not error
+    return json({ items: [], nextPage: null, nextCursor: null }, { status: 200 })
   }
 })
+
 
 
 
