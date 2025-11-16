@@ -141,6 +141,7 @@ export default function StocksPage() {
 
   // BTC Dominance from CoinGecko (60s poll)
   React.useEffect(() => {
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     let timer: any
     const fetchDom = async () => {
       try {

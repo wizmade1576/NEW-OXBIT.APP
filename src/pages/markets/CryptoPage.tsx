@@ -60,6 +60,7 @@ export default function CryptoPage() {
   const [nextAt, setNextAt] = React.useState<number | null>(null)
   const [remain, setRemain] = React.useState<number>(0)
   React.useEffect(() => {
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     let mounted = true
     let timer: any
     const cacheKey = 'cg_markets_cache_v1'
