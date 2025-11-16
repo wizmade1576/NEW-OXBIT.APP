@@ -309,13 +309,19 @@ export async function fetchTopic(topic: Topic, cursorOrPage?: string | number, l
       // Try direct GET to the Edge Function before falling back to client-side proxies
       try {
         const base = import.meta.env.VITE_SUPABASE_URL as string | undefined
+        const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
         if (base) {
           const url = new URL(`${base}/functions/v1/news-proxy`)
           url.searchParams.set('topic', topic)
           if (typeof cursorOrPage === 'string') url.searchParams.set('cursor', cursorOrPage)
           if (typeof cursorOrPage === 'number') url.searchParams.set('page', String(cursorOrPage))
           url.searchParams.set('limit', String(limit))
-          const r = await fetchWithTimeout(url.toString(), 8000)
+          const headers: Record<string, string> = {}
+          if (anon) {
+            headers['apikey'] = anon
+            headers['Authorization'] = `Bearer ${anon}`
+          }
+          const r = await fetchWithTimeout(url.toString(), 10000, { headers })
           if (r.ok) {
             const data = await r.json()
             if (data?.items) return { items: data.items, cursor: data.cursor, nextPage: data.nextPage, provider: (data as any).provider || 'none' }
