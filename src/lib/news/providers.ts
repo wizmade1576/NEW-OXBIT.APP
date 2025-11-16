@@ -332,6 +332,11 @@ export async function fetchTopic(topic: Topic, cursorOrPage?: string | number, l
       }
     }
   }
+  // Edge Functions enabled but call failed: avoid browser-side RSS fallback (causes CORS/403)
+  // Show graceful empty state instead; logs can be checked on the function side.
+  if (useEdge) {
+    return { items: [], provider: 'none' }
+  }
   const provider = getProvider()
   try {
     if (provider === 'none') {
