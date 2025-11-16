@@ -1,6 +1,6 @@
 import * as React from "react"
-import { fetchTopic } from "../../lib/news/providers"
 import fetchAllTopics from "../../lib/news/aggregate"
+import useInfiniteNews, { type Topic as BaseTopic } from "../../hooks/useInfiniteNews"
 
 type NewsItem = {
   id: string
@@ -12,7 +12,7 @@ type NewsItem = {
   source: string
 }
 
-type Topic = "crypto" | "stocks" | "fx" | "mix"
+type Topic = BaseTopic | "mix"
 
 const DEFAULT_THUMB =
   "https://images.weserv.nl/?url=via.placeholder.com/160x90.png?text=NEWS&h=90&w=160&fit=cover&we=1"
@@ -36,92 +36,7 @@ function thumb(url?: string, w = 160, h = 90) {
   }
 }
 
-function useInfiniteNews(params: {
-  topic: string
-  q?: string
-  sort?: "latest" | "hot"
-  pageSize?: number
-}) {
-  const { topic, q = "", sort = "latest", pageSize = 20 } = params
-  const [items, setItems] = React.useState<NewsItem[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [page, setPage] = React.useState(1)
-  const [cursor, setCursor] = React.useState<string | undefined>(undefined)
-  const [hasMore, setHasMore] = React.useState(true)
-  const cacheKey = React.useMemo(() => `news_cache_v4_${topic}_${sort}_${q}`, [topic, sort, q])
-  const busyRef = React.useRef(false)
-
-  React.useEffect(() => {
-    try {
-      const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null")
-      if (cached?.items) setItems(cached.items as NewsItem[])
-    } catch {}
-  }, [cacheKey])
-
-  React.useEffect(() => {
-    setItems([])
-    setPage(1)
-    setCursor(undefined)
-    setHasMore(true)
-  }, [topic, q, sort])
-
-  const fetchPage = React.useCallback(async () => {
-    if (busyRef.current || !hasMore) return
-    busyRef.current = true
-    setLoading(true)
-    try {
-      let list: NewsItem[] = []
-      let nextPage: number | undefined
-      let nextCursor: string | undefined
-      // Prefer direct Edge Function GET with auth headers when enabled
-      try {
-        const useEdge = (import.meta as any).env?.VITE_USE_EDGE_FUNCTIONS === 'true'
-        const base = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined
-        const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined
-        if (useEdge && base) {
-          const url = new URL(`${base}/functions/v1/news-proxy`)
-          url.searchParams.set('topic', topic)
-          url.searchParams.set('limit', String(pageSize))
-          if (cursor) url.searchParams.set('cursor', cursor)
-          else url.searchParams.set('page', String(page))
-          const headers: Record<string, string> = {}
-          if (anon) { headers['apikey'] = anon; headers['Authorization'] = `Bearer ${anon}` }
-          const r = await fetch(url.toString(), { headers })
-          if (r.ok) {
-            const j = await r.json()
-            list = Array.isArray(j?.items) ? j.items : []
-            nextPage = (j?.nextPage ?? null) || undefined
-            nextCursor = (j?.nextCursor ?? null) || undefined
-          }
-        }
-      } catch {}
-      // Fallback to provider-based fetch if edge path didn't return items
-      if (!list.length) {
-        const resp = await fetchTopic(topic as any, cursor ?? page, pageSize)
-        list = Array.isArray(resp?.items) ? (resp.items as NewsItem[]) : []
-        nextPage = resp?.nextPage as number | undefined
-        nextCursor = (resp as any)?.nextCursor as string | undefined
-      }
-      setItems((prev) => (page === 1 ? list : prev.concat(list)))
-      setPage((p) => (nextPage ? nextPage : p + 1))
-      setCursor(nextCursor)
-      setHasMore(Boolean((nextPage && list.length) || nextCursor))
-
-      try {
-        if (page === 1) sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), items: list }))
-      } catch {}
-    } catch (e: any) {
-      setError(e?.message || "fetch_error")
-      setHasMore(false)
-    } finally {
-      setLoading(false)
-      busyRef.current = false
-    }
-  }, [topic, q, sort, pageSize, page, cursor, hasMore, cacheKey])
-
-  return { items, loading, error, fetchPage, hasMore, setItems, setLoading }
-}
+// remove local hook; replaced by shared hooks/useInfiniteNews
 
 const NewsCard = React.memo(function NewsCard({ n }: { n: NewsItem }) {
   const [src, setSrc] = React.useState(() => thumb(n.image))
@@ -175,13 +90,8 @@ function SkeletonCard() {
 export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic }) {
   const isMix = topic === "mix"
 
-  const { items, loading, error, fetchPage, hasMore, setItems, setLoading } =
-    useInfiniteNews({
-      topic: isMix ? "crypto" : topic,
-      q: "",
-      sort: "latest",
-      pageSize: 20,
-    })
+  const { items, loading, error, fetchNext: fetchPage, hasMore, setItems, setLoading } =
+    useInfiniteNews({ topic: (isMix ? 'crypto' : topic) as BaseTopic, pageSize: 20 })
 
   const list = React.useMemo(() => items, [items])
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
