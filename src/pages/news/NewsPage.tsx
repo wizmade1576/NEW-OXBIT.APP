@@ -36,8 +36,6 @@ function thumb(url?: string, w = 160, h = 90) {
   }
 }
 
-// remove local hook; replaced by shared hooks/useInfiniteNews
-
 const NewsCard = React.memo(function NewsCard({ n }: { n: NewsItem }) {
   const [src, setSrc] = React.useState(() => thumb(n.image))
   return (
@@ -90,9 +88,18 @@ function SkeletonCard() {
 export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic }) {
   const isMix = topic === "mix"
 
-  const { items, loading, error, fetchNext: fetchPage, hasMore, setItems, setLoading } =
-    useInfiniteNews({ topic: (isMix ? 'crypto' : topic) as BaseTopic, pageSize: 20 })
-  // Mix (topic=all) pagination state
+  const {
+    items,
+    loading,
+    error,
+    fetchNext: fetchPage,
+    hasMore,
+  } = useInfiniteNews({
+    topic: (isMix ? "crypto" : topic) as BaseTopic,
+    pageSize: 10,
+  })
+
+  // Mix 전용 상태
   const [mixItems, setMixItems] = React.useState<NewsItem[]>([])
   const [mixLoading, setMixLoading] = React.useState(false)
   const [mixError, setMixError] = React.useState<string | null>(null)
@@ -103,28 +110,36 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
   const list = React.useMemo(() => (isMix ? mixItems : items), [isMix, mixItems, items])
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
 
-  // Mix: Edge Function pagination (topic=all)
+  // Mix: Edge Function pagination
   const fetchMix = React.useCallback(async () => {
     if (!isMix || mixBusy.current || !mixHasMore) return
     mixBusy.current = true
     setMixLoading(true)
+
     try {
-      const useEdge = (import.meta as any).env?.VITE_USE_EDGE_FUNCTIONS === 'true'
-      const base = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined
-      const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined
-      if (useEdge && base) {
+      const base = (import.meta as any).env?.VITE_SUPABASE_URL
+      const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY
+
+      if (base) {
         const url = new URL(`${base}/functions/v1/news-proxy`)
-        url.searchParams.set('topic', 'all')
-        url.searchParams.set('limit', '20')
-        url.searchParams.set('page', String(mixPage))
+        url.searchParams.set("topic", "all")
+        url.searchParams.set("limit", "20")
+        url.searchParams.set("page", String(mixPage))
+
         const headers: Record<string, string> = {}
-        if (anon) { headers['apikey'] = anon; headers['Authorization'] = `Bearer ${anon}` }
+        if (anon) {
+          headers["apikey"] = anon
+          headers["Authorization"] = `Bearer ${anon}`
+        }
+
         const r = await fetch(url.toString(), { headers })
         if (r.ok) {
           const j = await r.json()
           const arr: NewsItem[] = Array.isArray(j?.items) ? j.items : []
+
           setMixItems(prev => (mixPage === 1 ? arr : prev.concat(arr)))
-          const next: number | null = j?.nextPage ?? null
+
+          const next = j?.nextPage ?? null
           setMixPage(p => (next ? next : p + 1))
           setMixHasMore(Boolean(next && arr.length))
           setMixLoading(false)
@@ -132,15 +147,18 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
           return
         }
       }
-      // fallback to client aggregator (first page only)
+
+      // fallback (첫 페이지만)
       if (mixPage === 1) {
         const { items } = await fetchAllTopics({ limitPerTopic: 10 })
-        const merged = items.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        const merged = items
+          .slice()
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         setMixItems(merged as any)
       }
       setMixHasMore(false)
     } catch (e: any) {
-      setMixError(e?.message || 'fetch_error')
+      setMixError(e?.message || "fetch_error")
       setMixHasMore(false)
     } finally {
       setMixLoading(false)
@@ -157,7 +175,7 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
     fetchMix()
   }, [isMix, fetchMix])
 
-  // Infinite scroll (disabled for mix)
+  // Infinite scroll for 일반 topic
   React.useEffect(() => {
     if (isMix) return
     fetchPage()
@@ -166,11 +184,14 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
   React.useEffect(() => {
     const el = sentinelRef.current
     if (!el) return
-    const io = new IntersectionObserver((ents) => {
-      if (ents.some((e) => e.isIntersecting)) {
-        if (isMix) fetchMix(); else fetchPage()
+
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting)) {
+        if (isMix) fetchMix()
+        else fetchPage()
       }
     })
+
     io.observe(el)
     return () => io.disconnect()
   }, [fetchPage, fetchMix, isMix])
@@ -183,7 +204,7 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
       <div className="grid grid-cols-1 gap-3">
         {(isMix ? mixLoading : loading) && list.length === 0
           ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)
-          : list.map((n) => <NewsCard key={n.id || n.url} n={n} />)}
+          : list.map(n => <NewsCard key={n.id || n.url} n={n} />)}
       </div>
 
       {!isMix && !loading && list.length === 0 && (
@@ -194,22 +215,32 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
         <div className="text-xs text-muted-foreground">표시할 뉴스가 없습니다.</div>
       )}
 
-            <div ref={sentinelRef} />
+      <div ref={sentinelRef} />
+
+      {/* 일반 topic 더보기 */}
       {!isMix && !loading && hasMore && (
         <div className="flex justify-center">
-          <button onClick={fetchPage} className="px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm">더 보기</button>
+          <button
+            onClick={fetchPage}
+            className="px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm"
+          >
+            더 보기
+          </button>
         </div>
       )}
+
+      {/* mix 더보기 */}
       {isMix && !mixLoading && mixHasMore && (
         <div className="flex justify-center">
-          <button onClick={fetchMix} className="px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm">더 보기</button>
+          <button
+            onClick={fetchMix}
+            className="px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm"
+          >
+            더 보기
+          </button>
         </div>
-      </section>
+      )}
+    </section>
   )
 }
-
-
-
-
-
 

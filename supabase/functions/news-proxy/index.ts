@@ -1,4 +1,4 @@
-// deno-lint-ignore-file no-explicit-any
+ï»¿// deno-lint-ignore-file no-explicit-any
 // Supabase Edge Function: news-proxy (KR RSS only)
 // GET /news-proxy?topic=crypto|stocks|fx|all&sort=latest&q=&limit=30
 
@@ -213,11 +213,7 @@ const RSS_SOURCES: { name: string; url: string; defaultTopic: Topic }[] = [
   { name: 'TokenPost',  url: 'https://www.tokenpost.kr/rss', defaultTopic: 'crypto' },
   { name: 'BlockMedia', url: 'https://www.blockmedia.co.kr/feed', defaultTopic: 'crypto' },
   { name: 'CoinReaders', url: 'https://www.coinreaders.com/rss/rss_news.php', defaultTopic: 'crypto' },
-  { name: 'BonMedia',   url: 'https://bonmedia.kr/rss', defaultTopic: 'crypto' },
-  { name: 'TheGuru',    url: 'https://www.theguru.co.kr/rss', defaultTopic: 'stocks' },
 ]
-
-// Alternate feeds per source to improve reliability (dedupe later)
 const ALT_RSS: Record<string, string[]> = {
   TokenPost: [
     'https://m.tokenpost.kr/rss',
@@ -253,9 +249,9 @@ function classifyTopic(title?: string, summary?: string, fallback: Topic = 'cryp
   const s = (summary || '').toLowerCase()
   const txt = `${t} ${s}`
   const has = (...ks: string[]) => ks.some(k => txt.includes(k.toLowerCase()))
-  if (has('ºñÆ®ÄÚÀÎ','ÄÚÀÎ','¾ÏÈ£È­Æó','ºí·ÏÃ¼ÀÎ','°¡»óÀÚ»ê','¾÷ºñÆ®','¹ÙÀÌ³½½º')) return 'crypto'
-  if (has('ÁÖ½Ä','Áõ½Ã','³ª½º´Ú','±â¾÷','±Û·Î¹ú','°æÁ¦','s&p','ÄÚ½ºÇÇ','ÄÚ½º´Ú','´Ù¿ì')) return 'stocks'
-  if (has('È¯À²','±Ý¸®','´Þ·¯','usd','È¯Àü','¿ÜÈ¯','Ã¤±Ç','¿¬ÁØ','fed')) return 'fx'
+  if (has('ë¹„íŠ¸ì½”ì¸','ì½”ì¸','ì•”í˜¸í™”í','ë¸”ë¡ì²´ì¸','ê°€ìƒìžì‚°','ì—…ë¹„íŠ¸','ë°”ì´ë‚¸ìŠ¤')) return 'crypto'
+  if (has('ì£¼ì‹','ì¦ì‹œ','ë‚˜ìŠ¤ë‹¥','ê¸°ì—…','ê¸€ë¡œë²Œ','ê²½ì œ','s&p','ì½”ìŠ¤í”¼','ì½”ìŠ¤ë‹¥','ë‹¤ìš°')) return 'stocks'
+  if (has('í™˜ìœ¨','ê¸ˆë¦¬','ë‹¬ëŸ¬','usd','í™˜ì „','ì™¸í™˜','ì±„ê¶Œ','ì—°ì¤€','fed')) return 'fx'
   return fallback
 }
 
@@ -463,6 +459,8 @@ Deno.serve(async (req) => {
     return json({ items: [], nextPage: null, nextCursor: null }, { status: 200 })
   }
 })
+
+
 
 
 
