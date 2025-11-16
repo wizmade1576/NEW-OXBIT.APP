@@ -224,6 +224,7 @@ async function fetchCustom(topic: Topic, limit = 30): Promise<NewsItem[]> {
   const all: NewsItem[] = []
   RSS_SOURCES.forEach((src, i) => {
     const list = settles[i].status === 'fulfilled' ? settles[i].value : []
+    dbg('source', src.name, 'defaultTopic', src.defaultTopic, 'count', Array.isArray(list) ? list.length : 0)
     for (const it of list) {
       const t = classifyTopic(it.title, it.summary, src.defaultTopic)
       all.push({ ...it, title: cleanText(it.title), summary: cleanText(it.summary), image: sanitizeImage(it.image), topic: t })
@@ -239,7 +240,9 @@ async function fetchCustom(topic: Topic, limit = 30): Promise<NewsItem[]> {
     })
     if (sourceFallback.length) filtered = sourceFallback
   }
-  return filtered.slice().sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
+  const out = filtered.slice().sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
+  dbg('fetchCustom result', { topic, total: out.length })
+  return out
 }
 
 // ---------- Cache (env-configurable) ----------
@@ -255,6 +258,11 @@ const SB_URL = Deno.env.get('SUPABASE_URL')
 const SB_SERVICE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 const SB_BUCKET = Deno.env.get('THUMBS_BUCKET') || 'thumbs'
 const supabase = (SB_URL && SB_SERVICE) ? createClient(SB_URL, SB_SERVICE, { auth: { persistSession: false } }) : null
+
+// Debug toggle
+const DEBUG_NEWS = (Deno.env.get('DEBUG_NEWS') || '').toLowerCase()
+const DEBUG = DEBUG_NEWS === '1' || DEBUG_NEWS === 'true'
+function dbg(...args: unknown[]) { try { if (DEBUG) console.log('[news-proxy]', ...args) } catch {} }
 
 async function readFromStorage(key: string): Promise<{ buf: Uint8Array; type: string } | null> {
   try {
