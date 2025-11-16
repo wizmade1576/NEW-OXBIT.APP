@@ -1,4 +1,4 @@
-import * as React from "react"
+ï»¿import * as React from "react"
 import fetchAllTopics from "../../lib/news/aggregate"
 import useInfiniteNews, { type Topic as BaseTopic } from "../../hooks/useInfiniteNews"
 
@@ -66,7 +66,7 @@ const NewsCard = React.memo(function NewsCard({ n }: { n: NewsItem }) {
         ) : null}
         <div className="mt-2 text-[11px] text-neutral-400 flex items-center gap-2">
           <span>{n.source}</span>
-          <span>??/span>
+          <span>â€¢</span>
           <time dateTime={n.date}>{new Date(n.date).toLocaleString()}</time>
         </div>
       </div>
@@ -177,8 +177,8 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
 
   return (
     <section className="space-y-4">
-      {!isMix && error && <div className="text-xs text-amber-300">·Îµù ¿À·ù: {error}</div>}
-      {isMix && mixError && <div className="text-xs text-amber-300">·Îµù ¿À·ù: {mixError}</div>}
+      {!isMix && error && <div className="text-xs text-amber-300">ë¡œë”© ì˜¤ë¥˜: {error}</div>}
+      {isMix && mixError && <div className="text-xs text-amber-300">ë¡œë”© ì˜¤ë¥˜: {mixError}</div>}
 
       <div className="grid grid-cols-1 gap-3">
         {(isMix ? mixLoading : loading) && list.length === 0
@@ -187,40 +187,20 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
       </div>
 
       {!isMix && !loading && list.length === 0 && (
-        <div className="text-xs text-muted-foreground">Ç¥½ÃÇÒ ´º½º°¡ ¾ø½À´Ï´Ù.</div>
+        <div className="text-xs text-muted-foreground">í‘œì‹œí•  ë‰´ìŠ¤ê°€ ì—†ìŠµë‹ˆë‹¤.</div>
       )}
 
       {isMix && !mixLoading && list.length === 0 && (
-        <div className="text-xs text-muted-foreground">Ç¥½ÃÇÒ ´º½º°¡ ¾ø½À´Ï´Ù.</div>
+        <div className="text-xs text-muted-foreground">í‘œì‹œí•  ë‰´ìŠ¤ê°€ ì—†ìŠµë‹ˆë‹¤.</div>
       )}
 
-      {!isMix && (
-        <>
-          <div ref={sentinelRef} />
-          {!isMix && !loading && hasMore && (
-            <div className="flex justify-center">
-              <button
-                onClick={fetchPage}
-                className="px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm"
-              >
-                ´õ º¸±â
-              </button>
-            </div>
-          )}
-          {isMix && !mixLoading && mixHasMore && (
-            <div className="flex justify-center">
-              <button
-                onClick={fetchMix}
-                className="px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm"
-              >
-                ´õ º¸±â
-              </button>
-            </div>
-          )}
+      {!isMix && (<>\r\n          <div ref={sentinelRef} />\r\n          {!loading && hasMore && (\r\n            <div class=\"flex justify-center\">\r\n              <button onClick={fetchPage} className=\"px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm\">ë” ë³´ê¸°</button>\r\n            </div>\r\n          )}\r\n        </>)}\r\n\r\n      {isMix && (<>\r\n          <div ref={sentinelRef} />\r\n          {!mixLoading && mixHasMore && (\r\n            <div class=\"flex justify-center\">\r\n              <button onClick={fetchMix} className=\"px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm\">ë” ë³´ê¸°</button>\r\n            </div>\r\n          )}\r\n        </>)}
           )}
         </>
       )}
     </section>
   )
 }
+
+
 
