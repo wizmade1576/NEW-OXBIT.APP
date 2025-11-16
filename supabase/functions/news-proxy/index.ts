@@ -170,7 +170,7 @@ async function fetchRss(url: string, name: string): Promise<Omit<NewsItem, 'topi
       },
       signal: controller.signal,
     })
-    if (!res.ok) return []
+    if (!res.ok) throw new Error(String(res.status))
     // Try multiple decoders for KR feeds (euc-kr/cp949)
     const buf = new Uint8Array(await res.arrayBuffer())
     const encs = ['utf-8','euc-kr','ks_c_5601-1987','cp949'] as const
@@ -184,8 +184,27 @@ async function fetchRss(url: string, name: string): Promise<Omit<NewsItem, 'topi
         if (list.length) return list
       } catch {}
     }
+    throw new Error('parse_failed')
+  } catch {
+    // Fallback mirrors (server-side, no CORS): r.jina.ai, allorigins
+    try {
+      const altUrls = [
+        `https://r.jina.ai/http/${url.replace(/^https?:\/\//,'')}`,
+        `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      ]
+      for (const u of altUrls) {
+        try {
+          const r = await fetch(u, { headers: { 'user-agent': 'OXBIT.NewsProxy/1.0 (+https://oxbit.app)' } })
+          if (!r.ok) continue
+          const xml = await r.text()
+          let list = parseRss(xml, name)
+          if (!list.length) list = parseRssFallback(xml, name)
+          if (list.length) return list
+        } catch {}
+      }
+    } catch {}
     return []
-  } catch { return [] } finally { clearTimeout(to) }
+  } finally { clearTimeout(to) }
 }
 
 // ---------- KR RSS Sources ----------
