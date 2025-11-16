@@ -217,6 +217,37 @@ const RSS_SOURCES: { name: string; url: string; defaultTopic: Topic }[] = [
   { name: 'TheGuru',    url: 'https://www.theguru.co.kr/rss', defaultTopic: 'stocks' },
 ]
 
+// Alternate feeds per source to improve reliability (dedupe later)
+const ALT_RSS: Record<string, string[]> = {
+  TokenPost: [
+    'https://m.tokenpost.kr/rss',
+    'http://www.tokenpost.kr/rss',
+  ],
+  BlockMedia: [
+    'https://www.blockmedia.co.kr/rss',
+  ],
+  CoinReaders: [
+    'https://m.coinreaders.com/plugin/rss',
+  ],
+}
+
+async function fetchSourceWithAlts(name: string, primaryUrl: string): Promise<Omit<NewsItem,'topic'>[]> {
+  // Try primary first
+  let list = await fetchRss(primaryUrl, name)
+  if (Array.isArray(list) && list.length) return list
+  const alts = ALT_RSS[name] || []
+  for (const u of alts) {
+    try {
+      const l = await fetchRss(u, name)
+      if (Array.isArray(l) && l.length) {
+        try { dbg('alt_used', { name, url: u, count: l.length }) } catch {}
+        return l
+      }
+    } catch {}
+  }
+  return list
+}
+
 function classifyTopic(title?: string, summary?: string, fallback: Topic = 'crypto'): Topic {
   const t = (title || '').toLowerCase()
   const s = (summary || '').toLowerCase()
@@ -240,7 +271,7 @@ function normalizeUrl(u: string): string {
 }
 
 async function fetchCustom(topic: Topic, limit = 30): Promise<NewsItem[]> {
-  const settles = await Promise.allSettled(RSS_SOURCES.map(s => fetchRss(s.url, s.name)))
+  const settles = await Promise.allSettled(RSS_SOURCES.map(s => fetchSourceWithAlts(s.name, s.url)))
   const all: NewsItem[] = []
   RSS_SOURCES.forEach((src, i) => {
     const list = settles[i].status === 'fulfilled' ? settles[i].value : []
