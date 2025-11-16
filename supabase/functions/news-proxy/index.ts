@@ -161,12 +161,13 @@ function parseRssFallback(xml: string, source: string): Omit<NewsItem, 'topic'>[
 
 async function fetchRss(url: string, name: string): Promise<Omit<NewsItem, 'topic'>[]> {
   const controller = new AbortController()
-  const to = setTimeout(() => controller.abort(), 5000)
+  const to = setTimeout(() => controller.abort(), 8000)
   try {
     const res = await fetch(url, {
       headers: {
         'accept': 'application/rss+xml, application/xml, text/xml; charset=utf-8',
-        'user-agent': 'OXBIT.NewsProxy/1.0 (+https://oxbit.app)'
+        'user-agent': 'OXBIT.NewsProxy/1.0 (+https://oxbit.app)',
+        'accept-language': 'ko-KR,ko;q=0.9,en;q=0.8'
       },
       signal: controller.signal,
     })
