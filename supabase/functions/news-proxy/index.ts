@@ -242,11 +242,11 @@ async function fetchCustom(topic: Topic, limit = 30): Promise<NewsItem[]> {
   return filtered.slice().sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
 }
 
-// ---------- Cache (10s) ----------
-const CACHE_TTL_MS = 10_000
+// ---------- Cache (env-configurable) ----------
+const CACHE_TTL_MS = Number(Deno.env.get('CACHE_TTL_MS') ?? '10000')
 const cache = new Map<string, { ts: number; data: any }>()
 // thumbnail cache (binary)
-const IMG_CACHE_TTL_MS = 60 * 60 * 1000 // 1h
+const IMG_CACHE_TTL_MS = Number(Deno.env.get('IMG_CACHE_TTL_MS') ?? String(60 * 60 * 1000)) // default 1h
 const imgCache = new Map<string, { ts: number; buf: Uint8Array; type: string }>()
 
 // ---- Supabase Storage helpers (best-effort) ----
@@ -290,10 +290,19 @@ Deno.serve(async (req) => {
     // Thumbnail proxy endpoint
     if (qp.get('thumb') === '1') {
       const src = qp.get('u') || ''
-      const w = Math.max(1, Math.min(640, Number(qp.get('w') || '160') || 160))
-      const h = Math.max(1, Math.min(640, Number(qp.get('h') || '90') || 90))
+      const defaultW = Number(Deno.env.get('THUMB_WIDTH') ?? '160')
+      const defaultH = Number(Deno.env.get('THUMB_HEIGHT') ?? '90')
+      const w = Math.max(1, Math.min(640, Number(qp.get('w') || String(defaultW)) || defaultW))
+      const h = Math.max(1, Math.min(640, Number(qp.get('h') || String(defaultH)) || defaultH))
       if (!/^https?:\/\//i.test(src)) return json({ error: 'invalid_url' }, { status: 400 })
-      const fmt = (qp.get('fmt') || 'webp').toLowerCase()
+      let fmt = (qp.get('fmt') || Deno.env.get('THUMB_FMT') || 'webp').toLowerCase()
+      if (fmt === 'auto') {
+        const accept = (req.headers.get('accept') || '').toLowerCase()
+        fmt = accept.includes('image/avif') ? 'avif' : (accept.includes('image/webp') ? 'webp' : 'jpeg')
+      }
+      const qDefault = Number(Deno.env.get('THUMB_QUALITY') ?? '75')
+      const qParam = Number(qp.get('q') || String(qDefault)) || qDefault
+      const quality = Math.max(1, Math.min(100, qParam))
       const keyPlain = `t:${w}x${h}:${fmt}:${src}`
       const key = await hashKey(keyPlain)
       const cached = imgCache.get(keyPlain)
@@ -306,8 +315,8 @@ Deno.serve(async (req) => {
         imgCache.set(keyPlain, { ts: Date.now(), buf: stored.buf, type: stored.type })
         return new Response(stored.buf, { status: 200, headers: withCorsHeaders({ 'content-type': stored.type, 'cache-control': 'max-age=3600' }) })
       }
-      // Use images.weserv.nl for resizing; prefer WEBP
-      const wsrv = `https://images.weserv.nl/?url=${encodeURIComponent(src)}&w=${w}&h=${h}&fit=cover&we=1&il&output=${fmt}&q=75`
+      // Use images.weserv.nl for resizing
+      const wsrv = `https://images.weserv.nl/?url=${encodeURIComponent(src)}&w=${w}&h=${h}&fit=cover&we=1&il&output=${fmt}&q=${quality}`
       const controller = new AbortController()
       const to = setTimeout(() => controller.abort(), 5000)
       try {
@@ -361,11 +370,15 @@ Deno.serve(async (req) => {
         items = items.filter(n => n.title.toLowerCase().includes(qq) || (n.summary || '').toLowerCase().includes(qq))
       }
       if (sort === 'latest') items = items.slice().sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
-      // replace image with function thumbnail proxy (webp preferred)
+      // replace image with function thumbnail proxy using env defaults
       const base = `${url.origin}/functions/v1/news-proxy`
+      const thumbFmt = (Deno.env.get('THUMB_FMT') || 'webp').toLowerCase()
+      const thumbQ = String(Math.max(1, Math.min(100, Number(Deno.env.get('THUMB_QUALITY') ?? '75'))))
+      const defW = Number(Deno.env.get('THUMB_WIDTH') ?? '160')
+      const defH = Number(Deno.env.get('THUMB_HEIGHT') ?? '90')
       const itemsWithThumb = items.map(n => ({
         ...n,
-        image: n.image ? `${base}?thumb=1&u=${encodeURIComponent(n.image)}&w=160&h=90&fmt=webp` : undefined,
+        image: n.image ? `${base}?thumb=1&u=${encodeURIComponent(n.image)}&w=${defW}&h=${defH}&fmt=${thumbFmt}&q=${thumbQ}` : undefined,
       }))
       items = items.filter(n => !isGarbled(n.title) && !isGarbled(n.summary)); return { items: itemsWithThumb, provider }
     }
