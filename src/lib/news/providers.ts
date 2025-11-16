@@ -1,5 +1,6 @@
 // Reddit fallback removed; keep types local
 import getSupabase from '../supabase/client'
+import { fetchWithTimeout } from '../net/proxy'
 
 export interface NewsItem {
   id: string
@@ -293,9 +294,9 @@ export async function fetchTopic(topic: Topic, cursorOrPage?: string | number, l
       if (typeof cursorOrPage === 'string') payload.cursor = cursorOrPage
       if (typeof cursorOrPage === 'number') payload.page = cursorOrPage
       payload.limit = limit
-      // Add a short timeout so UI doesn't hang if function isn't deployed or blocked
+      // Allow more time for cold start + upstream fetches
       const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 3000)
+      const timer = setTimeout(() => controller.abort(), 10000)
       const { data, error } = await supabase.functions.invoke('news-proxy', {
         body: { topic, ...payload },
         signal: controller.signal as any,
@@ -305,7 +306,24 @@ export async function fetchTopic(topic: Topic, cursorOrPage?: string | number, l
         return { items: data.items, cursor: data.cursor, nextPage: data.nextPage, provider: (data as any).provider || 'reddit' }
       }
     } catch {
-      // fallthrough to direct providers
+      // Try direct GET to the Edge Function before falling back to client-side proxies
+      try {
+        const base = import.meta.env.VITE_SUPABASE_URL as string | undefined
+        if (base) {
+          const url = new URL(`${base}/functions/v1/news-proxy`)
+          url.searchParams.set('topic', topic)
+          if (typeof cursorOrPage === 'string') url.searchParams.set('cursor', cursorOrPage)
+          if (typeof cursorOrPage === 'number') url.searchParams.set('page', String(cursorOrPage))
+          url.searchParams.set('limit', String(limit))
+          const r = await fetchWithTimeout(url.toString(), 8000)
+          if (r.ok) {
+            const data = await r.json()
+            if (data?.items) return { items: data.items, cursor: data.cursor, nextPage: data.nextPage, provider: (data as any).provider || 'none' }
+          }
+        }
+      } catch {
+        // fallthrough to direct providers
+      }
     }
   }
   const provider = getProvider()
