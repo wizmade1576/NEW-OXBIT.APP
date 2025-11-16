@@ -194,13 +194,22 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
         <div className="text-xs text-muted-foreground">표시할 뉴스가 없습니다.</div>
       )}
 
-      {!isMix && (<>\r\n          <div ref={sentinelRef} />\r\n          {!loading && hasMore && (\r\n            <div class=\"flex justify-center\">\r\n              <button onClick={fetchPage} className=\"px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm\">더 보기</button>\r\n            </div>\r\n          )}\r\n        </>)}\r\n\r\n      {isMix && (<>\r\n          <div ref={sentinelRef} />\r\n          {!mixLoading && mixHasMore && (\r\n            <div class=\"flex justify-center\">\r\n              <button onClick={fetchMix} className=\"px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm\">더 보기</button>\r\n            </div>\r\n          )}\r\n        </>)}
-          )}
-        </>
+            <div ref={sentinelRef} />
+      {!isMix && !loading && hasMore && (
+        <div className="flex justify-center">
+          <button onClick={fetchPage} className="px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm">더 보기</button>
+        </div>
       )}
-    </section>
+      {isMix && !mixLoading && mixHasMore && (
+        <div className="flex justify-center">
+          <button onClick={fetchMix} className="px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm">더 보기</button>
+        </div>
+      </section>
   )
 }
+
+
+
 
 
 
