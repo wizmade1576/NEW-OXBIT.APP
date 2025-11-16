@@ -38,3 +38,4 @@ supabase/.temp/
 supabase/.branches/
 
 .env
+supabase.exe
