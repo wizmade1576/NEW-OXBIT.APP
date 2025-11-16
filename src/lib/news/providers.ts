@@ -28,6 +28,12 @@ export function getProvider(): Provider {
   return 'none'
 }
 
+// In-flight request de-duplication for Edge Function calls
+type EdgeKey = string
+const inflightEdge = new Map<EdgeKey, Promise<{ items: NewsItem[]; nextPage?: number; nextCursor?: string; provider: Provider }>>()
+const edgeKeyOf = (p: { topic: Topic; cursorOrPage?: string | number; limit?: number }) =>
+  `t=${p.topic}&cp=${String(p.cursorOrPage ?? '')}&l=${String(p.limit ?? '')}`
+
 // Domain whitelist (Option B): prefer these Korean media sites when available.
 const NEWS_DOMAIN_WHITELIST = new Set<string>([
   'blockmedia.co.kr',
@@ -289,48 +295,53 @@ export async function fetchTopic(topic: Topic, cursorOrPage?: string | number, l
   const supabase = getSupabase()
   const useEdge = (import.meta.env.VITE_USE_EDGE_FUNCTIONS as string | undefined) === 'true'
   if (supabase && useEdge) {
-    try {
-      const payload: Record<string, any> = {}
-      if (typeof cursorOrPage === 'string') payload.cursor = cursorOrPage
-      if (typeof cursorOrPage === 'number') payload.page = cursorOrPage
-      payload.limit = limit
-      // Allow more time for cold start + upstream fetches
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 10000)
-      const { data, error } = await supabase.functions.invoke('news-proxy', {
-        body: { topic, ...payload },
-        signal: controller.signal as any,
-      })
-      clearTimeout(timer)
-      if (!error && data?.items) {
-        return { items: data.items, cursor: (data as any).nextCursor, nextPage: data.nextPage, provider: (data as any).provider || 'reddit' }
-      }
-    } catch {
-      // Try direct GET to the Edge Function before falling back to client-side proxies
+    const key = edgeKeyOf({ topic, cursorOrPage, limit })
+    const run = async () => {
       try {
-        const base = import.meta.env.VITE_SUPABASE_URL as string | undefined
-        const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
-        if (base) {
-          const url = new URL(`${base}/functions/v1/news-proxy`)
-          url.searchParams.set('topic', topic)
-          if (typeof cursorOrPage === 'string') url.searchParams.set('cursor', cursorOrPage)
-          if (typeof cursorOrPage === 'number') url.searchParams.set('page', String(cursorOrPage))
-          url.searchParams.set('limit', String(limit))
-          const headers: Record<string, string> = {}
-          if (anon) {
-            headers['apikey'] = anon
-            headers['Authorization'] = `Bearer ${anon}`
-          }
-          const r = await fetchWithTimeout(url.toString(), 10000, { headers })
-          if (r.ok) {
-            const data = await r.json()
-            if (data?.items) return { items: data.items, cursor: (data as any).nextCursor, nextPage: data.nextPage, provider: (data as any).provider || 'none' }
-          }
+        const payload: Record<string, any> = {}
+        if (typeof cursorOrPage === 'string') payload.cursor = cursorOrPage
+        if (typeof cursorOrPage === 'number') payload.page = cursorOrPage
+        payload.limit = limit
+        // Allow more time for cold start + upstream fetches
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 10000)
+        const { data, error } = await supabase.functions.invoke('news-proxy', {
+          body: { topic, ...payload },
+          signal: controller.signal as any,
+        })
+        clearTimeout(timer)
+        if (!error && data?.items) {
+          return { items: data.items, cursor: (data as any).nextCursor, nextPage: data.nextPage, provider: (data as any).provider || 'reddit' }
         }
       } catch {
-        // fallthrough to direct providers
+        // Try direct GET to the Edge Function before falling back to client-side proxies
+        try {
+          const base = import.meta.env.VITE_SUPABASE_URL as string | undefined
+          const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+          if (base) {
+            const url = new URL(`${base}/functions/v1/news-proxy`)
+            url.searchParams.set('topic', topic)
+            if (typeof cursorOrPage === 'string') url.searchParams.set('cursor', cursorOrPage)
+            if (typeof cursorOrPage === 'number') url.searchParams.set('page', String(cursorOrPage))
+            url.searchParams.set('limit', String(limit))
+            const headers: Record<string, string> = {}
+            if (anon) { headers['apikey'] = anon; headers['Authorization'] = `Bearer ${anon}` }
+            const r = await fetchWithTimeout(url.toString(), 10000, { headers })
+            if (r.ok) {
+              const data = await r.json()
+              if (data?.items) return { items: data.items, cursor: (data as any).nextCursor, nextPage: data.nextPage, provider: (data as any).provider || 'none' }
+            }
+          }
+        } catch {
+          // fallthrough to direct providers
+        }
       }
+      return { items: [], provider: 'none' as Provider }
     }
+    if (inflightEdge.has(key)) return await inflightEdge.get(key)!
+    const p = run().finally(() => inflightEdge.delete(key))
+    inflightEdge.set(key, p)
+    return await p
   }
   // Edge Functions enabled but call failed: avoid browser-side RSS fallback (causes CORS/403)
   // Show graceful empty state instead; logs can be checked on the function side.
