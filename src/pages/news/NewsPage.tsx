@@ -71,10 +71,38 @@ function useInfiniteNews(params: {
     busyRef.current = true
     setLoading(true)
     try {
-      const resp = await fetchTopic(topic as any, cursor ?? page, pageSize)
-      const list: NewsItem[] = Array.isArray(resp?.items) ? (resp.items as NewsItem[]) : []
-      const nextPage = resp?.nextPage as number | undefined
-      const nextCursor = resp?.cursor as string | undefined
+      let list: NewsItem[] = []
+      let nextPage: number | undefined
+      let nextCursor: string | undefined
+      // Prefer direct Edge Function GET with auth headers when enabled
+      try {
+        const useEdge = (import.meta as any).env?.VITE_USE_EDGE_FUNCTIONS === 'true'
+        const base = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined
+        const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined
+        if (useEdge && base) {
+          const url = new URL(`${base}/functions/v1/news-proxy`)
+          url.searchParams.set('topic', topic)
+          url.searchParams.set('limit', String(pageSize))
+          if (cursor) url.searchParams.set('cursor', cursor)
+          else url.searchParams.set('page', String(page))
+          const headers: Record<string, string> = {}
+          if (anon) { headers['apikey'] = anon; headers['Authorization'] = `Bearer ${anon}` }
+          const r = await fetch(url.toString(), { headers })
+          if (r.ok) {
+            const j = await r.json()
+            list = Array.isArray(j?.items) ? j.items : []
+            nextPage = j?.nextPage as number | undefined
+            nextCursor = j?.cursor as string | undefined
+          }
+        }
+      } catch {}
+      // Fallback to provider-based fetch if edge path didn't return items
+      if (!list.length) {
+        const resp = await fetchTopic(topic as any, cursor ?? page, pageSize)
+        list = Array.isArray(resp?.items) ? (resp.items as NewsItem[]) : []
+        nextPage = resp?.nextPage as number | undefined
+        nextCursor = resp?.cursor as string | undefined
+      }
       setItems((prev) => (page === 1 ? list : prev.concat(list)))
       setPage((p) => (nextPage ? nextPage : p + 1))
       setCursor(nextCursor)
@@ -241,4 +269,3 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
     </section>
   )
 }
-
