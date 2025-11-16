@@ -164,6 +164,27 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
     async function loadMix() {
       setLoading(true)
       try {
+        const useEdge = (import.meta as any).env?.VITE_USE_EDGE_FUNCTIONS === 'true'
+        const base = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined
+        const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined
+        // Prefer a single call to edge function (topic=all) to avoid client CORS/proxy issues
+        if (useEdge && base) {
+          const url = new URL(`${base}/functions/v1/news-proxy`)
+          url.searchParams.set('topic', 'all')
+          url.searchParams.set('limit', '20')
+          const headers: Record<string, string> = {}
+          if (anon) { headers['apikey'] = anon; headers['Authorization'] = `Bearer ${anon}` }
+          const r = await fetch(url.toString(), { headers })
+          if (r.ok) {
+            const j = await r.json()
+            const merged = (Array.isArray(j?.items) ? j.items : []) as NewsItem[]
+            merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            setItems(merged)
+            setLoading(false)
+            return
+          }
+        }
+        // Fallback: client-side aggregator
         const { items } = await fetchAllTopics({ limitPerTopic: 10 })
         const merged = items.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         setItems(merged as any)
