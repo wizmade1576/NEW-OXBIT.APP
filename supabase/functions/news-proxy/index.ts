@@ -333,7 +333,8 @@ Deno.serve(async (req) => {
     const topic = (qp.get('topic') as Topic) || 'crypto'
     const sort = qp.get('sort') || 'latest'
     const q = qp.get('q') || ''
-    const limit = Number(qp.get('limit') || '30')
+    const limit = Math.max(1, Math.min(100, Number(qp.get('limit') || '30')))
+    const page = Math.max(1, Number(qp.get('page') || '1') || 1)
 
     const provider = pickProvider() // 'none'
 
@@ -353,17 +354,19 @@ Deno.serve(async (req) => {
 
     async function build() {
       let items: NewsItem[]
+      // Fetch a larger pool to support pagination without storing state
+      const poolSize = Math.min(100, limit * Math.max(2, page + 1))
       if (topic === 'all') {
         const [c, s, f] = await Promise.all([
-          fetchCustom('crypto', limit),
-          fetchCustom('stocks', limit),
-          fetchCustom('fx', limit),
+          fetchCustom('crypto', poolSize),
+          fetchCustom('stocks', poolSize),
+          fetchCustom('fx', poolSize),
         ])
         items = [...c, ...s, ...f]
           .sort((a,b)=> new Date(b.date).getTime() - new Date(a.date).getTime())
           .map(finalizeItem)
       } else {
-        items = (await fetchCustom(topic, limit)).map(finalizeItem)
+        items = (await fetchCustom(topic, poolSize)).map(finalizeItem)
       }
       if (q) {
         const qq = q.toLowerCase()
@@ -380,10 +383,16 @@ Deno.serve(async (req) => {
         ...n,
         image: n.image ? `${base}?thumb=1&u=${encodeURIComponent(n.image)}&w=${defW}&h=${defH}&fmt=${thumbFmt}&q=${thumbQ}` : undefined,
       }))
-      items = items.filter(n => !isGarbled(n.title) && !isGarbled(n.summary)); return { items: itemsWithThumb, provider }
+      items = items.filter(n => !isGarbled(n.title) && !isGarbled(n.summary))
+      // Apply simple page-based pagination
+      const offset = (page - 1) * limit
+      const paged = itemsWithThumb.slice(offset, offset + limit)
+      const hasMore = itemsWithThumb.length > offset + paged.length
+      const nextPage = hasMore ? page + 1 : undefined
+      return { items: paged, provider, nextPage }
     }
 
-    const cacheKey = keyOf({ topic, sort, q, limit })
+    const cacheKey = keyOf({ topic, sort, q, limit, page })
     const c = cache.get(cacheKey)
     if (c && Date.now() - c.ts < CACHE_TTL_MS) return json(c.data)
     const data = await build()
