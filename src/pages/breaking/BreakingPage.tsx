@@ -15,32 +15,30 @@ type BreakingItem = {
 }
 
 function LikeIcon(props: React.SVGProps<SVGSVGElement>) {
-  // Material-like filled heart
   return (
     <svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true" {...props}>
-      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 6 4 4 6.5 4c1.74 0 3.41 1.01 4.25 2.44C11.59 5.01 13.26 4 15 4 17.5 4 19.5 6 19.5 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 6 4 4 6.5 4c1.74 0 3.41 1.01 4.25 2.44C11.59 5.01 13.26 4 15 4 17.5 4 19.5 6 19.5 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
     </svg>
   )
 }
 
 function CommentIcon(props: React.SVGProps<SVGSVGElement>) {
-  // Solid chat bubble
   return (
     <svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true" {...props}>
-      <path d="M20 2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2v4l5.333-4H20a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z"/>
+      <path d="M20 2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h2v4l5.333-4H20a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z" />
     </svg>
   )
 }
 
 function ShareIcon(props: React.SVGProps<SVGSVGElement>) {
-  // Paper plane (send) solid
   return (
     <svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" aria-hidden="true" {...props}>
-      <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+      <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
     </svg>
   )
 }
 
+// Mobile-optimized timeline item
 function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?: string; nextKey?: string }) {
   const [expanded, setExpanded] = React.useState(false)
   const [liked, setLiked] = React.useState<boolean>(() => {
@@ -85,7 +83,6 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
   }
 
   const toggleLike = async () => {
-    // Admin posts synced; others local fallback
     if (item.id) {
       try {
         if (liked) {
@@ -113,23 +110,23 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
   }
 
   return (
-    <div className="relative grid grid-cols-[64px_1fr] gap-4">
+    <div className="relative grid grid-cols-[48px_1fr] sm:grid-cols-[64px_1fr] gap-2 sm:gap-4 px-1 sm:px-0 break-keep md:break-normal">
       <div className="flex items-start justify-end">
-        <span className="rounded-md bg-accent px-2 py-1 text-xs text-foreground/90">{item.time}</span>
+        <span className="rounded-md bg-accent px-1.5 py-0.5 sm:px-2 sm:py-1 text-[11px] sm:text-xs text-foreground/90">{item.time}</span>
       </div>
-      <div className="pb-6">
+      <div className="pb-4 sm:pb-6">
         <Link
           to={`/breaking/${item.key}`}
           state={{ ...item, prevKey, nextKey }}
           onClick={() => sessionStorage.setItem('breaking:scrollY', String(window.scrollY))}
           className="block"
         >
-          <h4 className="text-base font-semibold leading-6 hover:underline">{item.title}</h4>
-          <div className={"mt-2 text-sm text-muted-foreground transition-all " + (expanded ? '' : 'max-h-12 overflow-hidden')}>
+          <h4 className="text-[13px] sm:text-base font-semibold leading-snug break-words whitespace-normal hover:underline">{item.title}</h4>
+          <div className={(expanded ? 'mt-1.5 sm:mt-2 text-xs sm:text-sm text-muted-foreground' : 'mt-1.5 sm:mt-2 text-xs sm:text-sm text-muted-foreground line-clamp-2')}>
             {item.body}
           </div>
         </Link>
-        <div className="mt-3 flex items-center gap-2">
+        <div className="mt-2 sm:mt-3 flex flex-wrap items-center gap-2">
           {item.tag && (
             <span className="inline-flex items-center rounded-full border border-border px-2.5 py-0.5 text-xs text-muted-foreground">{item.tag}</span>
           )}
@@ -140,8 +137,8 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
             onClick={() => sessionStorage.setItem('breaking:scrollY', String(window.scrollY))}
             className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:bg-accent/60 px-2 py-1 rounded-md"
           >
-            <CommentIcon className="h-5 w-5" />
-            <span className="text-sm font-medium">{item.id && commentCount ? commentCount : 0}</span>
+            <CommentIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="text-[11px] sm:text-sm font-medium">{item.id && commentCount ? commentCount : 0}</span>
           </Link>
 
           <button
@@ -149,8 +146,8 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
             onClick={toggleLike}
             className={'inline-flex items-center gap-1 px-2 py-1 rounded-md ' + (liked ? 'text-rose-400 bg-rose-500/10' : 'text-muted-foreground hover:text-foreground hover:bg-accent/60')}
           >
-            <LikeIcon className="h-5 w-5" />
-            <span className="text-sm font-medium">{likeCount}</span>
+            <LikeIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="text-[11px] sm:text-sm font-medium">{likeCount}</span>
           </button>
 
           <button
@@ -159,7 +156,7 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
             className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground hover:bg-accent/60 px-2 py-1 rounded-md"
             title="공유하기"
           >
-            <ShareIcon className="h-5 w-5" />
+            <ShareIcon className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
 
           {item.url && (
@@ -174,9 +171,9 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
             {expanded ? '접기' : '더보기'}
           </button>
         </div>
-        <div className="mt-6 h-px w-full bg-border" />
+        <div className="mt-4 sm:mt-6 h-px w-full bg-border" />
       </div>
-      <div className="pointer-events-none absolute left-[32px] top-0 h-full border-l border-border" />
+      <div className="pointer-events-none absolute left-[24px] sm:left-[32px] top-0 h-full border-l border-border" />
     </div>
   )
 }
@@ -263,31 +260,31 @@ export default function BreakingPage() {
   const isEmpty = !loading && !error && items.length === 0
 
   return (
-    <div className="max-w-[900px] mx-auto px-2">
-    <section className="space-y-8">
-      <div className="flex items-end justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">속보</h2>
-          <p className="text-muted-foreground text-sm">오늘의 주요 속보 : {nowText}</p>
+    <div className="max-w-[900px] mx-auto px-1 sm:px-0">
+      <section className="space-y-6 sm:space-y-8 break-keep md:break-normal">
+        <div className="flex items-end justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">속보</h2>
+            <p className="text-muted-foreground text-sm">오늘의 주요 속보 : {nowText}</p>
+          </div>
+          <Button variant="outline" disabled={loading} onClick={load}>
+            {loading ? '새로고치는 중…' : '새로고침'}
+          </Button>
         </div>
-        <Button variant="outline" disabled={loading} onClick={load}>
-          {loading ? '새로고치는 중…' : '새로고침'}
-        </Button>
-      </div>
-      {error ? <div className="text-sm text-red-400">{error}</div> : null}
-      {isEmpty ? <div className="text-sm text-muted-foreground">표시할 항목이 없습니다.</div> : null}
+        {error ? <div className="text-sm text-red-400">{error}</div> : null}
+        {isEmpty ? <div className="text-sm text-muted-foreground">표시할 항목이 없습니다.</div> : null}
 
-      <div className="space-y-0">
-        {items.map((it, idx) => (
-          <TimelineItem
-            key={it.key}
-            item={it}
-            prevKey={idx > 0 ? items[idx - 1]?.key : undefined}
-            nextKey={idx < items.length - 1 ? items[idx + 1]?.key : undefined}
-          />
-        ))}
-      </div>
-    </section>
+        <div className="space-y-0">
+          {items.map((it, idx) => (
+            <TimelineItem
+              key={it.key}
+              item={it}
+              prevKey={idx > 0 ? items[idx - 1]?.key : undefined}
+              nextKey={idx < items.length - 1 ? items[idx + 1]?.key : undefined}
+            />
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

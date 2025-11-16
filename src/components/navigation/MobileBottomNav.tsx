@@ -70,7 +70,6 @@ const items: Item[] = [
   { to: '/news', label: '뉴스', icon: <NewspaperIcon /> },
   { to: '/markets', label: '마켓', icon: <CandlesIcon /> },
   { to: '/positions', label: '포지션', icon: <TargetIcon /> },
-  { to: '/community', label: '커뮤니티', icon: <ChatIcon /> },
 ]
 
 export default function MobileBottomNav() {
@@ -80,7 +79,7 @@ export default function MobileBottomNav() {
       className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-neutral-800 bg-[#101214] backdrop-blur supports-[backdrop-filter]:bg-[#101214]/85"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
-      <ul className="grid grid-cols-6 h-14">
+      <ul className="grid grid-cols-5 h-14">
         {items.map((it) => {
           const active = pathname === it.to || pathname.startsWith(it.to + '/')
           return (
@@ -104,4 +103,3 @@ export default function MobileBottomNav() {
     </nav>
   )
 }
-
