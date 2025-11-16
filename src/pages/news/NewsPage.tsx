@@ -1,4 +1,6 @@
 import * as React from "react"
+import { fetchTopic } from "../../lib/news/providers"
+import fetchAllTopics from "../../lib/news/aggregate"
 
 type NewsItem = {
   id: string
@@ -15,18 +17,25 @@ type Topic = "crypto" | "stocks" | "fx" | "mix"
 const DEFAULT_THUMB =
   "https://images.weserv.nl/?url=via.placeholder.com/160x90.png?text=NEWS&h=90&w=160&fit=cover&we=1"
 
+function normalizeImageUrl(u?: string) {
+  const v = (u || "").trim()
+  if (!v) return undefined
+  if (v.startsWith("//")) return `https:${v}`
+  if (/^https?:\/\//i.test(v)) return v
+  return undefined
+}
+
 function thumb(url?: string, w = 160, h = 90) {
   if (!url) return DEFAULT_THUMB
   try {
-    return `https://images.weserv.nl/?url=${encodeURIComponent(
-      url
-    )}&w=${w}&h=${h}&fit=cover&we=1&il`
+    const abs = normalizeImageUrl(url)
+    if (!abs) return DEFAULT_THUMB
+    return `https://images.weserv.nl/?url=${encodeURIComponent(abs)}&w=${w}&h=${h}&fit=cover&we=1&il`
   } catch {
     return DEFAULT_THUMB
   }
 }
 
-// ±‚¡∏ »≈¿∫ ±◊¥Î∑Œ ªÁøÎ
 function useInfiniteNews(params: {
   topic: string
   q?: string
@@ -40,7 +49,7 @@ function useInfiniteNews(params: {
   const [page, setPage] = React.useState(1)
   const [cursor, setCursor] = React.useState<string | undefined>(undefined)
   const [hasMore, setHasMore] = React.useState(true)
-  const cacheKey = React.useMemo(() => `news_cache_v3_${topic}_${sort}_${q}`, [topic, sort, q])
+  const cacheKey = React.useMemo(() => `news_cache_v4_${topic}_${sort}_${q}`, [topic, sort, q])
   const busyRef = React.useRef(false)
 
   React.useEffect(() => {
@@ -62,22 +71,10 @@ function useInfiniteNews(params: {
     busyRef.current = true
     setLoading(true)
     try {
-      const baseEnv = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined
-      if (!baseEnv) throw new Error("Missing VITE_SUPABASE_URL")
-      const url = new URL(`${baseEnv}/functions/v1/news-proxy`)
-      url.searchParams.set("topic", topic)
-      url.searchParams.set("sort", sort)
-      url.searchParams.set("limit", String(pageSize))
-      if (q) url.searchParams.set("q", q)
-      if (cursor) url.searchParams.set("cursor", cursor)
-      else url.searchParams.set("page", String(page))
-
-      const r = await fetch(url.toString())
-      if (!r.ok) throw new Error(String(r.status))
-      const j = await r.json()
-      const list: NewsItem[] = Array.isArray(j?.items) ? j.items : []
-      const nextPage = j?.nextPage as number | undefined
-      const nextCursor = j?.cursor as string | undefined
+      const resp = await fetchTopic(topic as any, cursor ?? page, pageSize)
+      const list: NewsItem[] = Array.isArray(resp?.items) ? (resp.items as NewsItem[]) : []
+      const nextPage = resp?.nextPage as number | undefined
+      const nextCursor = resp?.cursor as string | undefined
       setItems((prev) => (page === 1 ? list : prev.concat(list)))
       setPage((p) => (nextPage ? nextPage : p + 1))
       setCursor(nextCursor)
@@ -98,7 +95,6 @@ function useInfiniteNews(params: {
   return { items, loading, error, fetchPage, hasMore, setItems, setLoading }
 }
 
-// ƒ´µÂ ƒƒ∆˜≥Õ∆Æ ------------------------------------
 const NewsCard = React.memo(function NewsCard({ n }: { n: NewsItem }) {
   const [src, setSrc] = React.useState(() => thumb(n.image))
   return (
@@ -114,7 +110,7 @@ const NewsCard = React.memo(function NewsCard({ n }: { n: NewsItem }) {
         alt={n.title}
         loading="lazy"
         decoding="async"
-        fetchpriority="low"
+        fetchPriority="low"
         referrerPolicy="no-referrer"
         width={160}
         height={90}
@@ -127,7 +123,7 @@ const NewsCard = React.memo(function NewsCard({ n }: { n: NewsItem }) {
         ) : null}
         <div className="mt-2 text-[11px] text-neutral-400 flex items-center gap-2">
           <span>{n.source}</span>
-          <span>?</span>
+          <span>‚Ä¢</span>
           <time dateTime={n.date}>{new Date(n.date).toLocaleString()}</time>
         </div>
       </div>
@@ -148,13 +144,12 @@ function SkeletonCard() {
   )
 }
 
-// ∏ﬁ¿Œ ∆‰¿Ã¡ˆ ---------------------------------------
 export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic }) {
   const isMix = topic === "mix"
 
   const { items, loading, error, fetchPage, hasMore, setItems, setLoading } =
     useInfiniteNews({
-      topic: isMix ? "crypto" : topic, // mix∏È ±‚∫ª hook¿∫ crypto∏∏ ∫“∑Øº≠ π´Ω√
+      topic: isMix ? "crypto" : topic,
       q: "",
       sort: "latest",
       pageSize: 20,
@@ -163,44 +158,45 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
   const list = React.useMemo(() => items, [items])
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
 
-  // ?? mix ∏µÂ °Ê crypto/stocks/fx ¥∫Ω∫ «— π¯ø° ∫¥«’
+  // Mix: prefer single Edge Function call, then fallback to client aggregator
   React.useEffect(() => {
     if (!isMix) return
-
     async function loadMix() {
       setLoading(true)
-
-      const base = (import.meta as any).env?.VITE_SUPABASE_URL as string
-      const cats: Topic[] = ["crypto", "stocks", "fx"]
-
-      const results = await Promise.all(
-        cats.map(async (c) => {
+      try {
+        const useEdge = (import.meta as any).env?.VITE_USE_EDGE_FUNCTIONS === 'true'
+        const base = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined
+        const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined
+        if (useEdge && base) {
           const url = new URL(`${base}/functions/v1/news-proxy`)
-          url.searchParams.set("topic", c)
-          url.searchParams.set("limit", "20")
-          const r = await fetch(url.toString())
-          if (!r.ok) return []
-          const j = await r.json()
-          return (j.items as NewsItem[]) || []
-        })
-      )
-
-      const merged = results.flat()
-
-      merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-
-      setItems(merged)
+          url.searchParams.set('topic', 'all')
+          url.searchParams.set('limit', '20')
+          const headers: Record<string, string> = {}
+          if (anon) { headers['apikey'] = anon; headers['Authorization'] = `Bearer ${anon}` }
+          const r = await fetch(url.toString(), { headers })
+          if (r.ok) {
+            const j = await r.json()
+            const merged = (Array.isArray(j?.items) ? j.items : []) as NewsItem[]
+            merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+            setItems(merged)
+            setLoading(false)
+            return
+          }
+        }
+        const { items } = await fetchAllTopics({ limitPerTopic: 10 })
+        const merged = items.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        setItems(merged as any)
+      } catch {}
       setLoading(false)
     }
-
     loadMix()
   }, [isMix, setItems, setLoading])
 
-  // π´«—Ω∫≈©∑—(¥‹, mix¥¬ ªÁøÎ«œ¡ˆ æ ¿Ω)
+  // Infinite scroll (disabled for mix)
   React.useEffect(() => {
     if (isMix) return
     fetchPage()
-  }, [topic, fetchPage])
+  }, [topic, fetchPage, isMix])
 
   React.useEffect(() => {
     if (isMix) return
@@ -211,11 +207,11 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
     })
     io.observe(el)
     return () => io.disconnect()
-  }, [fetchPage])
+  }, [fetchPage, isMix])
 
   return (
     <section className="space-y-4">
-      {error && <div className="text-xs text-amber-300">∑Œµ˘ ø¿∑˘: {error}</div>}
+      {error && <div className="text-xs text-amber-300">Î°úÎî© Ïò§Î•ò: {error}</div>}
 
       <div className="grid grid-cols-1 gap-3">
         {loading && list.length === 0
@@ -224,7 +220,7 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
       </div>
 
       {!loading && list.length === 0 && (
-        <div className="text-xs text-muted-foreground">«•Ω√«“ ¥∫Ω∫∞° æ¯Ω¿¥œ¥Ÿ.</div>
+        <div className="text-xs text-muted-foreground">ÌëúÏãúÌï† Îâ¥Ïä§Í∞Ä ÏóÜÏäµÎãàÎã§.</div>
       )}
 
       {!isMix && (
@@ -236,7 +232,7 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
                 onClick={fetchPage}
                 className="px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm"
               >
-                ¥ı ∫∏±‚
+                Îçî Î≥¥Í∏∞
               </button>
             </div>
           )}
