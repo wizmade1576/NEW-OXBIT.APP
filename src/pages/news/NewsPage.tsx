@@ -66,7 +66,7 @@ const NewsCard = React.memo(function NewsCard({ n }: { n: NewsItem }) {
         ) : null}
         <div className="mt-2 text-[11px] text-neutral-400 flex items-center gap-2">
           <span>{n.source}</span>
-          <span>‚Ä¢</span>
+          <span>??/span>
           <time dateTime={n.date}>{new Date(n.date).toLocaleString()}</time>
         </div>
       </div>
@@ -92,43 +92,70 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
 
   const { items, loading, error, fetchNext: fetchPage, hasMore, setItems, setLoading } =
     useInfiniteNews({ topic: (isMix ? 'crypto' : topic) as BaseTopic, pageSize: 20 })
+  // Mix (topic=all) pagination state
+  const [mixItems, setMixItems] = React.useState<NewsItem[]>([])
+  const [mixLoading, setMixLoading] = React.useState(false)
+  const [mixError, setMixError] = React.useState<string | null>(null)
+  const [mixPage, setMixPage] = React.useState(1)
+  const [mixHasMore, setMixHasMore] = React.useState(true)
+  const mixBusy = React.useRef(false)
 
-  const list = React.useMemo(() => items, [items])
+  const list = React.useMemo(() => (isMix ? mixItems : items), [isMix, mixItems, items])
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
 
-  // Mix: prefer single Edge Function call, then fallback to client aggregator
-  React.useEffect(() => {
-    if (!isMix) return
-    async function loadMix() {
-      setLoading(true)
-      try {
-        const useEdge = (import.meta as any).env?.VITE_USE_EDGE_FUNCTIONS === 'true'
-        const base = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined
-        const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined
-        if (useEdge && base) {
-          const url = new URL(`${base}/functions/v1/news-proxy`)
-          url.searchParams.set('topic', 'all')
-          url.searchParams.set('limit', '20')
-          const headers: Record<string, string> = {}
-          if (anon) { headers['apikey'] = anon; headers['Authorization'] = `Bearer ${anon}` }
-          const r = await fetch(url.toString(), { headers })
-          if (r.ok) {
-            const j = await r.json()
-            const merged = (Array.isArray(j?.items) ? j.items : []) as NewsItem[]
-            merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-            setItems(merged)
-            setLoading(false)
-            return
-          }
+  // Mix: Edge Function pagination (topic=all)
+  const fetchMix = React.useCallback(async () => {
+    if (!isMix || mixBusy.current || !mixHasMore) return
+    mixBusy.current = true
+    setMixLoading(true)
+    try {
+      const useEdge = (import.meta as any).env?.VITE_USE_EDGE_FUNCTIONS === 'true'
+      const base = (import.meta as any).env?.VITE_SUPABASE_URL as string | undefined
+      const anon = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY as string | undefined
+      if (useEdge && base) {
+        const url = new URL(`${base}/functions/v1/news-proxy`)
+        url.searchParams.set('topic', 'all')
+        url.searchParams.set('limit', '20')
+        url.searchParams.set('page', String(mixPage))
+        const headers: Record<string, string> = {}
+        if (anon) { headers['apikey'] = anon; headers['Authorization'] = `Bearer ${anon}` }
+        const r = await fetch(url.toString(), { headers })
+        if (r.ok) {
+          const j = await r.json()
+          const arr: NewsItem[] = Array.isArray(j?.items) ? j.items : []
+          setMixItems(prev => (mixPage === 1 ? arr : prev.concat(arr)))
+          const next: number | null = j?.nextPage ?? null
+          setMixPage(p => (next ? next : p + 1))
+          setMixHasMore(Boolean(next && arr.length))
+          setMixLoading(false)
+          mixBusy.current = false
+          return
         }
+      }
+      // fallback to client aggregator (first page only)
+      if (mixPage === 1) {
         const { items } = await fetchAllTopics({ limitPerTopic: 10 })
         const merged = items.slice().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        setItems(merged as any)
-      } catch {}
-      setLoading(false)
+        setMixItems(merged as any)
+      }
+      setMixHasMore(false)
+    } catch (e: any) {
+      setMixError(e?.message || 'fetch_error')
+      setMixHasMore(false)
+    } finally {
+      setMixLoading(false)
+      mixBusy.current = false
     }
-    loadMix()
-  }, [isMix, setItems, setLoading])
+  }, [isMix, mixPage, mixHasMore])
+
+  React.useEffect(() => {
+    if (!isMix) return
+    setMixItems([])
+    setMixPage(1)
+    setMixHasMore(true)
+    setMixError(null)
+    fetchMix()
+  }, [isMix, fetchMix])
 
   // Infinite scroll (disabled for mix)
   React.useEffect(() => {
@@ -137,45 +164,63 @@ export default function NewsPage({ topic = "crypto" as Topic }: { topic?: Topic 
   }, [topic, fetchPage, isMix])
 
   React.useEffect(() => {
-    if (isMix) return
     const el = sentinelRef.current
     if (!el) return
     const io = new IntersectionObserver((ents) => {
-      if (ents.some((e) => e.isIntersecting)) fetchPage()
+      if (ents.some((e) => e.isIntersecting)) {
+        if (isMix) fetchMix(); else fetchPage()
+      }
     })
     io.observe(el)
     return () => io.disconnect()
-  }, [fetchPage, isMix])
+  }, [fetchPage, fetchMix, isMix])
 
   return (
     <section className="space-y-4">
-      {error && <div className="text-xs text-amber-300">Î°úÎî© Ïò§Î•ò: {error}</div>}
+      {!isMix && error && <div className="text-xs text-amber-300">∑Œµ˘ ø¿∑˘: {error}</div>}
+      {isMix && mixError && <div className="text-xs text-amber-300">∑Œµ˘ ø¿∑˘: {mixError}</div>}
 
       <div className="grid grid-cols-1 gap-3">
-        {loading && list.length === 0
+        {(isMix ? mixLoading : loading) && list.length === 0
           ? Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={`sk-${i}`} />)
           : list.map((n) => <NewsCard key={n.id || n.url} n={n} />)}
       </div>
 
-      {!loading && list.length === 0 && (
-        <div className="text-xs text-muted-foreground">ÌëúÏãúÌï† Îâ¥Ïä§Í∞Ä ÏóÜÏäµÎãàÎã§.</div>
+      {!isMix && !loading && list.length === 0 && (
+        <div className="text-xs text-muted-foreground">«•Ω√«“ ¥∫Ω∫∞° æ¯Ω¿¥œ¥Ÿ.</div>
+      )}
+
+      {isMix && !mixLoading && list.length === 0 && (
+        <div className="text-xs text-muted-foreground">«•Ω√«“ ¥∫Ω∫∞° æ¯Ω¿¥œ¥Ÿ.</div>
       )}
 
       {!isMix && (
         <>
           <div ref={sentinelRef} />
-          {!loading && hasMore && (
+          {!isMix && !loading && hasMore && (
             <div className="flex justify-center">
               <button
                 onClick={fetchPage}
                 className="px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm"
               >
-                Îçî Î≥¥Í∏∞
+                ¥ı ∫∏±‚
               </button>
             </div>
+          )}
+          {isMix && !mixLoading && mixHasMore && (
+            <div className="flex justify-center">
+              <button
+                onClick={fetchMix}
+                className="px-3 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm"
+              >
+                ¥ı ∫∏±‚
+              </button>
+            </div>
+          )}
           )}
         </>
       )}
     </section>
   )
 }
+
