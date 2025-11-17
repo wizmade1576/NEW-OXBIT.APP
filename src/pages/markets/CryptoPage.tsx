@@ -135,9 +135,9 @@ export default function CryptoPage() {
 
   const displayed = React.useMemo(() => { const start = (page - 1) * pageSize; return displayedRaw.slice(start, start + pageSize) }, [displayedRaw, page])
 
-  // Detail popover (anchored next to the clicked row)
+  // Detail popover (anchored near the clicked row; prefer below)
   const [detail, setDetail] = React.useState<Coin | null>(null)
-  const [anchor, setAnchor] = React.useState<{ top: number; left: number } | null>(null)
+  const [anchor, setAnchor] = React.useState<{ top: number; left: number; width: number } | null>(null)
   // Fav click pulse animation state (per coin id)
   const [favPulse, setFavPulse] = React.useState<Record<string, boolean>>({})
   const handleFavClick = (e: React.MouseEvent<HTMLButtonElement>, id: string) => {
@@ -155,19 +155,18 @@ export default function CryptoPage() {
   const openDetail = (e: React.MouseEvent<HTMLTableRowElement>, coin: Coin) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
     const margin = 8
-    const width = 320
-    let left = rect.right + window.scrollX + margin
-    const viewportRight = window.scrollX + window.innerWidth - margin
-    if (left + width > viewportRight) {
-      left = rect.left + window.scrollX - width - margin
-    }
-    let top = rect.top + window.scrollY
+    // Prefer a panel below the row, aligned to the row's left, clamped to viewport
+    const desiredWidth = Math.min(Math.max(rect.width, 280), 520)
+    const maxLeft = window.scrollX + window.innerWidth - margin - desiredWidth
+    let left = Math.min(Math.max(rect.left + window.scrollX, window.scrollX + margin), maxLeft)
+    let top = rect.bottom + window.scrollY + margin
     const viewportBottom = window.scrollY + window.innerHeight - margin
-    const estimatedHeight = 220
+    const estimatedHeight = 260
+    // If not enough space below, show above the row
     if (top + estimatedHeight > viewportBottom) {
-      top = Math.max(window.scrollY + margin, viewportBottom - estimatedHeight)
+      top = Math.max(window.scrollY + margin, rect.top + window.scrollY - estimatedHeight - margin)
     }
-    setAnchor({ top, left })
+    setAnchor({ top, left, width: desiredWidth })
     setDetail(coin)
   }
 
@@ -284,12 +283,12 @@ export default function CryptoPage() {
         </CardContent>
       </Card>
 
-      {/* Detail popover anchored next to row */}
-      {detail && anchor && (
+      {/* Detail popover: mobile bottom sheet, desktop anchored */}
+      {detail && (
         <div className="fixed inset-0 z-50" onClick={()=>{ setDetail(null); setAnchor(null) }}>
+          {/* Mobile bottom sheet */}
           <div
-            className="absolute w-[320px] rounded-xl border border-neutral-800 bg-[#121212] p-4 shadow-xl"
-            style={{ top: anchor.top, left: anchor.left }}
+            className="sm:hidden absolute inset-x-0 bottom-0 rounded-t-2xl border border-neutral-800 bg-[#121212] p-4 shadow-xl max-h-[75vh] overflow-y-auto"
             onClick={(e)=>e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-2">
@@ -317,6 +316,40 @@ export default function CryptoPage() {
               <SparkLine data={detail.sparkline_in_7d?.price || []} up={(detail.price_change_percentage_7d_in_currency||0)>=0} />
             </div>
           </div>
+
+          {/* Desktop anchored popover */}
+          {anchor && (
+            <div
+              className="hidden sm:block absolute rounded-xl border border-neutral-800 bg-[#121212] p-4 shadow-xl"
+              style={{ top: anchor.top, left: anchor.left, width: anchor.width }}
+              onClick={(e)=>e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <img src={detail.image} alt={detail.name} className="w-6 h-6 rounded-full" />
+                  <div className="text-white font-semibold">{detail.name} <span className="uppercase text-gray-400 text-xs">{detail.symbol}</span></div>
+                </div>
+                <button onClick={()=>{ setDetail(null); setAnchor(null) }} className="px-2 py-1 rounded bg-[#1a1a1a] hover:bg-[#1e1e1e]">닫기</button>
+              </div>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">현재가</span>
+                  <span className="text-white">{formatCurrency(convert(detail.current_price, currency, usdkrw), currency)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">24h 최고</span>
+                  <span className="text-emerald-400">{formatCurrency(convert(detail.high_24h, currency, usdkrw), currency)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-400">24h 최저</span>
+                  <span className="text-red-400">{formatCurrency(convert(detail.low_24h, currency, usdkrw), currency)}</span>
+                </div>
+              </div>
+              <div className="mt-3">
+                <SparkLine data={detail.sparkline_in_7d?.price || []} up={(detail.price_change_percentage_7d_in_currency||0)>=0} />
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>

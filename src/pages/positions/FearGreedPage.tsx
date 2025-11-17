@@ -138,8 +138,12 @@ function FGChart({ rawPoints, maPoints, up, hourMode }: { rawPoints: { time: num
     load().then((LW:any)=>{
       if (!LW || !ref.current) return
       setLoaded(true)
-      chart = LW.createChart(ref.current, {
-        height: 120,
+      const container = ref.current!
+      const getSize = () => ({ width: container.clientWidth || 360, height: container.clientHeight || 140 })
+      const sz = getSize()
+      chart = LW.createChart(container, {
+        width: sz.width,
+        height: sz.height,
         layout:{ background:{ color:'#0f0f0f' }, textColor:'#c9d1d9' },
         grid:{ vertLines:{color:'#202020'}, horzLines:{color:'#202020'} },
         rightPriceScale:{ visible:false },
@@ -153,6 +157,11 @@ function FGChart({ rawPoints, maPoints, up, hourMode }: { rawPoints: { time: num
         ma = chart.addLineSeries({ color:'#60a5fa', lineWidth:2 })
         ma.setData(maPoints)
       }
+      const onResize = () => {
+        const s = getSize()
+        try { chart.applyOptions({ width: s.width, height: s.height }) } catch {}
+      }
+      window.addEventListener('resize', onResize)
       // tooltip DOM
       tooltip = document.createElement('div')
       tooltip.style.position = 'absolute'
@@ -178,13 +187,13 @@ function FGChart({ rawPoints, maPoints, up, hourMode }: { rawPoints: { time: num
         tooltip!.style.display = 'block'
       })
     })
-    return () => { try { chart?.remove() } catch {} }
+    return () => { try { chart?.remove() } catch {}; try { window.removeEventListener('resize', onResize as any) } catch {} }
   }, [JSON.stringify(rawPoints), JSON.stringify(maPoints), up, hourMode])
   if (!loaded) {
     // quick SVG fallback so 차트가 비지 않도록
     const w = 360, h = 140
     const values = rawPoints.map(p=>p.value)
-    if (values.length===0) return <div className="w-[360px] h-[140px] bg-neutral-900 rounded" />
+    if (values.length===0) return <div className="w-full h-[160px] sm:h-[180px] bg-neutral-900 rounded" />
     const min = Math.min(...values), max = Math.max(...values)
     const range = max - min || 1
     const line = rawPoints.map((p,i)=>{
@@ -194,12 +203,12 @@ function FGChart({ rawPoints, maPoints, up, hourMode }: { rawPoints: { time: num
     }).join(' ')
     const stroke = up? '#22c55e':'#ef4444'
     return (
-      <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+      <svg className="w-full h-[160px] sm:h-[180px]" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
         <polyline fill="none" stroke={stroke} strokeWidth="2" points={line} />
       </svg>
     )
   }
-  return <div className="w-[360px] h-[140px]" ref={ref} />
+  return <div className="w-full h-[160px] sm:h-[180px]" ref={ref} />
 }
 
 function buildSeries(period: number, history: number[]) {

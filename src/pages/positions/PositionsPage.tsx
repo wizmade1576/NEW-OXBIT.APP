@@ -1,4 +1,4 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
 
 type Streamer = {
@@ -33,7 +33,8 @@ export default function PositionsPage() {
   const [symbol, setSymbol] = React.useState<string>(() => symbols[0] || 'BTCUSDT')
   const [showEntries, setShowEntries] = React.useState(true)
   const [hoveredId, setHoveredId] = React.useState<string | undefined>(undefined)
-  const [smooth, setSmooth] = React.useState<'raw' | 'ma5' | 'ma15'>('ma5')
+  // 차트 분봉/시간봉 선택 (기본 1m)
+  const [timeframe, setTimeframe] = React.useState<'1m' | '3m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1d' | '1w' | '1M'>('1m')
 
   React.useEffect(() => {
     const t = setInterval(() => {
@@ -85,13 +86,23 @@ export default function PositionsPage() {
                 <input type="checkbox" checked={showEntries} onChange={(e) => setShowEntries(e.target.checked)} /> 진입선 표시
               </label>
               <select
-                value={smooth}
-                onChange={(e) => setSmooth(e.target.value as any)}
+                value={timeframe}
+                onChange={(e) => setTimeframe(e.target.value as any)}
                 className="px-2 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm"
               >
                 <option value="raw">원시(1초)</option>
                 <option value="ma5">5초 평균</option>
                 <option value="ma15">15초 평균</option>
+                <option value="1m">1m</option>
+                <option value="3m">3m</option>
+                <option value="5m">5m</option>
+                <option value="15m">15m</option>
+                <option value="30m">30m</option>
+                <option value="1h">1h</option>
+                <option value="4h">4h</option>
+                <option value="1d">1d</option>
+                <option value="1w">1w</option>
+                <option value="1M">1M</option>
               </select>
             </div>
           </div>
@@ -99,6 +110,7 @@ export default function PositionsPage() {
         <CardContent>
           <PriceChartLW
             symbol={symbol}
+            timeframe={timeframe}
             entries={
               showEntries
                 ? list
@@ -107,7 +119,6 @@ export default function PositionsPage() {
                 : []
             }
             hoveredId={hoveredId}
-            smooth={smooth}
             onPrice={(price) => {
               setList((prev) => prev.map((p) => (p.symbol === symbol ? { ...p, mark: price, pnl: computePnl({ ...p, mark: price }) } : p)))
             }}
@@ -238,35 +249,63 @@ function SparkLine({ data, up }: { data: number[]; up: boolean }) {
 // 상단 메인 차트(Lightweight Charts 사용, 실패 시 SVG 대체)
 function PriceChartLW({
   symbol,
+  timeframe = '1m',
   entries,
   hoveredId,
-  smooth = 'ma5',
   onPrice
 }: {
   symbol: string
+  timeframe?: '1m' | '3m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1d' | '1w' | '1M'
   entries: { id: string; label: string; price: number; side: 'Long' | 'Short'; leverage?: number; size?: number }[]
   hoveredId?: string
-  smooth?: 'raw' | 'ma5' | 'ma15'
   onPrice?: (price: number) => void
 }) {
   const ref = React.useRef<HTMLDivElement | null>(null)
   const chartRef = React.useRef<any>(null)
   const seriesRef = React.useRef<any>(null)
-  const [points, setPoints] = React.useState<number[]>([])
+  const [data, setData] = React.useState<{ time: number; value: number }[]>([])
 
-  // load data via WS
+  // Prefill initial klines for selected timeframe
+  React.useEffect(() => {
+    const abort = new AbortController()
+    const run = async () => {
+      try {
+        const sym = symbol.toUpperCase()
+        const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${encodeURIComponent(sym)}&interval=${encodeURIComponent(timeframe)}&limit=200`
+        const r = await fetch(url, { signal: abort.signal })
+        if (!r.ok) return
+        const j: any[] = await r.json()
+        const arr = Array.isArray(j)
+          ? j.map((row) => ({ time: Math.floor(Number(row[0]) / 1000), value: Number(row[4]) }))
+          : []
+        if (arr.length) setData(arr)
+      } catch {}
+    }
+    run()
+    return () => abort.abort()
+  }, [symbol, timeframe])
+
+  // load data via WS (kline for selected timeframe)
   React.useEffect(() => {
     let ws: WebSocket | null = null
     const ch = symbol.toLowerCase()
     try {
-      ws = new WebSocket(`wss://fstream.binance.com/ws/${ch}@markPrice@1s`)
+      ws = new WebSocket(`wss://fstream.binance.com/ws/${ch}@kline_${timeframe}`)
       ws.onmessage = (ev) => {
         try {
           const j = JSON.parse(ev.data as string)
-          const p = Number(j?.p || j?.markPrice)
-          if (!Number.isFinite(p)) return
-          if (onPrice) onPrice(p)
-          setPoints((prev) => [...prev.slice(-299), p])
+          const k = j?.k
+          const close = Number(k?.c)
+          const t = Number(k?.t)
+          if (!Number.isFinite(close) || !Number.isFinite(t)) return
+          if (onPrice) onPrice(close)
+          const ts = Math.floor(t / 1000)
+          setData((prev) => {
+            if (!prev.length) return [{ time: ts, value: close }]
+            const last = prev[prev.length - 1]
+            if (last.time === ts) return [...prev.slice(0, -1), { time: ts, value: close }]
+            return [...prev.slice(-999), { time: ts, value: close }]
+          })
         } catch {}
       }
     } catch {}
@@ -275,19 +314,7 @@ function PriceChartLW({
         ws?.close()
       } catch {}
     }
-  }, [symbol])
-
-  const smoothed = React.useMemo(() => {
-    const N = smooth === 'ma15' ? 15 : smooth === 'ma5' ? 5 : 1
-    if (N <= 1) return points
-    const out: number[] = []
-    for (let i = 0; i < points.length; i++) {
-      const s = Math.max(0, i - N + 1)
-      const window = points.slice(s, i + 1)
-      out.push(window.reduce((a, b) => a + b, 0) / window.length)
-    }
-    return out
-  }, [points, smooth])
+  }, [symbol, timeframe])
 
   // try to render via Lightweight Charts from CDN
   React.useEffect(() => {
@@ -331,6 +358,10 @@ function PriceChartLW({
         })
         seriesRef.current = chartRef.current.addLineSeries({ color: '#60a5fa', lineWidth: 2 })
       }
+      // apply current data if available
+      if (data && data.length && seriesRef.current) {
+        seriesRef.current.setData(data)
+      }
       // draw entries as price lines (axis label shows 이름 · Long/Short)
       chartRef.current?.priceScale('right').applyOptions({})
       // remove old price lines
@@ -358,22 +389,17 @@ function PriceChartLW({
     return () => {
       destroyed = true
     }
-  }, [symbol, entries, hoveredId])
+  }, [symbol, entries, hoveredId, data])
 
   // update series data
   React.useEffect(() => {
-    const LW: any = (window as any).LightweightCharts
+  const LW: any = (window as any).LightweightCharts
     if (!LW || !seriesRef.current) return
-    const now = Math.floor(Date.now() / 1000)
-    const data = smoothed.map((v, i) => ({ time: now - (smoothed.length - 1 - i), value: v }))
+    if (!data || data.length === 0) return
     seriesRef.current.setData(data)
-  }, [smoothed])
+  }, [data])
 
-  // fallback SVG if library not loaded yet
-  if (!(window as any).LightweightCharts) {
-    return <PriceChart symbol={symbol} entries={entries} hoveredId={hoveredId} onPrice={onPrice} />
-  }
-  return <div ref={ref} />
+  return <div ref={ref} className="h-[240px] w-full bg-[#0f0f0f]" />
 }
 
 // SVG fallback chart (simple)
@@ -585,4 +611,3 @@ function demoPositions(): Position[] {
   rows.forEach((r) => (r.pnl = computePnl(r)))
   return rows
 }
-

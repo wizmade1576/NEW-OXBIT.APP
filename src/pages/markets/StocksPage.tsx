@@ -362,7 +362,7 @@ export default function StocksPage() {
             </CardDescription>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0 sm:p-4">
           <div id="tv_chart_container" ref={containerRef as any} className="h-[360px] sm:h-[520px] w-full" />
           {!loaded && (
             <div className="h-[520px] w-full grid place-items-center text-sm text-gray-400">차트 로딩중...</div>
