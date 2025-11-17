@@ -234,20 +234,20 @@ export default function KimchiPage() {
         <CardHeader>
 
           {/* ---------- 모바일 전용 상단 바 (검색 + 필터 버튼) ---------- */}
-          <div className="sm:hidden flex items-center gap-2 mb-3">
+          <div className="sm:hidden flex items-center gap-2 mb-3 justify-end">
             
             {/* 검색창 왼쪽 */}
             <input
               value={query}
               onChange={(e)=>setQuery(e.target.value)}
               placeholder="심볼 검색 (예: BTC)"
-              className="w-1/2 sm:w-auto ml-auto order-2 px-3 py-2 rounded-lg border border-neutral-700 bg-[#1a1a1a] text-sm text-neutral-200"
+              className="w-1/2 sm:w-auto order-1 px-3 py-2 rounded-lg border border-neutral-700 bg-[#1a1a1a] text-sm text-neutral-200"
             />
 
             {/* 필터 · 정렬 버튼 오른쪽 */}
             <button
               onClick={()=>setShowFilter(true)}
-              className="order-1 px-3 py-2 rounded-lg border border-neutral-700 bg-[#1a1a1a] text-sm text-neutral-200"
+              className="order-2 px-3 py-2 rounded-lg border border-neutral-700 bg-[#1a1a1a] text-sm text-neutral-200"
             >
               필터 · 정렬
             </button>
