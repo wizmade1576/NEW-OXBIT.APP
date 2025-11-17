@@ -13,14 +13,14 @@ export default function NewsLayout() {
       <h2 className="text-2xl font-semibold">뉴스룸</h2>
 
       <div className="border-b border-border">
-        <nav className="mx-auto flex max-w-3xl items-center justify-center gap-6">
+        <nav className="mx-auto flex max-w-3xl items-center gap-4 sm:justify-center whitespace-nowrap overflow-x-auto scrollbar-hide">
           {tabs.map((t) => (
             <NavLink
               key={t.to}
               to={t.to}
               end={t.index}
               className={({ isActive }) =>
-                'px-3 pb-3 text-sm border-b-2 transition-colors ' +
+                'flex-none px-3 pb-3 text-[13px] sm:text-base border-b-2 transition-colors ' +
                 (isActive
                   ? 'border-blue-500 text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground')

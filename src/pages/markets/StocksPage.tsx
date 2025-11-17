@@ -120,6 +120,7 @@ export default function StocksPage() {
 
   // Real-time BTC price via Binance WebSocket
   React.useEffect(() => {
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     const ws = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@ticker')
     ws.onmessage = (ev) => {
       try {
@@ -165,6 +166,7 @@ export default function StocksPage() {
 
   // Simulate NASDAQ, S&P500, DXY small drift every 20s
   React.useEffect(() => {
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     const id = setInterval(() => {
       setTiles((arr) => arr.map(t => {
         if (t.id === 'nasdaq' || t.id === 'spx' || t.id === 'dxy') {
@@ -254,10 +256,62 @@ export default function StocksPage() {
     return () => { try { ws.close() } catch {} }
   }, [])
 
+  // Unified indicator list (tiles + extraTiles)
+  const indicators = React.useMemo(() => {
+    const byId = new Map<string, Tile>()
+    ;[...tiles, ...extraTiles].forEach(t => { byId.set(t.id, t) })
+    return Array.from(byId.values())
+  }, [tiles, extraTiles])
+
+  // Selected indicator for mobile
+  const [selectedId, setSelectedId] = React.useState<string>('nasdaq')
+  const selectedItem = React.useMemo(() => indicators.find(i => i.id === selectedId) || indicators[0], [indicators, selectedId])
+
+  // When selection changes, update chart symbol as well
+  React.useEffect(() => {
+    if (!selectedItem) return
+    const mapped = selectedItem.id === 'dxy' ? 'CAPITALCOM:USDX' : selectedItem.symbol
+    if (mapped) setSymbol(mapped)
+  }, [selectedItem])
+
   return (
     <section className="space-y-4">
-      {/* Primary indicators */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+      {/* Mobile: Select one indicator and show a single compact card */}
+      <div className="block sm:hidden space-y-2">
+        <label className="block text-xs text-muted-foreground">시장 지표</label>
+        <select
+          value={selectedId}
+          onChange={(e) => setSelectedId(e.target.value)}
+          className="w-full px-3 py-2 rounded border border-neutral-700 bg-[#1a1a1a] text-[13px]"
+        >
+          {indicators.map((t) => (
+            <option key={`opt-${t.id}`} value={t.id}>{t.label}</option>
+          ))}
+        </select>
+
+        {selectedItem && (
+          <div className="mt-2">
+            {(() => {
+              const t = selectedItem
+              const val = (!t.value || t.value === 'NaN') ? '--' : t.value
+              const chg = (!t.change || /NaN/.test(t.change)) ? '--' : t.change
+              const chgClass = (!t.change || /NaN/.test(t.change)) ? 'text-gray-400 text-xs' : (t.up ? 'text-emerald-400 text-xs' : 'text-red-400 text-xs')
+              return (
+                <div className={`text-left rounded-lg border border-neutral-800 bg-[#121212] p-3`}>
+                  <div className="text-[11px] text-gray-400">{t.id==='dxy' ? 'USD Index' : t.label}</div>
+                  <div className="mt-1 flex items-end justify-between">
+                    <div className="text-base font-semibold text-white">{val}</div>
+                    <div className={chgClass}>{chg}</div>
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop: original grid */}
+      <div className="hidden sm:grid grid-cols-2 lg:grid-cols-5 gap-3">
         {tiles.map((t) => {
           const val = (!t.value || t.value === 'NaN') ? '--' : t.value
           const chg = (!t.change || /NaN/.test(t.change)) ? '--' : t.change
