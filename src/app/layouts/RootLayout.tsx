@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Header from '../../components/navigation/Header'
 import MobileBottomNav from '../../components/navigation/MobileBottomNav'
 import SearchBar from '../../components/navigation/SearchBar'
@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/useAuthStore'
 
 export default function RootLayout() {
   const location = useLocation()
+  const navigate = useNavigate()
   const setUser = useAuthStore((s) => s.setUser)
   const showSearchBar = location.pathname === '/'
 
@@ -26,6 +27,16 @@ export default function RootLayout() {
     })
     return () => { mounted = false; sub?.subscription?.unsubscribe?.() }
   }, [setUser])
+
+  // Mobile-only: start at Breaking page when landing on '/'
+  React.useEffect(() => {
+    try {
+      const isMobile = window.matchMedia && window.matchMedia('(max-width: 639px)').matches
+      if (isMobile && location.pathname === '/') {
+        navigate('/breaking', { replace: true })
+      }
+    } catch {}
+  }, [location.pathname, navigate])
 
   return (
     <div className="min-h-screen bg-background text-foreground">

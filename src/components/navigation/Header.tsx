@@ -68,7 +68,11 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-6">
-        <div className="font-semibold tracking-tight">{BRAND}</div>
+        {/* Mobile: brand navigates to Breaking page; Desktop: unchanged text */}
+        <NavLink to="/breaking" className="font-semibold tracking-tight md:hidden" aria-label="OXBIT.APP">
+          {BRAND}
+        </NavLink>
+        <div className="font-semibold tracking-tight hidden md:block">{BRAND}</div>
         <nav className="hidden md:flex items-center gap-4 text-sm overflow-x-hidden sm:overflow-visible">
           <NavLink to="/" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>홈</NavLink>
           <NavLink to="/breaking" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>속보</NavLink>
