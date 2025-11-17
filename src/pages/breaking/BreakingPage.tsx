@@ -126,7 +126,7 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
         <Link
           to={`/breaking/${item.key}`}
           state={{ ...item, prevKey, nextKey }}
-          onClick={() => sessionStorage.setItem('breaking:scrollY', String(window.scrollY))}
+          onClick={(e) => { e.preventDefault(); alert('로그인이 필요한 서비스입니다.'); }}
           className="block"
         >
           <h4 className="text-[13px] sm:text-base font-semibold leading-snug whitespace-normal break-words hover:underline">
@@ -155,7 +155,7 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
           <Link
             to={`/breaking/${item.key}`}
             state={{ ...item, prevKey, nextKey }}
-            onClick={() => sessionStorage.setItem('breaking:scrollY', String(window.scrollY))}
+            onClick={(e) => { e.preventDefault(); alert('로그인이 필요한 서비스입니다.'); }}
             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-accent/60 text-muted-foreground hover:text-foreground"
           >
             <CommentIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
@@ -202,7 +202,7 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
           {/* 더보기 */}
           <button
             type="button"
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => alert('로그인이 필요한 서비스입니다.')}
             className="ml-auto rounded-md border border-border px-1.5 py-0.5 text-[11px] sm:text-xs h-[26px] hover:bg-accent"
           >
             {expanded ? '접기' : '더보기'}

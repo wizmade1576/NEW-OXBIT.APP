@@ -248,7 +248,7 @@ export default function FuturesPage() {
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="심볼 검색 (예: BTCUSDT)"
-          className="flex-1 px-3 py-2 rounded-md border border-neutral-700 bg-[#111318] text-sm text-neutral-100 placeholder:text-neutral-500"
+          className="w-1/2 px-3 py-2 rounded-md border border-neutral-700 bg-[#111318] text-sm text-neutral-100 placeholder:text-neutral-500"
         />
       </div>
 
@@ -342,7 +342,7 @@ export default function FuturesPage() {
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder="심볼 검색"
-              className="order-first px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm flex-1 min-w-[140px]"
+              className="order-first px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm w-1/2 min-w-[140px]"
             />
           </div>
 
