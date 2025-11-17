@@ -19,7 +19,7 @@ export default function PaperTradingPage() {
           <CardDescription>백테스트/실시간 모의주문 연동 예정</CardDescription>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">초기 화면 구성용 자리 표시입니다.</p>
+          <p className="text-sm text-muted-foreground">현재 모의투자 서버 점검 중입니다. </p>
         </CardContent>
       </Card>
     </section>

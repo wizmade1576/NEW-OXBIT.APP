@@ -1,4 +1,4 @@
-ï»¿import * as React from 'react'
+import * as React from 'react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
 
 type Tile = { id: string; label: string; value: string; change: string; up: boolean; symbol: string }
@@ -25,37 +25,26 @@ export default function StocksPage() {
       return sym
     } catch { return sym }
   }
-
-  const isStocksPage = window.location.pathname === '/markets/stocks'  // â˜… ë³´í˜¸ë§‰
-
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [loaded, setLoaded] = React.useState(false)
+  // Stocks Ã¹ È­¸éÀ» ³ª½º´Ú(ETF QQQ)À¸·Î ½ÃÀÛ
   const [symbol, setSymbol] = React.useState<string>('OANDA:NAS100USD')
   const [interval, setIntervalState] = React.useState<string>('15')
   const [theme, setTheme] = React.useState<'dark' | 'light'>('dark')
 
-  // TradingView ìŠ¤í¬ë¦½íŠ¸ ë¡œë”
   React.useEffect(() => {
-    if (!isStocksPage) return  // â˜… ì¶”ê°€
-
     if ((window as any).TradingView) { setLoaded(true); return }
     const s = document.createElement('script')
     s.src = 'https://s3.tradingview.com/tv.js'
     s.async = true
     s.onload = () => setLoaded(true)
     document.head.appendChild(s)
-  }, [isStocksPage])
+  }, [])
 
-  // TradingView ì´ˆê¸°í™”
   React.useEffect(() => {
-    if (!isStocksPage) return  // â˜… ì¶”ê°€
-
     if (!loaded || !containerRef.current) return
     containerRef.current.innerHTML = ''
     try {
-      const mobile = (() => {
-        try { return window.matchMedia && window.matchMedia('(max-width: 639px)').matches } catch { return false }
-      })()
       // @ts-ignore
       const widget = new (window as any).TradingView.widget({
         container_id: 'tv_chart_container',
@@ -67,12 +56,10 @@ export default function StocksPage() {
         style: '1',
         locale: 'ko',
         hide_top_toolbar: false,
-        hide_side_toolbar: mobile ? true : false,
         allow_symbol_change: false,
         withdateranges: true,
-        hide_legend: mobile ? true : false,
       })
-
+      // Ensure the intended symbol is applied; add robust fallback for DXY
       if (typeof (widget as any)?.onChartReady === 'function') {
         ;(widget as any).onChartReady(() => {
           const applySymbol = (target: string) => {
@@ -110,29 +97,30 @@ export default function StocksPage() {
         })
       }
     } catch {}
-  }, [isStocksPage, loaded, symbol, interval, theme])
+  }, [loaded, symbol, interval, theme])
 
   const [tiles, setTiles] = React.useState<Tile[]>([
+    // ÀÏºÎ TVC Áö¼ö´Â ÀÓº£µå Á¦ÇÑÀÌ ÀÖ¾î ETF ÇÁ·Ï½Ã·Î ¸ÅÇÎ
     { id: 'nasdaq', label: 'NASDAQ 100', symbol: 'OANDA:NAS100USD', value: '25,000', change: '+0.10%', up: true },
     { id: 'spx', label: 'S&P 500 Index', symbol: 'OANDA:SPX500USD', value: '6,740', change: '+0.16%', up: true },
-    { id: 'dxy', label: 'ë‹¬ëŸ¬ ì¸ë±ìŠ¤', symbol: 'AMEX:UUP', value: '106.12', change: '-0.08%', up: false },
+    { id: 'dxy', label: '´Ş·¯ ÀÎµ¦½º', symbol: 'AMEX:UUP', value: '106.12', change: '-0.08%', up: false },
     { id: 'btcd', label: 'BTC Dominance', symbol: 'CRYPTOCAP:BTC.D', value: '60.11%', change: '+0.10%', up: true },
-    { id: 'btc', label: 'BTC ê°€ê²©', symbol: 'BINANCE:BTCUSDT', value: '102,990', change: '-0.30%', up: false },
+    { id: 'btc', label: 'BTC °¡°İ', symbol: 'BINANCE:BTCUSDT', value: '102,990', change: '-0.30%', up: false },
   ])
 
+  // Optional: expanded indicators (´õº¸±â)
   const [expanded, setExpanded] = React.useState<boolean>(false)
   const [extraTiles, setExtraTiles] = React.useState<Tile[]>([
     { id: 'dji', label: 'Dow Jones', symbol: 'TVC:DJI', value: '38,500', change: '+0.05%', up: true },
     { id: 'rut', label: 'Russell 2000', symbol: 'TVC:RUT', value: '2,020', change: '-0.12%', up: false },
     { id: 'xau', label: 'Gold (XAU/USD)', symbol: 'OANDA:XAUUSD', value: '2,350.0', change: '+0.10%', up: true },
     { id: 'wti', label: 'WTI (XTI/USD)', symbol: 'TVC:USOIL', value: '78.60', change: '-0.08%', up: false },
-    { id: 'eth', label: 'ETH ê°€ê²©', symbol: 'BINANCE:ETHUSDT', value: '3,120', change: '+0.20%', up: true },
+    { id: 'eth', label: 'ETH °¡°İ', symbol: 'BINANCE:ETHUSDT', value: '3,120', change: '+0.20%', up: true },
   ])
 
-  // BTC ì‹¤ì‹œê°„ WebSocket
+  // Real-time BTC price via Binance WebSocket
   React.useEffect(() => {
-    if (!isStocksPage) return  // â˜… ì¶”ê°€
-
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     const ws = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@ticker')
     ws.onmessage = (ev) => {
       try {
@@ -150,12 +138,11 @@ export default function StocksPage() {
       } catch {}
     }
     return () => { try { ws.close() } catch {} }
-  }, [isStocksPage])
+  }, [])
 
-  // CoinGecko BTC Dominance
+  // BTC Dominance from CoinGecko (60s poll)
   React.useEffect(() => {
-    if (!isStocksPage) return  // â˜… ì¶”ê°€
-
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     let timer: any
     const fetchDom = async () => {
       try {
@@ -175,12 +162,11 @@ export default function StocksPage() {
     }
     fetchDom()
     return () => { if (timer) clearTimeout(timer) }
-  }, [isStocksPage])
+  }, [])
 
-  // NASDAQ / SPX / DXY Drift
+  // Simulate NASDAQ, S&P500, DXY small drift every 20s
   React.useEffect(() => {
-    if (!isStocksPage) return  // â˜… ì¶”ê°€
-
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     const id = setInterval(() => {
       setTiles((arr) => arr.map(t => {
         if (t.id === 'nasdaq' || t.id === 'spx' || t.id === 'dxy') {
@@ -197,6 +183,7 @@ export default function StocksPage() {
         }
         return t
       }))
+      // also drift extra tiles lightly (demo)
       setExtraTiles((arr) => arr.map(t => {
         if (t.id === 'eth') return t
         const base = parseFloat(t.value.replace(/,/g, '')) || 0
@@ -212,14 +199,13 @@ export default function StocksPage() {
       }))
     }, 20000)
     return () => clearInterval(id)
-  }, [isStocksPage])
+  }, [])
 
-  // Twelve Data polling
+  // Twelve Data polling for NDX/SPX/DXY if API key exists (60s)
   React.useEffect(() => {
-    if (!isStocksPage) return  // â˜… ì¶”ê°€
-
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const API_KEY: any = (import.meta as any).env?.VITE_TWELVE_API_KEY
-    if (!API_KEY) return
+    if (!API_KEY) return // keep demo drift if no key
     let timer: any
     const pull = async () => {
       try {
@@ -242,17 +228,17 @@ export default function StocksPage() {
         updateFrom('NDX', 'nasdaq')
         updateFrom('SPX', 'spx')
         updateFrom('DXY', 'dxy')
-      } catch {}
+      } catch {
+        // ignore and try again later
+      }
       timer = setTimeout(pull, 60000)
     }
     pull()
     return () => { if (timer) clearTimeout(timer) }
-  }, [isStocksPage])
+  }, [])
 
-  // ETH WebSocket
+  // ETH price via Binance WebSocket (optional extra tile)
   React.useEffect(() => {
-    if (!isStocksPage) return  // â˜… ì¶”ê°€
-
     const ws = new WebSocket('wss://stream.binance.com:9443/ws/ethusdt@ticker')
     ws.onmessage = (ev) => {
       try {
@@ -268,49 +254,12 @@ export default function StocksPage() {
       } catch {}
     }
     return () => { try { ws.close() } catch {} }
-  }, [isStocksPage])
-
-  const indicators = React.useMemo(() => {
-    const byId = new Map<string, Tile>()
-    ;[...tiles, ...extraTiles].forEach(t => { byId.set(t.id, t) })
-    return Array.from(byId.values())
-  }, [tiles, extraTiles])
-
-  const [selectedId, setSelectedId] = React.useState<string>('nasdaq')
-  const selectedItem = React.useMemo(() => indicators.find(i => i.id === selectedId) || indicators[0], [indicators, selectedId])
-
-  React.useEffect(() => {
-    if (!isStocksPage) return  // â˜… ì¶”ê°€
-
-    if (!selectedItem) return
-    const mapped = selectedItem.id === 'dxy' ? 'CAPITALCOM:USDX' : selectedItem.symbol
-    if (mapped) setSymbol(mapped)
-  }, [isStocksPage, selectedItem])
+  }, [])
 
   return (
     <section className="space-y-4">
-      <style>{`
-        @media (max-width: 639px) {
-          #tv_chart_container { height: 360px !important; }
-        }
-      `}</style>
-
-      {/* Mobile */}
-      <div className="block sm:hidden space-y-2">
-        <label className="block text-xs text-muted-foreground">ì‹œì¥ ì§€í‘œ</label>
-        <select
-          value={selectedId}
-          onChange={(e) => setSelectedId(e.target.value)}
-          className="w-full px-3 py-2 rounded border border-neutral-700 bg-[#1a1a1a] text-[13px]"
-        >
-          {indicators.map((t) => (
-            <option key={`opt-${t.id}`} value={t.id}>{t.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* ë°ìŠ¤í¬í†± */}
-      <div className="hidden sm:grid grid-cols-2 lg:grid-cols-5 gap-3">
+      {/* Primary indicators */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         {tiles.map((t) => {
           const val = (!t.value || t.value === 'NaN') ? '--' : t.value
           const chg = (!t.change || /NaN/.test(t.change)) ? '--' : t.change
@@ -328,13 +277,13 @@ export default function StocksPage() {
         })}
       </div>
 
-      {/* í™•ì¥ ì˜ì—­ */}
-      <div className="hidden sm:flex items-center justify-between">
-        <div className="text-sm text-gray-400">ì§€í‘œ í™•ì¥</div>
-        <button onClick={()=>setExpanded(e=>!e)} className="px-2 py-1 rounded border border-neutral-700 bg-[#121212] hover:bg-[#1e1e1e] text-sm">{expanded?'ì ‘ê¸°':'ë”ë³´ê¸°'}</button>
+      {/* Expandable indicators */}
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-gray-400">ÁöÇ¥ È®Àå</div>
+        <button onClick={()=>setExpanded(e=>!e)} className="px-2 py-1 rounded border border-neutral-700 bg-[#121212] hover:bg-[#1e1e1e] text-sm">{expanded?'Á¢±â':'´õº¸±â'}</button>
       </div>
       {expanded && (
-        <div className="hidden sm:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           {extraTiles.map((t) => {
             const val = (!t.value || t.value === 'NaN') ? '--' : t.value
             const chg = (!t.change || /NaN/.test(t.change)) ? '--' : t.change
@@ -352,23 +301,23 @@ export default function StocksPage() {
         </div>
       )}
 
-      {/* ì°¨íŠ¸ */}
       <Card className="bg-[#121212] border-neutral-800">
         <CardHeader>
           <div className="flex flex-col gap-2">
-            <CardTitle className="text-white">ì‹¤ì‹œê°„ ì°¨íŠ¸</CardTitle>
+            <CardTitle className="text-white">½Ç½Ã°£ Â÷Æ®</CardTitle>
             <CardDescription>
-              {prettyName(symbol)} Â· {interval} Â· {prettyExchange(symbol)}
+              {prettyName(symbol)} ¡¤ {interval} ¡¤ {prettyExchange(symbol)}
             </CardDescription>
           </div>
         </CardHeader>
         <CardContent>
-          <div id="tv_chart_container" ref={containerRef as any} className="h-[360px] sm:h-[520px] w-full" />
+          <div id="tv_chart_container" ref={containerRef as any} className="h-[520px] w-full" />
           {!loaded && (
-            <div className="h-[520px] w-full grid place-items-center text-sm text-gray-400">ì°¨íŠ¸ ë¡œë”©ì¤‘...</div>
+            <div className="h-[520px] w-full grid place-items-center text-sm text-gray-400">Â÷Æ® ·ÎµùÁß...</div>
           )}
         </CardContent>
       </Card>
     </section>
   )
 }
+

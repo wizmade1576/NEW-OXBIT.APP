@@ -41,6 +41,7 @@ export default function KimchiPage() {
 
   // USD->KRW 환율 (캐시 + 백그라운드 갱신)
   React.useEffect(() => {
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     let mounted = true
     const key = 'usdkrw_cache_v1'
     try { const c = JSON.parse(localStorage.getItem(key) || 'null'); if (c && typeof c.rate==='number') setUsdkrw(c.rate) } catch {}
@@ -64,6 +65,7 @@ export default function KimchiPage() {
 
   // Build symbols dynamically from selected exchanges (intersection)
   React.useEffect(() => {
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     let mounted = true
     ;(async () => {
       try {
@@ -83,6 +85,7 @@ export default function KimchiPage() {
 
   // Fetch both sides and build rows
   React.useEffect(() => {
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     let mounted = true
     let timer: any
     const pull = async () => {
@@ -196,7 +199,7 @@ export default function KimchiPage() {
             </div>
           ) : null}
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="min-w-full text-[13px] sm:text-sm">
               <thead>
                 <tr className="text-muted-foreground">
                   <th className="px-3 py-2 text-left font-medium">심볼</th>

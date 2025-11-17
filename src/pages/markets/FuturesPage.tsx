@@ -47,6 +47,7 @@ export default function FuturesPage() {
 
   // FX rate (6h refresh)
   React.useEffect(() => {
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     if (currency !== 'KRW') return
     let mounted = true
     const key = 'usdkrw_cache_v1'
@@ -65,6 +66,7 @@ export default function FuturesPage() {
 
   // Main fetch (every 3 minutes). Use Edge Function bundle for all exchanges
   React.useEffect(() => {
+    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
     let mounted = true
     let timer: any
     const nextMs = 180_000

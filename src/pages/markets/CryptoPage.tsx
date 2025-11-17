@@ -174,9 +174,25 @@ export default function CryptoPage() {
   return (
     <section className="space-y-4">
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Mobile-only: compact search + buttons row */}
+      <div className="flex items-center gap-1 px-3 w-full sm:hidden">
+        <div className="w-[45%] min-w-0 flex-none">
+          <input
+            value={query}
+            onChange={(e)=>{ setQuery(e.target.value); setPage(1) }}
+            placeholder="코인 검색 (예: btc, eth)"
+            className="px-2 py-2 rounded-lg bg-[#1a1a1a] border border-neutral-700 text-sm w-full"
+          />
+        </div>
+        <div className="flex items-center gap-1 w-[55%] justify-end flex-nowrap flex-none">
+          <button onClick={()=>setCurrency('USD')} className={`px-2 py-1 rounded border border-neutral-700 text-xs whitespace-nowrap shrink-0 ${currency==='USD'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>USD</button>
+          <button onClick={()=>setCurrency('KRW')} className={`px-2 py-1 rounded border border-neutral-700 text-xs whitespace-nowrap shrink-0 ${currency==='KRW'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>KRW</button>
+          <button onClick={()=>{setCategory('FAV'); setPage(1)}} className={`px-2 py-1 rounded border border-neutral-700 text-xs whitespace-nowrap shrink-0 ${category==='FAV'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>즐겨찾기</button>
+        </div>
+      </div>
+      <div className="hidden sm:flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1"></div>
-        <input value={query} onChange={(e)=>{ setQuery(e.target.value); setPage(1) }} placeholder="코인 검색 (예: btc, eth)" className="px-3 py-2 rounded border border-neutral-700 bg-[#1a1a1a] focus:outline-none" />
+        <input value={query} onChange={(e)=>{ setQuery(e.target.value); setPage(1) }} placeholder="코인 검색 (예: btc, eth)" className="px-3 py-2 rounded border border-neutral-700 bg-[#1a1a1a] focus:outline-none w-full sm:w-auto" />
         <div className="ml-auto flex items-center gap-1">
           <button onClick={()=>setCurrency('USD')} className={`px-2 py-1 rounded border border-neutral-700 ${currency==='USD'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>USD</button>
           <button onClick={()=>setCurrency('KRW')} className={`px-2 py-1 rounded border border-neutral-700 ${currency==='KRW'?'bg-emerald-600/20 text-emerald-300':'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>KRW</button>
@@ -209,7 +225,7 @@ export default function CryptoPage() {
         </CardHeader>
         <CardContent>
           <div className="w-full overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="min-w-full text-[13px] sm:text-sm">
               <thead>
                 <tr className="text-gray-400">
                   {[

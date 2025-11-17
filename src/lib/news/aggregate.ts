@@ -1,69 +1,61 @@
-import { fetchCrypto, fetchStocks, fetchFx, type NewsItem, normalizeNewsUrl } from './providers'
+// aggregate.ts
+// Mix 모드에서 "첫 페이지"를 Supabase Edge Function이 실패했을 때만 사용되는 보조 수집기
 
-export type TopicKey = 'crypto' | 'stocks' | 'fx'
-
-export interface CursorState {
-  crypto?: string
-  stocks?: string
-  fx?: string
-}
-
-export interface PageState {
-  crypto?: number
-  stocks?: number
-  fx?: number
+export interface NewsItem {
+  id: string
+  title: string
+  summary?: string
+  url: string
+  image?: string
+  date: string
+  source: string
 }
 
 export interface FetchAllResult {
   items: NewsItem[]
-  cursor: CursorState
-  page: PageState
 }
 
+/**
+ * fetchAllTopics()
+ *
+ * - 일반 단일 topic은 Supabase Edge Function(fetchTopic)으로 처리.
+ * - 이 함수는 mix 모드가 죽었을 때 “응급용 첫 페이지”로만 사용된다.
+ */
 export async function fetchAllTopics(
-  opts: { cursor?: CursorState; page?: PageState; limitPerTopic?: number } = {}
+  options: { limitPerTopic?: number } = {}
 ): Promise<FetchAllResult> {
-  const limit = opts.limitPerTopic ?? 5
-  const cursor = { ...(opts.cursor || {}) }
-  const page = { ...(opts.page || {}) }
+  const limit = options.limitPerTopic ?? 10
 
-  const [c, s, f] = await Promise.all([
-    fetchCrypto(cursor.crypto ?? (page.crypto || 1), limit),
-    fetchStocks(cursor.stocks ?? (page.stocks || 1), limit),
-    fetchFx(cursor.fx ?? (page.fx || 1), limit),
-  ])
+  try {
+    const base = import.meta.env.VITE_SUPABASE_URL as string | undefined
+    const anon = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
-  const merged = [...c.items, ...s.items, ...f.items]
-  // dedupe by id or url
-  const seen = new Set<string>()
-  const seenTitle = new Set<string>()
-  const items: NewsItem[] = []
-  for (const it of merged) {
-    const key = normalizeNewsUrl(it.url || it.id as any) || (it.id || it.url).toString()
-    if (seen.has(key)) continue
-    const tkey = (it.title || '')
-      .toLowerCase()
-      .replace(/\s+/g, ' ')
-      .replace(/[^a-z0-9가-힣\s]/gi, '')
-      .trim()
-      .slice(0, 80)
-    if (tkey && seenTitle.has(tkey)) continue
-    seen.add(key)
-    if (tkey) seenTitle.add(tkey)
-    items.push({ ...it, id: key, url: key })
+    if (base) {
+      const url = new URL(`${base}/functions/v1/news-proxy`)
+      url.searchParams.set('topic', 'all')
+      url.searchParams.set('limit', String(limit))
+      url.searchParams.set('page', '1')
+
+      const headers: Record<string, string> = {}
+      if (anon) {
+        headers['apikey'] = anon
+        headers['Authorization'] = `Bearer ${anon}`
+      }
+
+      const r = await fetch(url.toString(), { headers })
+      if (r.ok) {
+        const j = await r.json()
+        const arr: NewsItem[] = Array.isArray(j?.items) ? j.items : []
+        return { items: arr }
+      }
+    }
+  } catch (e) {
+    console.error('aggregate fetchAllTopics fallback error', e)
   }
-  // newest first
-  items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-  // advance cursors/pages
-  if (c.cursor) cursor.crypto = c.cursor
-  if (s.cursor) cursor.stocks = s.cursor
-  if (f.cursor) cursor.fx = f.cursor
-  if (c.nextPage) page.crypto = c.nextPage
-  if (s.nextPage) page.stocks = s.nextPage
-  if (f.nextPage) page.fx = f.nextPage
-
-  return { items, cursor, page }
+  // 완전히 실패하면 빈 배열만 반환 (UI 안죽게)
+  return { items: [] }
 }
 
+// 다른 곳에서 default import로 쓸 수도 있으니 같이 내보냄
 export default fetchAllTopics
