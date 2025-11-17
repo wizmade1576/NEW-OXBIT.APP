@@ -60,11 +60,6 @@ export default function BreakingDetailPage() {
   const [likeCount, setLikeCount] = React.useState(0)
   const [comments, setComments] = React.useState<BreakingComment[]>([])
 
-  // Login required notice on entering detail page
-  React.useEffect(() => {
-    alert('로그인이 필요한 서비스입니다.')
-  }, [])
-
   // When URL key or navigation state changes, reinitialize item from state.
   React.useEffect(() => {
     setItem(state.key ? (state as ItemState) : null)
