@@ -1,323 +1,654 @@
 import * as React from 'react'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
 
-type Tile = { id: string; label: string; value: string; change: string; up: boolean; symbol: string }
+type ContractType = 'PERP' | 'FUTURES'
 
-export default function StocksPage() {
-  const prettyExchange = (sym: string): string => {
-    try {
-      const exch = (sym.split(':')[0] || '').toUpperCase()
-      if (exch === 'CAPITALCOM') return 'Capital.com'
-      if (exch === 'CURRENCYCOM') return 'Currency.com'
-      if (exch === 'OANDA') return 'OANDA'
-      if (exch === 'TVC') return 'TVC'
-      if (exch === 'ICEUS') return 'ICE'
-      if (exch === 'AMEX') return 'AMEX'
-      return exch || sym
-    } catch { return sym }
-  }
-  const prettyName = (sym: string): string => {
-    try {
-      const p = sym.toUpperCase()
-      if (p.includes('USDX') || p.includes('DXY') || p.includes('DX1!')) return 'AMEX'
-      if (p.includes('NAS100')) return 'US100 Cash CFD'
-      if (p.includes('SPX500')) return 'S&P 500 Index'
-      return sym
-    } catch { return sym }
-  }
-  const containerRef = React.useRef<HTMLDivElement | null>(null)
-  const [loaded, setLoaded] = React.useState(false)
-  // Stocks √π »≠∏È¿ª ≥™Ω∫¥⁄(ETF QQQ)¿∏∑Œ Ω√¿€
-  const [symbol, setSymbol] = React.useState<string>('OANDA:NAS100USD')
-  const [interval, setIntervalState] = React.useState<string>('15')
-  const [theme, setTheme] = React.useState<'dark' | 'light'>('dark')
+type Row = {
+  symbol: string
+  instId?: string
+  price?: number
+  change24h?: number
+  funding?: number
+  oi?: number
+  long?: number
+  short?: number
+  volume?: number
+  contractType?: ContractType
+}
 
-  React.useEffect(() => {
-    if ((window as any).TradingView) { setLoaded(true); return }
-    const s = document.createElement('script')
-    s.src = 'https://s3.tradingview.com/tv.js'
-    s.async = true
-    s.onload = () => setLoaded(true)
-    document.head.appendChild(s)
+export default function FuturesPage() {
+  // ?ÑÌÑ∞ Î™®Îã¨
+  const [showFilter, setShowFilter] = React.useState(false)
+
+  // Supabase Edge Function proxy
+  const prox = React.useCallback((qs: string) => {
+    const base = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/binance-proxy`
+    const anon = String(import.meta.env.VITE_SUPABASE_ANON_KEY || '')
+    const url = `${base}?${qs}`
+    const headers: Record<string, string> = {}
+    if (anon) {
+      headers['Authorization'] = `Bearer ${anon}`
+      headers['apikey'] = anon
+    }
+    return { url, headers }
   }, [])
 
+  const [exchange, setExchange] = React.useState<'Binance' | 'Bybit' | 'OKX'>('Binance')
+  const [sortBy, setSortBy] = React.useState<'volume' | 'funding' | 'oi' | 'change24h'>('volume')
+  const [sortDir, setSortDir] = React.useState<'asc' | 'desc'>('desc')
+  const [query, setQuery] = React.useState('')
+  const [typeFilter, setTypeFilter] = React.useState<'ALL' | ContractType>('ALL')
+  const [rows, setRows] = React.useState<Row[]>([])
+  const [rankBy, setRankBy] = React.useState<'volume' | 'oi'>('volume')
+  const [loading, setLoading] = React.useState(false)
+  const [error, setError] = React.useState<string | null>(null)
+  const [ratioMap, setRatioMap] = React.useState<Record<string, { long: number; short: number }>>({})
+  const [currency, setCurrency] = React.useState<'USD' | 'KRW'>('USD')
+  const [usdkrw, setUsdkrw] = React.useState<number>(0)
+
+  const TOP_LIMIT = 50
+  const PAGE_SIZE = 25
+  const [visibleCount, setVisibleCount] = React.useState(PAGE_SIZE)
+  const sentinelRef = React.useRef<HTMLDivElement | null>(null)
+
+  // ---------------- FX rate (USD -> KRW, 6?úÍ∞ÑÎßàÎã§) ----------------
   React.useEffect(() => {
-    if (!loaded || !containerRef.current) return
-    containerRef.current.innerHTML = ''
     try {
-      // @ts-ignore
-      const widget = new (window as any).TradingView.widget({
-        container_id: 'tv_chart_container',
-        autosize: true,
-        symbol,
-        interval,
-        timezone: 'Asia/Seoul',
-        theme,
-        style: '1',
-        locale: 'ko',
-        hide_top_toolbar: false,
-        allow_symbol_change: false,
-        withdateranges: true,
-      })
-      // Ensure the intended symbol is applied; add robust fallback for DXY
-      if (typeof (widget as any)?.onChartReady === 'function') {
-        ;(widget as any).onChartReady(() => {
-          const applySymbol = (target: string) => {
-            try { (widget as any).activeChart?.().setSymbol?.(target) } catch {}
-            try { (widget as any).chart?.().setSymbol?.(target, undefined) } catch {}
-          }
-          const getCurrent = (): string => {
-            try { return (widget as any).activeChart?.().symbol?.() || '' } catch {}
-            try { return (widget as any).chart?.().symbol?.() || '' } catch {}
-            return ''
-          }
-          const verifyAndFallback = (desired: string) => {
-            const isUsdIndex = /DXY|USDX|DX1!|UUP/i.test(desired)
-            const candidates = isUsdIndex
-              ? ['CAPITALCOM:USDX', 'CURRENCYCOM:USDX', 'TVC:DXY', 'ICEUS:DX1!', 'AMEX:UUP']
-              : [desired]
-            let i = 0
-            const tryNext = () => {
-              if (i >= candidates.length) return
-              const tgt = candidates[i++]
-              applySymbol(tgt)
-              let attempts = 0
-              const check = () => {
-                attempts++
-                const cur = (getCurrent() || '').toUpperCase()
-                if (cur === tgt.toUpperCase()) return
-                if (attempts < 6) { setTimeout(check, 400); return }
-                tryNext()
-              }
-              setTimeout(check, 400)
-            }
-            tryNext()
-          }
-          verifyAndFallback(symbol)
-        })
-      }
+      if (!(window.location?.pathname || '').startsWith('/markets')) return
     } catch {}
-  }, [loaded, symbol, interval, theme])
+    if (currency !== 'KRW') return
 
-  const [tiles, setTiles] = React.useState<Tile[]>([
-    // ¿œ∫Œ TVC ¡ˆºˆ¥¬ ¿”∫£µÂ ¡¶«—¿Ã ¿÷æÓ ETF «¡∑œΩ√∑Œ ∏≈«Œ
-    { id: 'nasdaq', label: 'NASDAQ 100', symbol: 'OANDA:NAS100USD', value: '25,000', change: '+0.10%', up: true },
-    { id: 'spx', label: 'S&P 500 Index', symbol: 'OANDA:SPX500USD', value: '6,740', change: '+0.16%', up: true },
-    { id: 'dxy', label: '¥ﬁ∑Ø ¿Œµ¶Ω∫', symbol: 'AMEX:UUP', value: '106.12', change: '-0.08%', up: false },
-    { id: 'btcd', label: 'BTC Dominance', symbol: 'CRYPTOCAP:BTC.D', value: '60.11%', change: '+0.10%', up: true },
-    { id: 'btc', label: 'BTC ∞°∞›', symbol: 'BINANCE:BTCUSDT', value: '102,990', change: '-0.30%', up: false },
-  ])
+    let mounted = true
+    const key = 'usdkrw_cache_v1'
 
-  // Optional: expanded indicators (¥ı∫∏±‚)
-  const [expanded, setExpanded] = React.useState<boolean>(false)
-  const [extraTiles, setExtraTiles] = React.useState<Tile[]>([
-    { id: 'dji', label: 'Dow Jones', symbol: 'TVC:DJI', value: '38,500', change: '+0.05%', up: true },
-    { id: 'rut', label: 'Russell 2000', symbol: 'TVC:RUT', value: '2,020', change: '-0.12%', up: false },
-    { id: 'xau', label: 'Gold (XAU/USD)', symbol: 'OANDA:XAUUSD', value: '2,350.0', change: '+0.10%', up: true },
-    { id: 'wti', label: 'WTI (XTI/USD)', symbol: 'TVC:USOIL', value: '78.60', change: '-0.08%', up: false },
-    { id: 'eth', label: 'ETH ∞°∞›', symbol: 'BINANCE:ETHUSDT', value: '3,120', change: '+0.20%', up: true },
-  ])
+    try {
+      const cached = JSON.parse(localStorage.getItem(key) || 'null')
+      if (cached?.rate) setUsdkrw(cached.rate)
+    } catch {}
 
-  // Real-time BTC price via Binance WebSocket
-  React.useEffect(() => {
-    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
-    const ws = new WebSocket('wss://stream.binance.com:9443/ws/btcusdt@ticker')
-    ws.onmessage = (ev) => {
-      try {
-        const d = JSON.parse(ev.data)
-        const last = parseFloat(d.c)
-        const pct = parseFloat(d.P)
-        if (Number.isFinite(last) && Number.isFinite(pct)) {
-          setTiles((arr) => arr.map(t => t.id === 'btc' ? {
-            ...t,
-            value: last.toLocaleString(undefined, { maximumFractionDigits: 2 }),
-            change: `${pct>0?'+':''}${pct.toFixed(2)}%`,
-            up: pct >= 0,
-          } : t))
-        }
-      } catch {}
-    }
-    return () => { try { ws.close() } catch {} }
-  }, [])
-
-  // BTC Dominance from CoinGecko (60s poll)
-  React.useEffect(() => {
-    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
-    let timer: any
-    const fetchDom = async () => {
-      try {
-        const res = await fetch('https://api.coingecko.com/api/v3/global')
-        const j = await res.json()
-        const pct = j?.data?.market_cap_percentage?.btc
-        if (typeof pct === 'number') {
-          setTiles((arr) => arr.map(t => t.id === 'btcd' ? {
-            ...t,
-            value: `${pct.toFixed(2)}%`,
-            change: t.change,
-            up: true,
-          } : t))
-        }
-      } catch {}
-      timer = setTimeout(fetchDom, 60000)
-    }
-    fetchDom()
-    return () => { if (timer) clearTimeout(timer) }
-  }, [])
-
-  // Simulate NASDAQ, S&P500, DXY small drift every 20s
-  React.useEffect(() => {
-    try { if (!(window.location?.pathname || '').startsWith('/markets')) return } catch {}
-    const id = setInterval(() => {
-      setTiles((arr) => arr.map(t => {
-        if (t.id === 'nasdaq' || t.id === 'spx' || t.id === 'dxy') {
-          const base = parseFloat(t.value.replace(/,/g, '')) || 0
-          const drift = (Math.random() - 0.5) * (t.id === 'dxy' ? 0.1 : 5)
-          const next = base + drift
-          const pct = (drift / (base || 1)) * 100
-          return {
-            ...t,
-            value: (t.id === 'dxy' ? next.toFixed(2) : next.toLocaleString(undefined, { maximumFractionDigits: 1 })),
-            change: `${pct>0?'+':''}${pct.toFixed(2)}%`,
-            up: pct >= 0,
-          }
-        }
-        return t
-      }))
-      // also drift extra tiles lightly (demo)
-      setExtraTiles((arr) => arr.map(t => {
-        if (t.id === 'eth') return t
-        const base = parseFloat(t.value.replace(/,/g, '')) || 0
-        const drift = (Math.random() - 0.5) * 2
-        const next = base + drift
-        const pct = (drift / (base || 1)) * 100
-        return {
-          ...t,
-          value: next.toLocaleString(undefined, { maximumFractionDigits: 2 }),
-          change: `${pct>0?'+':''}${isFinite(pct) ? pct.toFixed(2) : '0.00'}%`,
-          up: pct >= 0,
-        }
-      }))
-    }, 20000)
-    return () => clearInterval(id)
-  }, [])
-
-  // Twelve Data polling for NDX/SPX/DXY if API key exists (60s)
-  React.useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const API_KEY: any = (import.meta as any).env?.VITE_TWELVE_API_KEY
-    if (!API_KEY) return // keep demo drift if no key
-    let timer: any
     const pull = async () => {
       try {
-        const url = `https://api.twelvedata.com/quote?symbol=NDX,SPX,DXY&apikey=${API_KEY}`
-        const res = await fetch(url)
-        const data = await res.json()
-        const updateFrom = (sym: string, id: 'nasdaq'|'spx'|'dxy') => {
-          const q = data?.[sym]
-          if (!q) return
-          const price = parseFloat(q?.price)
-          const change_pct = parseFloat(q?.percent_change)
-          if (!Number.isFinite(price) || !Number.isFinite(change_pct)) return
-          setTiles((arr) => arr.map(t => t.id === id ? {
-            ...t,
-            value: id==='dxy' ? price.toFixed(2) : price.toLocaleString(undefined, { maximumFractionDigits: 1 }),
-            change: `${change_pct>0?'+':''}${change_pct.toFixed(2)}%`,
-            up: change_pct >= 0,
-          } : t))
+        const r = await fetch('https://api.exchangerate.host/latest?base=USD&symbols=KRW')
+        if (!r.ok) throw 1
+        const j = await r.json()
+        const rate = j?.rates?.KRW
+        if (mounted && typeof rate === 'number') {
+          setUsdkrw(rate)
+          try {
+            localStorage.setItem(key, JSON.stringify({ rate, ts: Date.now() }))
+          } catch {}
         }
-        updateFrom('NDX', 'nasdaq')
-        updateFrom('SPX', 'spx')
-        updateFrom('DXY', 'dxy')
-      } catch {
-        // ignore and try again later
-      }
-      timer = setTimeout(pull, 60000)
-    }
-    pull()
-    return () => { if (timer) clearTimeout(timer) }
-  }, [])
-
-  // ETH price via Binance WebSocket (optional extra tile)
-  React.useEffect(() => {
-    const ws = new WebSocket('wss://stream.binance.com:9443/ws/ethusdt@ticker')
-    ws.onmessage = (ev) => {
-      try {
-        const d = JSON.parse(ev.data)
-        const last = parseFloat(d.c)
-        const pct = parseFloat(d.P)
-        setExtraTiles((arr) => arr.map(t => t.id === 'eth' ? ({
-          ...t,
-          value: last.toLocaleString(undefined, { maximumFractionDigits: 2 }),
-          change: `${pct>0?'+':''}${pct.toFixed(2)}%`,
-          up: pct >= 0,
-        }) : t))
       } catch {}
+      if (mounted) setTimeout(pull, 6 * 60 * 60 * 1000)
     }
-    return () => { try { ws.close() } catch {} }
-  }, [])
+
+    pull()
+    return () => {
+      mounted = false
+    }
+  }, [currency])
+
+  // ---------------- Î©îÏù∏ Fetch (3Î∂ÑÎßà?? ----------------
+  React.useEffect(() => {
+    try {
+      if (!(window.location?.pathname || '').startsWith('/markets')) return
+    } catch {}
+
+    let mounted = true
+    let timer: any
+    const nextMs = 180_000
+
+    const pull = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+
+        if (exchange === 'Binance') {
+          const { url, headers } = prox(`op=bundle&ex=binance&topN=10&period=5m&rankBy=${rankBy}`)
+          const r = await fetch(url, { headers })
+          if (!r.ok) throw new Error('Binance bundle')
+          const j = await r.json()
+          const parsed: Row[] = j?.rows || []
+          if (mounted) setRows(parsed)
+
+          const mm = j?.metrics || {}
+          if (mm && Object.keys(mm).length) {
+            setRows(prev =>
+              prev.map(x => {
+                const m = mm[x.symbol]
+                if (!m) return x
+                const add: Partial<Row> = {}
+                if (typeof m.funding === 'number') add.funding = m.funding
+                if (typeof m.oi === 'number' && typeof x.price === 'number') add.oi = m.oi * x.price
+                return { ...x, ...add }
+              }),
+            )
+
+            const nextRatio: Record<string, { long: number; short: number }> = {}
+            Object.keys(mm).forEach(sym => {
+              const m = mm[sym]
+              if (typeof m.long === 'number' && typeof m.short === 'number') {
+                nextRatio[sym] = { long: m.long, short: m.short }
+              }
+            })
+            if (Object.keys(nextRatio).length) {
+              setRatioMap(prev => ({ ...prev, ...nextRatio }))
+            }
+          }
+        } else if (exchange === 'Bybit') {
+          const { url, headers } = prox(`op=bundle&ex=bybit&topN=10&rankBy=${rankBy}`)
+          const r = await fetch(url, { headers })
+          if (!r.ok) throw new Error('Bybit bundle')
+          const j = await r.json()
+          const parsed: Row[] = j?.rows || []
+          if (mounted) setRows(parsed)
+
+          const mm = j?.metrics || {}
+          if (mm && Object.keys(mm).length) {
+            setRows(prev =>
+              prev.map(x => {
+                const m = mm[x.symbol]
+                if (!m) return x
+                const add: Partial<Row> = {}
+                if (typeof m.funding === 'number') add.funding = m.funding
+                if (typeof m.oi === 'number') add.oi = m.oi // Bybit???¥Î? Í∞ÄÏπ?Í∏∞Ï?
+                return { ...x, ...add }
+              }),
+            )
+          }
+        } else if (exchange === 'OKX') {
+          const { url, headers } = prox(`op=bundle&ex=okx&topN=10&rankBy=${rankBy}`)
+          const r = await fetch(url, { headers })
+          if (!r.ok) throw new Error('OKX bundle')
+          const j = await r.json()
+          const parsed: Row[] = j?.rows || []
+          if (mounted) setRows(parsed)
+
+          const mm = j?.metrics || {}
+          if (mm && Object.keys(mm).length) {
+            setRows(prev =>
+              prev.map(x => {
+                const m = mm[x.symbol]
+                if (!m) return x
+                const add: Partial<Row> = {}
+                if (typeof m.funding === 'number') add.funding = m.funding
+                if (typeof m.oi === 'number') add.oi = m.oi
+                return { ...x, ...add }
+              }),
+            )
+          }
+        }
+      } catch (e: any) {
+        if (mounted) setError(e?.message || 'error')
+      } finally {
+        setLoading(false)
+        timer = setTimeout(pull, nextMs)
+      }
+    }
+
+    pull()
+    return () => {
+      mounted = false
+      if (timer) clearTimeout(timer)
+    }
+  }, [exchange, prox, rankBy])
+
+  // ---------------- ?ÑÌÑ∞ + ?ïÎ†¨ ----------------
+  const filteredSorted = React.useMemo(() => {
+    let list = rows
+    if (typeFilter !== 'ALL') list = list.filter(r => r.contractType === typeFilter)
+    if (query.trim()) {
+      const q = query.trim().toLowerCase()
+      list = list.filter(r => r.symbol.toLowerCase().includes(q))
+    }
+    const dir = sortDir === 'asc' ? 1 : -1
+    list = [...list].sort((a, b) => ((a[sortBy] ?? -Infinity) - (b[sortBy] ?? -Infinity)) * dir)
+    return list
+  }, [rows, query, typeFilter, sortBy, sortDir])
+
+  // ---------------- Î¨¥Ìïú ?§ÌÅ¨Î°?----------------
+  React.useEffect(() => {
+    const el = sentinelRef.current
+    if (!el) return
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(x => x.isIntersecting)) {
+        setVisibleCount(c => Math.min(c + PAGE_SIZE, Math.min(TOP_LIMIT, filteredSorted.length)))
+      }
+    })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [filteredSorted.length])
 
   return (
-    <section className="space-y-4">
-      {/* Primary indicators */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-        {tiles.map((t) => {
-          const val = (!t.value || t.value === 'NaN') ? '--' : t.value
-          const chg = (!t.change || /NaN/.test(t.change)) ? '--' : t.change
-          const chgClass = (!t.change || /NaN/.test(t.change)) ? 'text-gray-400 text-sm' : (t.up ? 'text-emerald-400 text-sm' : 'text-red-400 text-sm')
-          const mappedSymbol = t.id==='dxy' ? 'CAPITALCOM:USDX' : t.symbol
-          return (
-            <button key={t.id} onClick={() => setSymbol(mappedSymbol)} className={`text-left rounded-lg border border-neutral-800 bg-[#121212] p-3 hover:bg-[#1e1e1e] transition-colors ${symbol===mappedSymbol ? 'ring-1 ring-emerald-400' : ''}`}>
-              <div className="text-xs text-gray-400">{t.id==='dxy' ? 'USD Index' : t.label}</div>
-              <div className="mt-1 flex items-end justify-between">
-                <div className="text-lg font-semibold text-white">{val}</div>
-                <div className={chgClass}>{chg}</div>
-              </div>
-            </button>
-          )
-        })}
+    <section className="space-y-6">
+      {/* slide-up keyframes */}
+      <style>{`
+        @keyframes futures-slide-up {
+          from { transform: translateY(100%); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        .animate-futures-slide-up {
+          animation: futures-slide-up 0.22s ease-out;
+        }
+      `}</style>
+
+      {/* Î™®Î∞î???ÅÎã®: ?ÑÌÑ∞ Î≤ÑÌäº + Í≤Ä?âÏ∞Ω */}
+      <div className="sm:hidden flex items-center gap-2">
+        <button
+          onClick={() => setShowFilter(true)}
+          className="px-3 py-2 rounded-md bg-[#181a1f] border border-neutral-700 text-xs font-medium text-neutral-200 shadow-sm"
+        >
+          ?ÑÌÑ∞ ¬∑ ?ïÎ†¨
+        </button>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="?¨Î≥º Í≤Ä??(?? BTCUSDT)"
+          className="flex-1 px-3 py-2 rounded-md border border-neutral-700 bg-[#111318] text-sm text-neutral-100 placeholder:text-neutral-500"
+        />
       </div>
 
-      {/* Expandable indicators */}
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-400">¡ˆ«• »Æ¿Â</div>
-        <button onClick={()=>setExpanded(e=>!e)} className="px-2 py-1 rounded border border-neutral-700 bg-[#121212] hover:bg-[#1e1e1e] text-sm">{expanded?'¡¢±‚':'¥ı∫∏±‚'}</button>
-      </div>
-      {expanded && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          {extraTiles.map((t) => {
-            const val = (!t.value || t.value === 'NaN') ? '--' : t.value
-            const chg = (!t.change || /NaN/.test(t.change)) ? '--' : t.change
-            const chgClass = (!t.change || /NaN/.test(t.change)) ? 'text-gray-400 text-sm' : (t.up ? 'text-emerald-400 text-sm' : 'text-red-400 text-sm')
-            return (
-              <button key={t.id} onClick={() => setSymbol(t.symbol)} className={`text-left rounded-lg border border-neutral-800 bg-[#121212] p-3 hover:bg-[#1e1e1e] transition-colors ${symbol===t.symbol ? 'ring-1 ring-emerald-400' : ''}`}>
-                <div className="text-xs text-gray-400">{t.label}</div>
-                <div className="mt-1 flex items-end justify-between">
-                  <div className="text-lg font-semibold text-white">{val}</div>
-                  <div className={chgClass}>{chg}</div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      )}
+      <Card className="bg-[#0d1014] border border-neutral-800 shadow-sm">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-[18px] text-white">?†Î¨º ÎßàÏºì</CardTitle>
+              <CardDescription className="text-xs text-neutral-400">
+                Í±∞Îûò?åÎ≥Ñ ?ÅÏúÑ ?†Î¨º/?ÅÍµ¨?†Î¨º ?§ÏãúÍ∞?ÏßÄ??              </CardDescription>
+            </div>
 
-      <Card className="bg-[#121212] border-neutral-800">
-        <CardHeader>
-          <div className="flex flex-col gap-2">
-            <CardTitle className="text-white">Ω«Ω√∞£ ¬˜∆Æ</CardTitle>
-            <CardDescription>
-              {prettyName(symbol)} °§ {interval} °§ {prettyExchange(symbol)}
-            </CardDescription>
+            {/* ?∞Ïä§?¨ÌÉë??Í∞ÑÎã® ?ÑÌÑ∞ ?îÏïΩ Î∞∞Ï? */}
+            <div className="hidden sm:flex flex-col items-end text-[11px] text-neutral-400">
+              <span>{exchange}</span>
+              <span>
+                {currency} ¬∑ {sortBy === 'volume' ? 'Í±∞Îûò?? : sortBy === 'funding' ? '?Ä?©ÎπÑ' : sortBy === 'oi' ? 'OI' : '24h'}
+                {sortDir === 'desc' ? ' ?? : ' ??}
+              </span>
+            </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div id="tv_chart_container" ref={containerRef as any} className="h-[520px] w-full" />
-          {!loaded && (
-            <div className="h-[520px] w-full grid place-items-center text-sm text-gray-400">¬˜∆Æ ∑Œµ˘¡ﬂ...</div>
+
+        <CardContent className="space-y-4">
+          {error && <div className="text-xs text-amber-300 mb-2">API ?§Î•ò: {error}</div>}
+
+          {/* ?∞Ïä§?¨ÌÉë ?ÑÌÑ∞ Î∞?(Í∏∞Ï°¥ ?†Ï?) */}
+          <div className="hidden sm:flex flex-wrap gap-2 mb-2">
+            <select
+              value={exchange}
+              onChange={e => setExchange(e.target.value as any)}
+              className="px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm"
+            >
+              <option>Binance</option>
+              <option>Bybit</option>
+              <option>OKX</option>
+            </select>
+            <select
+              value={sortBy}
+              onChange={e => setSortBy(e.target.value as any)}
+              className="px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm"
+            >
+              <option value="volume">Í±∞Îûò??24h)</option>
+              <option value="funding">?Ä?©ÎπÑ</option>
+              <option value="oi">ÎØ∏Í≤∞?úÏïΩ??OI)</option>
+              <option value="change24h">24h Î≥Ä?ôÎ•†</option>
+            </select>
+            <select
+              value={rankBy}
+              onChange={e => setRankBy(e.target.value as any)}
+              className="px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm"
+            >
+              <option value="volume">?ÅÏúÑ Í∏∞Ï?: Í±∞Îûò??/option>
+              <option value="oi">?ÅÏúÑ Í∏∞Ï?: OI</option>
+            </select>
+            <button
+              onClick={() => setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))}
+              className="px-2 py-1 rounded border border-neutral-700 bg-[#14161c] hover:bg-[#191c23] text-sm"
+            >
+              {sortDir === 'desc' ? '?¥Î¶ºÏ∞®Ïàú' : '?§Î¶ÑÏ∞®Ïàú'}
+            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrency('USD')}
+                className={`px-2 py-1 rounded border border-neutral-700 text-sm ${
+                  currency === 'USD' ? 'bg-emerald-600/20 text-emerald-300' : 'bg-[#14161c]'
+                }`}
+              >
+                USD
+              </button>
+              <button
+                onClick={() => setCurrency('KRW')}
+                className={`px-2 py-1 rounded border border-neutral-700 text-sm ${
+                  currency === 'KRW' ? 'bg-emerald-600/20 text-emerald-300' : 'bg-[#14161c]'
+                }`}
+              >
+                KRW
+              </button>
+            </div>
+            <select
+              value={typeFilter}
+              onChange={e => setTypeFilter(e.target.value as any)}
+              className="px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm"
+            >
+              <option value="ALL">?ÑÏ≤¥</option>
+              <option value="PERP">Perp</option>
+              <option value="FUTURES">Î∂ÑÍ∏∞Î¨?/option>
+            </select>
+            <input
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="?¨Î≥º Í≤Ä??
+              className="px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm flex-1 min-w-[140px]"
+            />
+          </div>
+
+          {/* =================== Î™®Î∞î??Ïπ¥Îìú Î¶¨Ïä§??=================== */}
+          <div className="sm:hidden space-y-3">
+            {filteredSorted.slice(0, visibleCount).map(r => {
+              const ratio = ratioMap[r.symbol]
+              const long = ratio?.long ?? r.long
+              const short = ratio?.short ?? r.short
+
+              const base = (r.symbol || '')
+                .replace(/USDT|USDC|PERP|USD|_.*$/i, '')
+                .slice(0, 4)
+                .toUpperCase()
+
+              return (
+                <div
+                  key={`${exchange}-${r.symbol}`}
+                  className="p-4 rounded-2xl border border-neutral-800 bg-gradient-to-b from-[#141820] to-[#0d1016] shadow-sm"
+                >
+                  {/* 1Ï§? ?¨Î≥º + Í∞ÄÍ≤?*/}
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-3">
+                      {/* ?¨Î≥º Î°úÍ≥† */}
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500/80 to-cyan-400/80 flex items-center justify-center text-[11px] font-semibold text-black shadow-sm">
+                        {base || r.symbol.slice(0, 3)}
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="font-semibold text-white text-[15px] leading-none">
+                          {r.symbol}
+                        </div>
+                        <div className="text-[11px] text-neutral-400 mt-1">
+                          {exchange} ¬∑ {r.contractType || '?†Î¨º'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <div className="text-[15px] font-bold text-white">
+                        {formatCurrency(convert(r.price, currency, usdkrw), currency)}
+                      </div>
+                      <div className={`text-[11px] mt-0.5 ${pctClass(r.change24h)}`}>
+                        {fmtPct(r.change24h)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2Ï§? ?Ä?©ÎπÑ + Í±∞Îûò??*/}
+                  <div className="flex justify-between items-center text-[11px] mt-1">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-neutral-400">?Ä?©ÎπÑ</span>
+                      <span className={pctClass(r.funding)}>{fmtPct(r.funding)}</span>
+                    </div>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <span className="text-neutral-400">Í±∞Îûò??(24h)</span>
+                      <span className="text-neutral-100">
+                        {formatCurrency(convert(r.volume, currency, usdkrw), currency)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 3Ï§? Î°???ÎπÑÏú® bar */}
+                  <div className="mt-3 flex justify-between items-center">
+                    <span className="text-[11px] text-neutral-400">Î°?/ ???¨Ï???ÎπÑÏú®</span>
+                    <RatioBar longPct={long} shortPct={short} compact />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* =================== ?∞Ïä§?¨ÌÉë ?åÏù¥Î∏?=================== */}
+          <div className="hidden sm:block overflow-x-auto mt-2">
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-neutral-400 border-b border-neutral-800">
+                  <th className="px-3 py-2 text-left">?¨Î≥º</th>
+                  <th className="px-3 py-2 text-right">?ÑÏû¨Í∞Ä</th>
+                  <th className="px-3 py-2 text-right">24h</th>
+                  <th className="px-3 py-2 text-right">?Ä?©ÎπÑ</th>
+                  <th className="px-3 py-2 text-right hidden sm:table-cell">ÎØ∏Í≤∞?úÏïΩ??/th>
+                  <th className="px-3 py-2 text-right hidden md:table-cell">Î°???/th>
+                  <th className="px-3 py-2 text-right">Í±∞Îûò??24h)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSorted.slice(0, visibleCount).map(r => {
+                  const ratio = ratioMap[r.symbol]
+                  const long = ratio?.long ?? r.long
+                  const short = ratio?.short ?? r.short
+
+                  return (
+                    <tr
+                      key={`${exchange}-${r.symbol}`}
+                      className="border-b border-neutral-900/80 hover:bg-[#151923] transition-colors"
+                    >
+                      <td className="px-3 py-2 font-medium text-neutral-100">{r.symbol}</td>
+                      <td className="px-3 py-2 text-right">
+                        {formatCurrency(convert(r.price, currency, usdkrw), currency)}
+                      </td>
+                      <td className={`px-3 py-2 text-right ${pctClass(r.change24h)}`}>
+                        {fmtPct(r.change24h)}
+                      </td>
+                      <td className={`px-3 py-2 text-right ${pctClass(r.funding)}`}>
+                        {fmtPct(r.funding)}
+                      </td>
+                      <td className="px-3 py-2 text-right hidden sm:table-cell">
+                        {formatCurrency(convert(r.oi, currency, usdkrw), currency)}
+                      </td>
+                      <td className="px-3 py-2 text-right hidden md:table-cell">
+                        <RatioBar longPct={long} shortPct={short} />
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {formatCurrency(convert(r.volume, currency, usdkrw), currency)}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* sentinel + Î°úÎî© ?úÏãú */}
+          <div ref={sentinelRef} />
+          {visibleCount < Math.min(TOP_LIMIT, filteredSorted.length) && (
+            <div className="mt-2 flex justify-center">
+              <button
+                onClick={() =>
+                  setVisibleCount(c =>
+                    Math.min(c + PAGE_SIZE, Math.min(TOP_LIMIT, filteredSorted.length)),
+                  )
+                }
+                className="px-3 py-1 rounded border border-neutral-700 bg-[#151821] hover:bg-[#1a1d27] text-sm text-neutral-100"
+              >
+                ??Î≥¥Í∏∞
+              </button>
+            </div>
+          )}
+          {loading && (
+            <div className="text-center text-xs text-neutral-400 mt-2">?ÖÎç∞?¥Ìä∏ Ï§?..</div>
           )}
         </CardContent>
       </Card>
+
+      {/* =================== Î™®Î∞î???¨Îùº?¥Îìú ?ÑÌÑ∞ Î™®Îã¨ =================== */}
+      {showFilter && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:hidden">
+          <div className="w-full max-w-md rounded-t-2xl border border-neutral-700 bg-[#111318] p-4 pb-5 animate-futures-slide-up">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-white">?†Î¨º ?ÑÌÑ∞ ¬∑ ?ïÎ†¨</h2>
+              <button
+                onClick={() => setShowFilter(false)}
+                className="text-xs text-neutral-400 px-2 py-1 rounded hover:bg-white/5"
+              >
+                ?´Í∏∞
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="space-y-1">
+                <label className="text-neutral-400">Í±∞Îûò??/label>
+                <select
+                  value={exchange}
+                  onChange={e => setExchange(e.target.value as any)}
+                  className="w-full px-3 py-2 rounded border border-neutral-700 bg-[#151821]"
+                >
+                  <option>Binance</option>
+                  <option>Bybit</option>
+                  <option>OKX</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-neutral-400">?ïÎ†¨ Í∏∞Ï?</label>
+                <select
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value as any)}
+                  className="w-full px-3 py-2 rounded border border-neutral-700 bg-[#151821]"
+                >
+                  <option value="volume">Í±∞Îûò??24h)</option>
+                  <option value="funding">?Ä?©ÎπÑ</option>
+                  <option value="oi">ÎØ∏Í≤∞?úÏïΩ??OI)</option>
+                  <option value="change24h">24h Î≥Ä?ôÎ•†</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-neutral-400">?ÅÏúÑ Í∏∞Ï?</label>
+                <select
+                  value={rankBy}
+                  onChange={e => setRankBy(e.target.value as any)}
+                  className="w-full px-3 py-2 rounded border border-neutral-700 bg-[#151821]"
+                >
+                  <option value="volume">Í±∞Îûò??Í∏∞Ï?</option>
+                  <option value="oi">OI Í∏∞Ï?</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-neutral-400">?µÌôî</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setCurrency('USD')}
+                    className={`flex-1 py-2 rounded border border-neutral-700 text-xs ${
+                      currency === 'USD'
+                        ? 'bg-emerald-600/20 text-emerald-300'
+                        : 'bg-[#151821] text-neutral-200'
+                    }`}
+                  >
+                    USD
+                  </button>
+                  <button
+                    onClick={() => setCurrency('KRW')}
+                    className={`flex-1 py-2 rounded border border-neutral-700 text-xs ${
+                      currency === 'KRW'
+                        ? 'bg-emerald-600/20 text-emerald-300'
+                        : 'bg-[#151821] text-neutral-200'
+                    }`}
+                  >
+                    KRW
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-neutral-400">Í≥ÑÏïΩ Ï¢ÖÎ•ò</label>
+                <select
+                  value={typeFilter}
+                  onChange={e => setTypeFilter(e.target.value as any)}
+                  className="w-full px-3 py-2 rounded border border-neutral-700 bg-[#151821]"
+                >
+                  <option value="ALL">?ÑÏ≤¥</option>
+                  <option value="PERP">Perp</option>
+                  <option value="FUTURES">Î∂ÑÍ∏∞Î¨?/option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowFilter(false)}
+              className="mt-4 w-full py-2 rounded-xl bg-emerald-500 text-[13px] font-semibold text-black shadow"
+            >
+              ?ÅÏö©?òÍ∏∞
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   )
+}
+
+/* =================== Í≥µÏö© Ïª¥Ìè¨?åÌä∏ & ?†Ìã∏ =================== */
+
+function RatioBar({
+  longPct,
+  shortPct,
+  compact,
+}: {
+  longPct?: number
+  shortPct?: number
+  compact?: boolean
+}) {
+  const lp = Math.max(0, Math.min(100, longPct ?? 50))
+  const sp = Math.max(0, Math.min(100, shortPct ?? 50))
+  const total = lp + sp || 100
+  const lw = Math.round((lp / total) * 100)
+  const sw = 100 - lw
+
+  return (
+    <div
+      className="inline-flex items-center gap-2 justify-end"
+      title={`Long ${lp.toFixed(1)}% / Short ${sp.toFixed(1)}%`}
+    >
+      <div
+        className={`h-2.5 rounded-full bg-neutral-900 overflow-hidden grid ${
+          compact ? 'w-24' : 'w-32'
+        }`}
+        style={{ gridTemplateColumns: `${lw}% ${sw}%` }}
+      >
+        <div className="bg-emerald-500" />
+        <div className="bg-red-500" />
+      </div>
+      <span className={`text-[10px] text-neutral-400 ${compact ? '' : 'min-w-[90px] text-right'}`}>
+        L {lp.toFixed(0)}% / S {sp.toFixed(0)}%
+      </span>
+    </div>
+  )
+}
+
+function fmtPct(v?: number) {
+  if (!Number.isFinite(v as number)) return '--'
+  const n = v as number
+  return `${n > 0 ? '+' : ''}${n.toFixed(2)}%`
+}
+
+function pctClass(v?: number) {
+  if (!Number.isFinite(v as number)) return 'text-neutral-400'
+  return v! >= 0 ? 'text-emerald-400' : 'text-red-400'
+}
+
+function convert(value?: number, currency: 'USD' | 'KRW' = 'USD', usdkrw = 0) {
+  if (!Number.isFinite(value as number)) return undefined
+  if (currency === 'USD') return value
+  if (usdkrw > 0) return (value as number) * usdkrw
+  return undefined
+}
+
+function formatCurrency(v?: number, currency: 'USD' | 'KRW' = 'USD') {
+  if (!Number.isFinite(v as number)) return '--'
+  return currency === 'USD'
+    ? `$${(v as number).toLocaleString('en-US')}`
+    : `${Math.round(v as number).toLocaleString('ko-KR')}??
 }
 
