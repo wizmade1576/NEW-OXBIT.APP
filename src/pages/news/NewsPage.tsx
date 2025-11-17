@@ -61,6 +61,16 @@ function saveCache(topic: Topic, items: NewsItem[]) {
 /* ---------------------------------------------------------
    News 카드 UI
 --------------------------------------------------------- */
+const formatKST = (iso: string) => {
+  try {
+    const d = new Date(iso)
+    return new Intl.DateTimeFormat('ko-KR', {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hour12: false,
+      timeZone: 'Asia/Seoul',
+    }).format(d)
+  } catch { return iso }
+}
 const NewsCard = React.memo(function NewsCard({ n }: { n: NewsItem }) {
   const initial = normalizeImage(n.image)
   const [src, setSrc] = React.useState(initial)
@@ -98,7 +108,7 @@ const NewsCard = React.memo(function NewsCard({ n }: { n: NewsItem }) {
         <div className="mt-auto pt-2 text-[11px] text-neutral-500 flex items-center gap-1">
           <span>{n.source}</span>
           <span>·</span>
-          <time dateTime={n.date}>{new Date(n.date).toLocaleString()}</time>
+          <time dateTime={n.date}>{formatKST(n.date)}</time>
         </div>
       </div>
     </a>
