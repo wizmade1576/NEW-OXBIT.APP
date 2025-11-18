@@ -231,10 +231,10 @@ function fmtKRW(v?: number) {
   return '₩' + Math.round(v as number).toLocaleString('ko-KR')
 }
 
-function SparkLine({ data, up }: { data: number[]; up: boolean }) {
-  if (!data || data.length === 0) return <div className="h-9 w-full bg-neutral-800 rounded" />
+function SparkLine({ data, up, height = 36 }: { data: number[]; up: boolean; height?: number }) {
+  if (!data || data.length === 0) return <div style={{ height }} className="w-full bg-neutral-800 rounded" />
   const w = 120,
-    h = 36
+    h = height
   const min = Math.min(...data),
     max = Math.max(...data)
   const range = max - min || 1
@@ -378,6 +378,28 @@ function PriceChartLW({
           wickDownColor: '#ef4444'
         })
       }
+      // Ensure chart fits within its card; optimize for mobile
+      const resize = () => {
+        if (!ref.current || !chartRef.current) return
+        const w = Math.max(0, ref.current.clientWidth || 0)
+        const isMobile = window.matchMedia('(max-width: 639.98px)').matches
+        const h = isMobile ? 260 : 240
+        try {
+          if (typeof (chartRef.current as any).resize === 'function') {
+            ;(chartRef.current as any).resize(w, h)
+          } else {
+            ;(chartRef.current as any).applyOptions({ width: w, height: h })
+          }
+        } catch {}
+      }
+      // initial size
+      resize()
+      // observe container resize
+      let ro: any
+      try {
+        ro = new (window as any).ResizeObserver(() => resize())
+        if (ref.current) ro.observe(ref.current)
+      } catch {}
       if (data && data.length && seriesRef.current) {
         seriesRef.current.setData(data)
       }
@@ -401,6 +423,10 @@ function PriceChartLW({
         if (pl) lines.push(pl)
       })
       if (cur) cur._entryLines = lines
+      // cleanup for resize observer created above
+      return () => {
+        try { (ro as any)?.disconnect?.() } catch {}
+      }
     })
     return () => {
       destroyed = true
@@ -414,7 +440,7 @@ function PriceChartLW({
     seriesRef.current.setData(data)
   }, [data])
 
-  return <div ref={ref} className="h-[240px] w-full bg-[#0f0f0f]" />
+  return <div ref={ref} className="h-[260px] sm:h-[240px] w-full max-w-full min-w-0 overflow-hidden bg-[#0f0f0f]" />
 }
 
 // SVG fallback candlestick chart (미사용 시 무시)
@@ -630,7 +656,28 @@ function PositionCard(props: PositionCardProps) {
   const up = (pnlUsd || 0) >= 0
   return (
     <Card className="bg-[#141414] border-neutral-800" style={{ overflowAnchor: 'none' }} onMouseEnter={() => onHover && onHover(id)} onMouseLeave={() => onLeave && onLeave()}>
-      <CardHeader className="pb-2">
+      {/* Mobile compact header (md 미만) */}
+      <CardHeader className="md:hidden px-2 pt-2 pb-1">
+        <div className="flex items-center gap-2">
+          <img src={bjAvatar || 'https://i.pravatar.cc/64'} alt={bjName} className="w-8 h-8 rounded" />
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-xs leading-tight truncate">
+              {bjName}
+              <span className="ml-1 text-[10px] text-muted-foreground align-middle">
+                {online ? 'ON' : 'OFF'}{onlineFor ? ` · ${onlineFor}` : ''}
+              </span>
+            </CardTitle>
+          </div>
+          <div className="ml-auto text-right">
+            <div className="text-[10px] text-muted-foreground">{symbol}</div>
+            <div className={`${side === 'Long' ? 'text-emerald-400' : 'text-red-400'} text-xs font-semibold leading-none`}>
+              {side}{leverage ? ` x${leverage}` : ''}
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      {/* Desktop original header (md 이상) */}
+      <CardHeader className="pb-2 hidden md:block">
         <div className="flex items-center gap-3">
           <img src={bjAvatar || 'https://i.pravatar.cc/64'} alt={bjName} className="w-12 h-12 rounded" />
           <div className="min-w-0">
@@ -654,7 +701,34 @@ function PositionCard(props: PositionCardProps) {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      {/* Mobile compact content (md 미만) */}
+      <CardContent className="md:hidden px-2 pt-0 pb-2">
+        {/* 2x2 정보 그리드: 수량 / P&L(+현재가) / 진입가 / 청산가 */}
+        <div className="grid grid-cols-2 gap-1 text-xs">
+          <div>
+            <div className="text-[11px] text-muted-foreground">수량</div>
+            <div className="font-semibold tabular-nums whitespace-nowrap leading-tight">{fmtNum(qty)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-muted-foreground">P&L</div>
+            <div className={`${up ? 'text-emerald-400' : 'text-red-400'} font-semibold tabular-nums whitespace-nowrap leading-tight`}>{fmtUSD(pnlUsd)}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">현재가 {fmtUSD(mark)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-muted-foreground">진입가</div>
+            <div className="font-semibold tabular-nums whitespace-nowrap leading-tight">{fmtUSD(entry)}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-muted-foreground">청산가</div>
+            <div className="font-semibold tabular-nums whitespace-nowrap leading-tight">{fmtUSD(liq)}</div>
+          </div>
+        </div>
+        {/* 미니 스파크라인 (더 컴팩트) */}
+        <div className="mt-1 h-[30px] w-full">
+          <SparkLine data={spark || []} up={up} height={30} />
+        </div>
+      </CardContent>
+      <CardContent className="hidden md:block">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
           {/* 수량 */}
           <div>

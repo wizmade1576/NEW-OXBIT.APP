@@ -2,6 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
+/* PositionsPage: prevent P&L tag overlapping KRW value on desktop */
+@media (min-width: 640px) {
+  /* Target the P&L(원화) row container */
+  .mt-1.text-xs.flex.items-center.gap-2.flex-wrap.sm\:flex-nowrap.min-w-0 {
+    flex-wrap: wrap !important;
+  }
+  /* Label */
+  .mt-1.text-xs.flex.items-center.gap-2.flex-wrap.sm\:flex-nowrap.min-w-0 > span:nth-child(1) {
+    flex: 0 0 auto;
+  }
+  /* KRW value */
+  .mt-1.text-xs.flex.items-center.gap-2.flex-wrap.sm\:flex-nowrap.min-w-0 > span:nth-child(2) {
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* P&L badge */
+  .mt-1.text-xs.flex.items-center.gap-2.flex-wrap.sm\:flex-nowrap.min-w-0 > span:nth-child(3) {
+    flex: 0 0 auto;
+  }
+}
+
 @layer base {
   html { font-size: 18px; }
   :root {
