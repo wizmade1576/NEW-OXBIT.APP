@@ -29,18 +29,14 @@ export default function SchedulePage() {
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
 
   const tabs: { key: FilterTab; label: string }[] = [
-    { key: 'all', label: '전체' },
-    { key: 'economic', label: '경제지표' },
-    { key: 'crypto', label: '코인 이벤트' },
-    { key: 'listing', label: '상장 일정' },
+    { key: 'all', label: '?�체' },
+    { key: 'economic', label: '경제지?? },
+    { key: 'crypto', label: '코인 ?�벤?? },
+    { key: 'listing', label: '?�장 ?�정' },
   ]
 
-  // Mobile-only short labels for the tabs
-  const shortTabLabel = (k: FilterTab) =>
-    k === 'all' ? '전체' : k === 'economic' ? '경제' : k === 'crypto' ? '이벤트' : '상장'
-
   const fmt = (s: string) => new Intl.DateTimeFormat('ko-KR', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(s))
-  const catLabel = (c: DBCategory) => (c === 'economic' ? '경제지표' : c === 'crypto' ? '코인 이벤트' : '상장 일정')
+  const catLabel = (c: DBCategory) => (c === 'economic' ? '경제지?? : c === 'crypto' ? '코인 ?�벤?? : '?�장 ?�정')
 
   const load = React.useCallback(async (reset = false) => {
     const sb = getSupabase()
@@ -89,19 +85,12 @@ export default function SchedulePage() {
         <CardHeader>
           <div className="flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <CardTitle className="text-white">일정</CardTitle>
-              <CardDescription>경제지표 · 코인 이벤트 · 상장 일정</CardDescription>
+              <CardTitle className="text-white">?�정</CardTitle>
+              <CardDescription>경제지??· 코인 ?�벤??· ?�장 ?�정</CardDescription>
             </div>
             <div className="inline-flex rounded-md border border-neutral-700 overflow-hidden">
               {tabs.map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  className={`px-3 py-1.5 text-sm ${tab === t.key ? 'bg-emerald-600/20 text-emerald-300' : 'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}
-                >
-                  <span className="sm:hidden">{shortTabLabel(t.key)}</span>
-                  <span className="hidden sm:inline">{t.label}</span>
-                </button>
+                <button key={t.key} onClick={()=>setTab(t.key)} className={`px-3 py-1.5 text-sm ${tab===t.key ? 'bg-emerald-600/20 text-emerald-300' : 'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}>{t.label}</button>
               ))}
             </div>
           </div>
@@ -140,7 +129,7 @@ export default function SchedulePage() {
             )}
             <div ref={sentinelRef} />
             {loading && items.length > 0 ? <div className="text-xs text-muted-foreground text-center py-2">Loading...</div> : null}
-            {!loading && items.length === 0 ? <div className="text-sm text-muted-foreground">표시할 일정이 없습니다.</div> : null}
+            {!loading && items.length === 0 ? <div className="text-sm text-muted-foreground">?�시???�정???�습?�다.</div> : null}
           </div>
         </CardContent>
       </Card>

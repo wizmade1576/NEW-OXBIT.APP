@@ -76,7 +76,7 @@ export default function MobileBottomNav() {
   const { pathname } = useLocation()
   return (
     <nav
-      className="sm:hidden fixed bottom-0 left-0 right-0 z-40 border-t border-neutral-800 bg-[#101214] backdrop-blur supports-[backdrop-filter]:bg-[#101214]/85"
+      className="sm:hidden fixed inset-x-0 bottom-0 z-50 border-t border-neutral-800 bg-[#101214] backdrop-blur supports-[backdrop-filter]:bg-[#101214]/85"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
     >
       <ul className="grid grid-cols-5 h-14">
