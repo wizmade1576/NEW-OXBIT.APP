@@ -383,7 +383,7 @@ function PriceChartLW({
         if (!ref.current || !chartRef.current) return
         const w = Math.max(0, ref.current.clientWidth || 0)
         const isMobile = window.matchMedia('(max-width: 639.98px)').matches
-        const h = isMobile ? 260 : 240
+        const h = isMobile ? 260 : 360
         try {
           if (typeof (chartRef.current as any).resize === 'function') {
             ;(chartRef.current as any).resize(w, h)
@@ -440,7 +440,7 @@ function PriceChartLW({
     seriesRef.current.setData(data)
   }, [data])
 
-  return <div ref={ref} className="h-[260px] sm:h-[240px] w-full max-w-full min-w-0 overflow-hidden bg-[#0f0f0f]" />
+  return <div ref={ref} className="h-[260px] md:h-[360px] w-full max-w-full min-w-0 overflow-hidden bg-[#0f0f0f]" />
 }
 
 // SVG fallback candlestick chart (미사용 시 무시)
