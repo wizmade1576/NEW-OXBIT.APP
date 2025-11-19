@@ -1,4 +1,4 @@
-import getSupabase from '../supabase/client'
+﻿import getSupabase from '../supabase/client'
 
 export type BreakingRecord = {
   id: string
@@ -10,6 +10,7 @@ export type BreakingRecord = {
   publish_at?: string | null
   pinned?: boolean | null
   status?: 'draft' | 'published' | 'archived' | null
+  is_important?: boolean | null
 }
 
 export async function fetchBreaking(page = 1, pageSize = 20): Promise<BreakingRecord[]> {

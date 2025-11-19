@@ -1,4 +1,4 @@
-import * as React from 'react'
+﻿import * as React from 'react'
 import { Link } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import { fetchAllTopics } from '../../lib/news/aggregate'
@@ -12,6 +12,7 @@ type BreakingItem = {
   tag?: string
   url?: string
   id?: string
+  important?: boolean
 }
 
 function LikeIcon(props: React.SVGProps<SVGSVGElement>) {
@@ -39,7 +40,7 @@ function ShareIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 /* -------------------------------------------------------
-    TIMELINE ITEM (모바일 완전 최적화 버전)
+    TIMELINE ITEM (紐⑤컮???꾩쟾 理쒖쟻??踰꾩쟾)
 ------------------------------------------------------- */
 function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?: string; nextKey?: string }) {
   const [expanded, setExpanded] = React.useState(false)
@@ -97,7 +98,7 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
           setLikeCount((v) => v + 1)
         }
       } catch (e: any) {
-        alert(e?.message || '좋아요 처리 중 오류')
+        alert(e?.message || '醫뗭븘??泥섎━ 以??ㅻ쪟')
       }
     } else {
       const next = !liked
@@ -114,14 +115,14 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
   return (
     <div className="relative grid grid-cols-[48px_1fr] sm:grid-cols-[64px_1fr] gap-2 sm:gap-4 px-1 sm:px-0 whitespace-normal break-words">
       
-      {/* 시간 */}
+      {/* ?쒓컙 */}
       <div className="flex items-start justify-end pr-1 relative z-10">
         <span className="relative z-10 rounded-md bg-accent px-1.5 py-0.5 text-[10px] sm:text-xs text-foreground/90">
           {item.time}
         </span>
       </div>
 
-      {/* 내용 */}
+      {/* ?댁슜 */}
       <div className="pb-4 sm:pb-6">
         <Link
           to={`/breaking/${item.key}`}
@@ -129,7 +130,7 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
           onClick={() => sessionStorage.setItem('breaking:scrollY', String(window.scrollY))}
           className="block"
         >
-          <h4 className="text-[13px] sm:text-base font-semibold leading-snug whitespace-normal break-words hover:underline">
+          <h4 className={"text-[13px] sm:text-base font-semibold leading-snug whitespace-normal break-words hover:underline " + (item.important ? "text-red-500 font-semibold" : "") }>
             {item.title}
           </h4>
 
@@ -151,7 +152,7 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
             </span>
           )}
 
-          {/* 댓글 */}
+          {/* ?볤? */}
           <Link
             to={`/breaking/${item.key}`}
             state={{ ...item, prevKey, nextKey }}
@@ -162,7 +163,7 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
             <span>{item.id && commentCount ? commentCount : 0}</span>
           </Link>
 
-          {/* 좋아요 */}
+          {/* 醫뗭븘??*/}
           <button
             type="button"
             onClick={toggleLike}
@@ -177,17 +178,17 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
             <span>{likeCount}</span>
           </button>
 
-          {/* 공유 */}
+          {/* 怨듭쑀 */}
           <button
             type="button"
             onClick={share}
             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent/60"
-            title="공유하기"
+            title="怨듭쑀?섍린"
           >
             <ShareIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
           </button>
 
-          {/* 원문 */}
+          {/* ?먮Ц */}
           {item.url && (
             <a
               href={item.url}
@@ -195,24 +196,24 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
               rel="noreferrer"
               className="rounded-md bg-blue-600/20 px-2 py-0.5 text-[10px] sm:text-xs text-blue-400 hover:bg-blue-600/30"
             >
-              원문
+              ?먮Ц
             </a>
           )}
 
-          {/* 더보기 */}
+          {/* ?붾낫湲?*/}
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
             className="ml-auto rounded-md border border-border px-1.5 py-0.5 text-[11px] sm:text-xs h-[26px] hover:bg-accent"
           >
-            {expanded ? '접기' : '더보기'}
+            {expanded ? '접기' : '자세히'}
           </button>
         </div>
 
         <div className="mt-4 sm:mt-6 h-px w-full bg-border" />
       </div>
 
-      {/* 세로 라인 */}
+      {/* ?몃줈 ?쇱씤 */}
       <div className="pointer-events-none absolute left-[20px] sm:left-[32px] top-0 h-full border-l border-border z-0" />
     </div>
   )
@@ -226,13 +227,16 @@ export default function BreakingPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [items, setItems] = React.useState<BreakingItem[]>([])
   const [nowText, setNowText] = React.useState('')
+  const [page, setPage] = React.useState(1)
+  const pageSize = 20
+  const [hasMore, setHasMore] = React.useState(true)
 
-  const load = React.useCallback(async () => {
+  const load = React.useCallback(async (nextPage = 1, append = false) => {
     try {
       setLoading(true)
       setError(null)
 
-      const adminRows: BreakingRecord[] = await fetchBreaking(1, 40)
+      const adminRows: BreakingRecord[] = await fetchBreaking(nextPage, pageSize)
 
       let merged: any[] = []
       if (adminRows && adminRows.length) {
@@ -240,15 +244,25 @@ export default function BreakingPage() {
           id: r.id,
           title: r.title,
           summary: r.body || r.title,
-          source: r.tag || '관리자',
+          source: r.tag || '愿由ъ옄',
           date: r.publish_at || r.created_at,
           url: r.source_link || undefined,
+          is_important: (r as any).is_important,
         }))
       } else {
-        const agg = await fetchAllTopics({ limitPerTopic: 5 })
-        merged = agg.items
+        // 愿由ъ옄 ?곗씠?곌? ?놁쓣 ?뚯쓽 Fallback (珥덇린 1?뚮쭔)
+        if (!append && nextPage === 1) {
+          const agg = await fetchAllTopics({ limitPerTopic: 5 })
+          merged = agg.items
+        } else {
+          merged = []
+        }
       }
 
+      // ?ㅼ쓬 ?섏씠吏 媛???щ? 異붿젙: pageSize 梨꾩썙吏硫????덉쓣 媛?μ꽦
+      setHasMore((adminRows?.length ?? 0) === pageSize)
+
+      // ?뺣젹怨?蹂??
       merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
       const toItem = (n: any): BreakingItem => {
@@ -277,16 +291,21 @@ export default function BreakingPage() {
           tag: n.source,
           url: n.url,
           id: n.id,
+          important: !!(n as any).is_important,
         }
       }
 
-      setItems(merged.map(toItem))
+      const nextItems = merged.map(toItem)
+      setItems((prev) => (append ? [...prev, ...nextItems] : nextItems))
+      if (!append) setPage(1)
     } catch (e: any) {
       setError(e?.message || '속보를 불러오지 못했습니다')
     } finally {
       setLoading(false)
     }
   }, [])
+
+  const handleRefresh = () => void load()
 
   React.useEffect(() => { void load() }, [load])
 
@@ -331,7 +350,7 @@ export default function BreakingPage() {
           <Button
   variant="outline"
   disabled={loading}
-  onClick={load}
+  onClick={handleRefresh}
   className="!text-[10px] !px-2 !py-0.5 !h-[26px] sm:!text-sm sm:!px-3 sm:!py-1"
 >
   {loading ? '새로고침 중…' : '새로고침'}
@@ -353,6 +372,24 @@ export default function BreakingPage() {
             />
           ))}
         </div>
+
+        {/* ?붾낫湲?*/}
+        {hasMore && (
+          <div className="mt-2 flex justify-center">
+            <Button
+              variant="outline"
+              disabled={loading}
+              onClick={() => {
+                const next = page + 1
+                setPage(next)
+                void load(next, true)
+              }}
+              className="!text-sm !px-4 !py-1.5"
+            >
+              {loading ? '불러오는 중…' : '더보기'}
+            </Button>
+          </div>
+        )}
 
       </section>
     </div>
