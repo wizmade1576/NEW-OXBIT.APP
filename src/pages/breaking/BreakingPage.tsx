@@ -263,7 +263,11 @@ export default function BreakingPage() {
       setHasMore((adminRows?.length ?? 0) === pageSize)
 
       // ?뺣젹怨?蹂??
-      merged.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      merged.sort((a, b) => {
+        if (a.pinned && !b.pinned) return -1
+        if (!a.pinned && b.pinned) return 1
+        return new Date(b.date).getTime() - new Date(a.date).getTime()
+      })
 
       const toItem = (n: any): BreakingItem => {
         const d = new Date(n.date)
@@ -292,6 +296,7 @@ export default function BreakingPage() {
           url: n.url,
           id: n.id,
           important: !!(n as any).is_important,
+          pinned: !!n.pinned,
         }
       }
 
