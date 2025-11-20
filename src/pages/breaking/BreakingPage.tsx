@@ -248,6 +248,7 @@ export default function BreakingPage() {
           date: r.publish_at || r.created_at,
           url: r.source_link || undefined,
           is_important: (r as any).is_important,
+          pinned: !!r.pinned,
         }))
       } else {
         // 愿由ъ옄 ?곗씠?곌? ?놁쓣 ?뚯쓽 Fallback (珥덇린 1?뚮쭔)
