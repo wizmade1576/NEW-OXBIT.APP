@@ -68,20 +68,22 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-6">
-        {/* Mobile: brand navigates to Breaking page; Desktop: unchanged text */}
-        <NavLink to="/breaking" className="font-semibold tracking-tight md:hidden" aria-label="OXBIT.APP">
+        {/* Brand always links to Breaking page */}
+        <NavLink to="/breaking" className="font-semibold tracking-tight" aria-label="OXBIT.APP">
           {BRAND}
         </NavLink>
-        <div className="font-semibold tracking-tight hidden md:block">{BRAND}</div>
         <nav className="hidden md:flex items-center gap-4 text-sm overflow-x-hidden sm:overflow-visible">
-          <NavLink to="/" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>홈</NavLink>
           <NavLink to="/breaking" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>속보</NavLink>
           <NavLink to="/news" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>뉴스</NavLink>
           <NavLink to="/markets" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>마켓</NavLink>
           <NavLink to="/positions" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>포지션</NavLink>
-          <NavLink to="/community" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>커뮤니티</NavLink>
-          <NavLink to="/paper" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>모의투자</NavLink>
-          <NavLink to="/ads" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>광고</NavLink>
+          <button
+            type="button"
+            onClick={() => alert('현재 모의투자 리뉴얼 공사중입니다. 빠른 시일 내에 찾아 뵙겠습니다.')}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            모의투자
+          </button>
           <div ref={moreRef} className="relative">
             <button type="button" aria-haspopup="menu" aria-expanded={moreOpen} className="text-muted-foreground hover:text-foreground" onClick={() => setMoreOpen(v=>!v)}>더보기</button>
             <div className={(moreOpen ? 'block ' : 'hidden ') + 'absolute left-0 top-full w-56 rounded-md border border-border bg-popover p-2 shadow-lg'}>
@@ -139,12 +141,20 @@ export default function Header() {
           {/* Mobile menu panel */}
           <div ref={menuRef} className={(menuOpen ? 'block ' : 'hidden ') + 'md:hidden absolute right-4 top-14 w-64 rounded-md border border-border bg-popover p-2 shadow-lg z-50'}>
             <div className="px-2 py-1.5 text-xs text-muted-foreground">탐색</div>
-            <NavLink to="/paper" onClick={() => setMenuOpen(false)} className={({ isActive }) => (isActive ? 'block rounded px-3 py-2 text-primary' : 'block rounded px-3 py-2 hover:bg-accent')}>모의투자</NavLink>
+            <button
+              type="button"
+              onClick={() => {
+                setMenuOpen(false)
+                alert('현재 모의투자 리뉴얼 공사중입니다. 빠른 시일 내에 찾아 뵙겠습니다.')
+              }}
+              className="block rounded px-3 py-2 hover:bg-accent text-foreground"
+            >
+              모의투자
+            </button>
             <NavLink to="/breaking" onClick={() => setMenuOpen(false)} className={({ isActive }) => (isActive ? 'block rounded px-3 py-2 text-primary' : 'block rounded px-3 py-2 hover:bg-accent')}>속보</NavLink>
             <NavLink to="/news" onClick={() => setMenuOpen(false)} className={({ isActive }) => (isActive ? 'block rounded px-3 py-2 text-primary' : 'block rounded px-3 py-2 hover:bg-accent')}>뉴스</NavLink>
             <NavLink to="/markets" onClick={() => setMenuOpen(false)} className={({ isActive }) => (isActive ? 'block rounded px-3 py-2 text-primary' : 'block rounded px-3 py-2 hover:bg-accent')}>마켓</NavLink>
             <NavLink to="/positions" onClick={() => setMenuOpen(false)} className={({ isActive }) => (isActive ? 'block rounded px-3 py-2 text-primary' : 'block rounded px-3 py-2 hover:bg-accent')}>포지션</NavLink>
-            <NavLink to="/community" onClick={() => setMenuOpen(false)} className={({ isActive }) => (isActive ? 'block rounded px-3 py-2 text-primary' : 'block rounded px-3 py-2 hover:bg-accent')}>커뮤니티</NavLink>
             <div className="my-1 h-px bg-border" />
             <div className="px-2 py-1.5 text-xs text-muted-foreground">계정</div>
             {user?.email ? (

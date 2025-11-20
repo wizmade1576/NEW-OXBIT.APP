@@ -8,6 +8,7 @@ const TOPICS: Array<{ label: string; value: "all" | "crypto" | "stocks" | "fx" }
   { label: "환율/금리", value: "fx" },
 ]
 
+
 const formatKSTDate = (input?: string | number | null) => {
   if (input == null) return ""
   const date =
@@ -30,7 +31,7 @@ const formatKSTDate = (input?: string | number | null) => {
   })
 
   const parts = formatter.formatToParts(date)
-  const get = (type: string) => parts.find((p) => p.type === type)?.value || ""
+  const get = (type: string) => parts.find(p => p.type === type)?.value || ""
   return `${get("year")}.${get("month")}.${get("day")} ${get("hour")}:${get("minute")}`
 }
 
@@ -81,6 +82,8 @@ const NewsPage = () => {
     pageSize: 20,
   })
 
+  const visibleItems = React.useMemo(() => items, [items])
+
   const sentinelRef = React.useRef<HTMLDivElement | null>(null)
 
   React.useEffect(() => {
@@ -101,7 +104,7 @@ const NewsPage = () => {
     <section className="relative w-full max-w-full overflow-x-hidden bg-[#030712] pb-20 sm:mx-auto sm:max-w-3xl">
       <div className="px-4 py-5">
         <header className="space-y-3">
-          <h1 className="text-2xl font-bold text-white">뉴스룸</h1>
+          <h1 className="text-2xl font-bold text-white">뉴스</h1>
           <div className="flex gap-2">
             {TOPICS.map((tab) => (
               <button
@@ -129,9 +132,9 @@ const NewsPage = () => {
           <div className="mt-6 text-center text-sm text-neutral-400">로딩 중...</div>
         ) : (
           <div className="mt-4 space-y-3">
-            {items.map((item) => (
-              <NewsCard key={item.id || item.url} item={item} />
-            ))}
+        {visibleItems.map((item) => (
+          <NewsCard key={item.id || item.url} item={item} />
+        ))}
           </div>
         )}
 

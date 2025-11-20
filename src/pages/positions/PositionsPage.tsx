@@ -72,7 +72,7 @@ export default function PositionsPage() {
   const [symbol, setSymbol] = React.useState<string>(() => symbols[0] || 'BTCUSDT')
   const [showEntries, setShowEntries] = React.useState(true)
   const [hoveredId, setHoveredId] = React.useState<string | undefined>(undefined)
-  const [timeframe, setTimeframe] = React.useState<'1m' | '3m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1d' | '1w' | '1M'>('1m')
+  const [timeframe, setTimeframe] = React.useState<'1m' | '3m' | '5m' | '15m' | '30m' | '1h' | '4h' | '1d' | '1w' | '1M'>('1h')
 
   React.useEffect(() => {
     const t = setInterval(() => {
@@ -703,29 +703,21 @@ function PositionCard(props: PositionCardProps) {
       </CardHeader>
       {/* Mobile compact content (md 미만) */}
       <CardContent className="md:hidden px-2 pt-0 pb-2">
-        {/* 2x2 정보 그리드: 수량 / P&L(+현재가) / 진입가 / 청산가 */}
-        <div className="grid grid-cols-2 gap-1 text-xs">
-          <div>
-            <div className="text-[11px] text-muted-foreground">수량</div>
-            <div className="font-semibold tabular-nums whitespace-nowrap leading-tight">{fmtNum(qty)}</div>
+        <div className="flex flex-col gap-1 text-xs text-neutral-300">
+          <div className="flex items-center justify-between">
+            <span>{symbol}</span>
+            <span className={`${up ? 'text-emerald-400' : 'text-red-400'} font-semibold`}>
+              {fmtUSD(pnlUsd)}
+            </span>
           </div>
-          <div>
-            <div className="text-[11px] text-muted-foreground">P&L</div>
-            <div className={`${up ? 'text-emerald-400' : 'text-red-400'} font-semibold tabular-nums whitespace-nowrap leading-tight`}>{fmtUSD(pnlUsd)}</div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">현재가 {fmtUSD(mark)}</div>
+          <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+            <span className="font-semibold text-white">{fmtNum(qty)} 개</span>
+            <span className="text-white">진입 {fmtUSD(entry)}</span>
+            <span className="text-red-400">청산 {fmtUSD(liq)}</span>
           </div>
-          <div>
-            <div className="text-[11px] text-muted-foreground">진입가</div>
-            <div className="font-semibold tabular-nums whitespace-nowrap leading-tight">{fmtUSD(entry)}</div>
+          <div className="text-[10px] text-muted-foreground">
+            {side} {leverage ? `x${leverage}` : ''} · 현재 {fmtUSD(mark)}
           </div>
-          <div>
-            <div className="text-[11px] text-muted-foreground">청산가</div>
-            <div className="font-semibold tabular-nums whitespace-nowrap leading-tight">{fmtUSD(liq)}</div>
-          </div>
-        </div>
-        {/* 미니 스파크라인 (더 컴팩트) */}
-        <div className="mt-1 h-[30px] w-full">
-          <SparkLine data={spark || []} up={up} height={30} />
         </div>
       </CardContent>
       <CardContent className="hidden md:block">
@@ -761,7 +753,7 @@ function PositionCard(props: PositionCardProps) {
             <div className="font-semibold tabular-nums whitespace-nowrap">{fmtUSD(mark)}</div>
           </div>
           {/* 기존 스파크라인 유지 */}
-          <div className="flex items-center col-span-2 sm:col-span-1 w-full">
+          <div className="hidden md:flex items-center col-span-2 sm:col-span-1 w-full">
             <SparkLine data={spark || []} up={up} />
           </div>
         </div>

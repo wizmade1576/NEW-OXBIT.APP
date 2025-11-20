@@ -1,8 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import RootLayout from '../layouts/RootLayout'
 
-import HomePage from '../../pages/home/HomePage'
-
 import BreakingPage from '../../pages/breaking/BreakingPage'
 import BreakingDetailPage from '../../pages/breaking/BreakingDetailPage'
 
@@ -10,10 +8,7 @@ import SearchPage from '../../pages/search/SearchPage'
 import NotFoundPage from '../../pages/NotFoundPage'
 
 import NewsLayout from '../../pages/news/Layout'
-import AllPage from '../../pages/news/AllPage'
-import CryptoNewsPage from '../../pages/news/CryptoNewsPage'
-import GlobalStocksNewsPage from '../../pages/news/GlobalStocksNewsPage'
-import FxRatesNewsPage from '../../pages/news/FxRatesNewsPage'
+import NewsPage from '../../pages/news/NewsPage'
 
 import MarketsLayout from '../../pages/markets/Layout'
 import CryptoPage from '../../pages/markets/CryptoPage'
@@ -27,9 +22,6 @@ import PositionsPage from '../../pages/positions/PositionsPage'
 import WhalesPage from '../../pages/positions/WhalesPage'
 import FearGreedPage from '../../pages/positions/FearGreedPage'
 
-import CommunityLayout from '../../pages/community/Layout'
-import LoungePage from '../../pages/community/LoungePage'
-import ExpertsPage from '../../pages/community/ExpertsPage'
 
 import PaperTradingPage from '../../pages/paper/PaperTradingPage'
 import MoreLayout from '../../pages/more/MoreLayout'
@@ -40,31 +32,27 @@ import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
 
-import AdsPage from '../../pages/ads/AdsPage'
 
 import RequireAdmin from '../../components/auth/RequireAdmin'
 import AdminLayout from '../../pages/admin/Layout'
 import AdminDashboardPage from '../../pages/admin/DashboardPage'
 import AdminBreakingPage from '../../pages/admin/BreakingPage'
 import AdminAdsPage from '../../pages/admin/AdsPage'
+import AdminUsersPage from '../../pages/admin/UsersPage'
+import AdminPositionsPage from '../../pages/admin/PositionsPage'
 
 export const router = createBrowserRouter([
   {
     path: '/',
     element: <RootLayout />,
     children: [
-      { index: true, element: <HomePage /> },
+      { index: true, element: <BreakingPage /> },
 
       // 뉴스
       {
         path: 'news',
         element: <NewsLayout />,
-        children: [
-          { index: true, element: <AllPage /> },
-          { path: 'crypto', element: <CryptoNewsPage /> },
-          { path: 'global', element: <GlobalStocksNewsPage /> },
-          { path: 'fx', element: <FxRatesNewsPage /> },
-        ],
+        children: [{ index: true, element: <NewsPage /> }],
       },
 
       // 마켓 ★ 수정 완료: /markets → 자동 /markets/stocks 이동
@@ -94,15 +82,6 @@ export const router = createBrowserRouter([
       },
 
       // 커뮤니티
-      {
-        path: 'community',
-        element: <CommunityLayout />,
-        children: [
-          { index: true, element: <LoungePage /> },
-          { path: 'lounge', element: <LoungePage /> },
-          { path: 'experts', element: <ExpertsPage /> },
-        ],
-      },
 
       { path: 'breaking', element: <BreakingPage /> },
       { path: 'breaking/:key', element: <BreakingDetailPage /> },
@@ -112,7 +91,6 @@ export const router = createBrowserRouter([
       { path: 'forgot', element: <ForgotPasswordPage /> },
 
       { path: 'paper', element: <PaperTradingPage /> },
-      { path: 'ads', element: <AdsPage /> },
 
       // 관리자
       {
@@ -124,6 +102,8 @@ export const router = createBrowserRouter([
         ),
         children: [
           { index: true, element: <AdminDashboardPage /> },
+          { path: 'users', element: <AdminUsersPage /> },
+          { path: 'positions', element: <AdminPositionsPage /> },
           { path: 'breaking', element: <AdminBreakingPage /> },
           { path: 'ads', element: <AdminAdsPage /> },
         ],

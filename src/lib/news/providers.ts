@@ -10,6 +10,7 @@ export interface NewsItem {
   image?: string
   date: string
   source: string
+  fetchedAt: number
 }
 
 type Topic = 'crypto' | 'stocks' | 'fx'

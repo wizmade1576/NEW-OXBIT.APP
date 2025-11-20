@@ -17,6 +17,7 @@ export interface NewsItem {
   date: string
   source: string
   topic: Topic
+  fetchedAt: number
 }
 
 // =============== CORS / JSON ================================================
@@ -45,13 +46,34 @@ function pickProvider(): Provider {
 
 // =============== TEXT CLEANING ==============================================
 
+function formatKST(date: Date) {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const yyyy = date.getFullYear()
+  const mm = pad(date.getMonth() + 1)
+  const dd = pad(date.getDate())
+  const hh = pad(date.getHours())
+  const mi = pad(date.getMinutes())
+  const ss = pad(date.getSeconds())
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}:${ss}+09:00`
+}
+
 function parseDate(input?: string | null): string {
-  if (!input) return new Date().toISOString()
-  const d = new Date(input)
-  if (!Number.isNaN(d.getTime())) return d.toISOString()
-  const n = Number(input)
-  if (!Number.isNaN(n)) return new Date(n).toISOString()
-  return new Date().toISOString()
+  const parse = (val: string) => {
+    const d = new Date(val)
+    return Number.isNaN(d.getTime()) ? null : d
+  }
+
+  if (!input) return formatKST(new Date())
+  let d = parse(input)
+  if (!d) {
+    const numeric = Number(input)
+    if (!Number.isNaN(numeric)) d = new Date(numeric)
+  }
+  if (!d) d = new Date(input.replace(' ', 'T'))
+  if (!d || Number.isNaN(d.getTime())) d = new Date()
+
+  const seoul = new Date(d.getTime() + 9 * 60 * 60 * 1000)
+  return formatKST(seoul)
 }
 
 function firstText(el: Element | null, selectors: string[]): string | undefined {
@@ -587,6 +609,7 @@ Deno.serve(async (req) => {
       const defW = Number(Deno.env.get('THUMB_WIDTH') ?? '160')
       const defH = Number(Deno.env.get('THUMB_HEIGHT') ?? '90')
 
+      const now = Date.now()
       const itemsWithThumb = items.map((n) => ({
         ...n,
         image: n.image
@@ -594,6 +617,7 @@ Deno.serve(async (req) => {
               n.image,
             )}&w=${defW}&h=${defH}&fmt=${thumbFmt}&q=${thumbQ}`
           : undefined,
+        fetchedAt: now,
       }))
 
       // 글자 깨진 뉴스 제거

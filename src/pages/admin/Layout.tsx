@@ -8,6 +8,8 @@ export default function AdminLayout() {
         <h3 className="mb-3 text-sm font-semibold">관리자</h3>
         <nav className="flex flex-col gap-2 text-sm">
           <NavLink to="/admin" end className={({isActive})=> isActive? 'text-primary' : 'text-muted-foreground hover:text-foreground'}>대시보드</NavLink>
+          <NavLink to="/admin/users" className={({isActive})=> isActive? 'text-primary' : 'text-muted-foreground hover:text-foreground'}>회원관리</NavLink>
+          <NavLink to="/admin/positions" className={({isActive})=> isActive? 'text-primary' : 'text-muted-foreground hover:text-foreground'}>포지션</NavLink>
           <NavLink to="/admin/breaking" className={({isActive})=> isActive? 'text-primary' : 'text-muted-foreground hover:text-foreground'}>속보</NavLink>
           <NavLink to="/admin/ads" className={({isActive})=> isActive? 'text-primary' : 'text-muted-foreground hover:text-foreground'}>광고</NavLink>
         </nav>
