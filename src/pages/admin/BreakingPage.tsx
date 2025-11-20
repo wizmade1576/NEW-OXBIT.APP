@@ -307,12 +307,12 @@ export default function AdminBreakingPage() {
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={()=>setOpen(false)} />
-          <div className="relative z-10 w-[92%] max-w-2xl rounded-lg border border-border bg-card p-2 sm:p-4 shadow-lg">
+          <div className="relative z-10 w-[90%] max-w-[380px] rounded-lg border border-border bg-card p-2 sm:p-4 sm:w-[92%] sm:max-w-2xl shadow-lg">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-lg font-semibold">속보 작성</h3>
               <button className="text-sm text-muted-foreground hover:underline" onClick={()=>setOpen(false)}>닫기</button>
             </div>
-            <div className="grid grid-cols-1 gap-2 sm:gap-3 text-sm">
+            <div className="grid grid-cols-1 gap-1 sm:gap-3 text-sm">
               <div>
                 <label className="mb-1 block">제목</label>
                 <input value={title} onChange={e=>setTitle(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2" />
@@ -327,7 +327,7 @@ export default function AdminBreakingPage() {
                 <label className="mb-1 block">본문</label>
                 <textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} className="w-full rounded-md border border-input bg-background p-2" />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-3">
                 <div>
                   <label className="mb-1 block">태그</label>
                   <input value={tag} onChange={e=>setTag(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2" />
