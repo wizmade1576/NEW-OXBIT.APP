@@ -153,6 +153,51 @@ export default function AdminBreakingPage() {
     } finally { setLoading(false) }
   }
 
+  const mergeClass = (base: string, extra?: string) => extra ? `${base} ${extra}` : base
+
+  const renderPinnedControl = (extraClass?: string) => (
+    <label className={mergeClass('inline-flex items-center gap-2 text-sm', extraClass)}>
+      <input type="checkbox" checked={pinned} onChange={e=>setPinned(e.target.checked)} />
+      상단 고정
+    </label>
+  )
+
+  const renderStatusSelect = (extraClass?: string) => (
+    <select value={status} onChange={e=>setStatus(e.target.value as any)} className={mergeClass('h-9 rounded-md border border-input bg-background px-2 text-sm', extraClass)}>
+      <option value="published">발행</option>
+      <option value="draft">초안</option>
+    </select>
+  )
+
+  const renderCancelButton = (extraClass?: string) => (
+    <button
+      className={mergeClass('rounded-md border border-border px-3 py-2 text-sm sm:py-1.5 sm:px-3', extraClass)}
+      onClick={()=>setOpen(false)}
+    >
+      취소
+    </button>
+  )
+
+  const renderSubmitButton = (extraClass?: string) => (
+    editing ? (
+      <button
+        className={mergeClass('rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground sm:py-1.5 sm:px-3', extraClass)}
+        onClick={saveEdit}
+        disabled={loading}
+      >
+        {loading? '수정 중...' : '수정'}
+      </button>
+    ) : (
+      <button
+        className={mergeClass('rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground sm:py-1.5 sm:px-3', extraClass)}
+        onClick={createBreaking}
+        disabled={loading}
+      >
+        {loading? '등록 중...' : '등록'}
+      </button>
+    )
+  )
+
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-semibold">속보 관리</h2>
@@ -262,27 +307,27 @@ export default function AdminBreakingPage() {
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={()=>setOpen(false)} />
-          <div className="relative z-10 w-[92%] max-w-2xl rounded-lg border border-border bg-card p-4 shadow-lg">
+          <div className="relative z-10 w-[92%] max-w-2xl rounded-lg border border-border bg-card p-2 sm:p-4 shadow-lg">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-lg font-semibold">속보 작성</h3>
               <button className="text-sm text-muted-foreground hover:underline" onClick={()=>setOpen(false)}>닫기</button>
             </div>
-            <div className="grid grid-cols-1 gap-3 text-sm">
+            <div className="grid grid-cols-1 gap-2 sm:gap-3 text-sm">
               <div>
                 <label className="mb-1 block">제목</label>
                 <input value={title} onChange={e=>setTitle(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2" />
-              <div className="mt-2">
-                <label className="inline-flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={important} onChange={e=>setImportant(e.target.checked)} />
-                  중요 속보 (제목 빨간색 강조)
-                </label>
-              </div>
+                <div className="mt-2">
+                  <label className="inline-flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={important} onChange={e=>setImportant(e.target.checked)} />
+                    중요 속보 (제목 빨간색 강조)
+                  </label>
+                </div>
               </div>
               <div>
                 <label className="mb-1 block">본문</label>
                 <textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} className="w-full rounded-md border border-input bg-background p-2" />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
                 <div>
                   <label className="mb-1 block">태그</label>
                   <input value={tag} onChange={e=>setTag(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2" />
@@ -291,21 +336,20 @@ export default function AdminBreakingPage() {
                   <label className="mb-1 block">발행시각</label>
                   <input type="datetime-local" value={publishAt} onChange={e=>setPublishAt(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2" />
                 </div>
-                <div className="flex items-center gap-3">
-                  <label className="inline-flex items-center gap-2"><input type="checkbox" checked={pinned} onChange={e=>setPinned(e.target.checked)} /> 상단 고정</label>
-                  <select value={status} onChange={e=>setStatus(e.target.value as any)} className="h-9 rounded-md border border-input bg-background px-2">
-                    <option value="published">발행</option>
-                    <option value="draft">초안</option>
-                  </select>
+                <div className="hidden sm:flex items-center gap-3">
+                  {renderPinnedControl()}
+                  {renderStatusSelect()}
                 </div>
               </div>
-              <div className="mt-2 flex justify-end gap-2">
-                <button className="rounded-md border border-border px-3 py-1.5 text-sm" onClick={()=>setOpen(false)}>취소</button>
-                {editing ? (
-                  <button className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground" onClick={saveEdit} disabled={loading}>{loading? '수정 중...' : '수정'}</button>
-                ) : (
-                  <button className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground" onClick={createBreaking} disabled={loading}>{loading? '등록 중...' : '등록'}</button>
-                )}
+              <div className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
+                {renderPinnedControl('flex-shrink-0')}
+                {renderStatusSelect('flex-shrink-0 min-w-[120px]')}
+                {renderCancelButton('flex-shrink-0')}
+                {renderSubmitButton('flex-shrink-0')}
+              </div>
+              <div className="mt-2 hidden justify-end gap-2 sm:flex">
+                {renderCancelButton()}
+                {renderSubmitButton()}
               </div>
             </div>
           </div>
