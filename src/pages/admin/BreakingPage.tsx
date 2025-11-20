@@ -307,7 +307,7 @@ export default function AdminBreakingPage() {
       {open ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={()=>setOpen(false)} />
-          <div className="relative z-10 w-[90%] max-w-[380px] rounded-lg border border-border bg-card p-2 sm:p-4 sm:w-[92%] sm:max-w-2xl shadow-lg">
+          <div className="relative z-10 w-[90%] max-w-[380px] rounded-lg border border-border bg-card px-2 py-1.5 sm:p-4 sm:w-[92%] sm:max-w-2xl shadow-lg">
             <div className="max-h-[85vh] w-full overflow-y-auto sm:max-h-none sm:overflow-visible">
               <div className="mb-3 flex items-center justify-between">
                 <h3 className="text-lg font-semibold">속보 작성</h3>
@@ -317,7 +317,7 @@ export default function AdminBreakingPage() {
                 <div>
                   <label className="mb-1 block">제목</label>
                   <input value={title} onChange={e=>setTitle(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 py-2 sm:px-3 sm:py-3" />
-                  <div className="mt-2">
+                  <div className="mt-1">
                     <label className="inline-flex items-center gap-2 text-sm">
                       <input type="checkbox" checked={important} onChange={e=>setImportant(e.target.checked)} />
                       중요 속보 (제목 빨간색 강조)
@@ -343,7 +343,7 @@ export default function AdminBreakingPage() {
                   </div>
                 </div>
               </div>
-              <div className="mt-2 flex flex-row flex-nowrap items-center gap-1 sm:hidden">
+              <div className="mt-1 flex flex-row flex-nowrap items-center gap-1 sm:hidden">
                 {renderPinnedControl('flex-shrink-0 whitespace-nowrap')}
                 {renderStatusSelect('flex-shrink-0 min-w-[120px] whitespace-nowrap')}
                 {renderCancelButton('flex-shrink-0 min-w-fit whitespace-nowrap px-3 py-2')}
