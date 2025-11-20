@@ -208,7 +208,7 @@ export default function AdminBreakingPage() {
         >
           새로 만들기
         </button>
-        {loading ? <div className="text-xs text-muted-foreground">濡쒕뵫...</div> : null}
+        {loading ? <div className="text-xs text-muted-foreground">로딩...</div> : null}
       </div>
       {error ? <div className="text-sm text-red-400">{error}</div> : null}
       {notice ? <div className="text-sm text-emerald-400">{notice}</div> : null}
@@ -276,7 +276,7 @@ export default function AdminBreakingPage() {
             ))}
             {items.length === 0 && !loading ? (
               <tr>
-                <td className="px-3 py-6 text-center text-muted-foreground" colSpan={4}>게시된 속보가 없습니다.</td>
+                <td className="px-3 py-6 text-center text-muted-foreground" colSpan={5}>게시된 속보가 없습니다.</td>
               </tr>
             ) : null}
           </tbody>
@@ -308,44 +308,46 @@ export default function AdminBreakingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={()=>setOpen(false)} />
           <div className="relative z-10 w-[90%] max-w-[380px] rounded-lg border border-border bg-card p-2 sm:p-4 sm:w-[92%] sm:max-w-2xl shadow-lg">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-lg font-semibold">속보 작성</h3>
-              <button className="text-sm text-muted-foreground hover:underline" onClick={()=>setOpen(false)}>닫기</button>
-            </div>
-            <div className="grid grid-cols-1 gap-1 sm:gap-3 text-sm">
-              <div>
-                <label className="mb-1 block">제목</label>
-                <input value={title} onChange={e=>setTitle(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2" />
-                <div className="mt-2">
-                  <label className="inline-flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={important} onChange={e=>setImportant(e.target.checked)} />
-                    중요 속보 (제목 빨간색 강조)
-                  </label>
-                </div>
+            <div className="max-h-[85vh] w-full overflow-y-auto sm:max-h-none sm:overflow-visible">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-lg font-semibold">속보 작성</h3>
+                <button className="text-sm text-muted-foreground hover:underline" onClick={()=>setOpen(false)}>닫기</button>
               </div>
-              <div>
-                <label className="mb-1 block">본문</label>
-                <textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} className="w-full rounded-md border border-input bg-background p-2" />
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-3">
+              <div className="grid grid-cols-1 gap-1 sm:gap-3 text-sm">
                 <div>
-                  <label className="mb-1 block">태그</label>
-                  <input value={tag} onChange={e=>setTag(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2" />
+                  <label className="mb-1 block">제목</label>
+                  <input value={title} onChange={e=>setTitle(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 py-2 sm:px-3 sm:py-3" />
+                  <div className="mt-2">
+                    <label className="inline-flex items-center gap-2 text-sm">
+                      <input type="checkbox" checked={important} onChange={e=>setImportant(e.target.checked)} />
+                      중요 속보 (제목 빨간색 강조)
+                    </label>
+                  </div>
                 </div>
                 <div>
-                  <label className="mb-1 block">발행시각</label>
-                  <input type="datetime-local" value={publishAt} onChange={e=>setPublishAt(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2" />
+                  <label className="mb-1 block">본문</label>
+                  <textarea value={body} onChange={e=>setBody(e.target.value)} rows={6} className="w-full rounded-md border border-input bg-background px-2 py-2 sm:px-3 sm:py-3" />
                 </div>
-                <div className="hidden sm:flex items-center gap-3">
-                  {renderPinnedControl()}
-                  {renderStatusSelect()}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-3">
+                  <div>
+                    <label className="mb-1 block">태그</label>
+                    <input value={tag} onChange={e=>setTag(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 py-2 sm:px-3 sm:py-3" />
+                  </div>
+                  <div>
+                    <label className="mb-1 block">발행시각</label>
+                    <input type="datetime-local" value={publishAt} onChange={e=>setPublishAt(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background px-2 py-2 sm:px-3 sm:py-3" />
+                  </div>
+                  <div className="hidden sm:flex items-center gap-3">
+                    {renderPinnedControl()}
+                    {renderStatusSelect()}
+                  </div>
                 </div>
               </div>
-              <div className="mt-2 flex flex-wrap items-center gap-2 sm:hidden">
-                {renderPinnedControl('flex-shrink-0')}
-                {renderStatusSelect('flex-shrink-0 min-w-[120px]')}
-                {renderCancelButton('flex-shrink-0')}
-                {renderSubmitButton('flex-shrink-0')}
+              <div className="mt-2 flex flex-row flex-nowrap items-center gap-1 sm:hidden">
+                {renderPinnedControl('flex-shrink-0 whitespace-nowrap')}
+                {renderStatusSelect('flex-shrink-0 min-w-[120px] whitespace-nowrap')}
+                {renderCancelButton('flex-shrink-0 min-w-fit whitespace-nowrap px-3 py-2')}
+                {renderSubmitButton('flex-shrink-0 min-w-fit whitespace-nowrap px-3 py-2')}
               </div>
               <div className="mt-2 hidden justify-end gap-2 sm:flex">
                 {renderCancelButton()}
