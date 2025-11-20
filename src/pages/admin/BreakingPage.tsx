@@ -343,11 +343,15 @@ export default function AdminBreakingPage() {
                   </div>
                 </div>
               </div>
-              <div className="mt-1 flex flex-row flex-nowrap items-center gap-1 sm:hidden">
-                {renderPinnedControl('flex-shrink-0 whitespace-nowrap')}
-                {renderStatusSelect('flex-shrink-0 min-w-[120px] whitespace-nowrap')}
-                {renderCancelButton('flex-shrink-0 min-w-fit whitespace-nowrap px-3 py-2')}
-                {renderSubmitButton('flex-shrink-0 min-w-fit whitespace-nowrap px-3 py-2')}
+              <div className="mt-1 flex flex-row flex-nowrap items-center gap-0.5 sm:hidden">
+                <div className="flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
+                  {renderPinnedControl()}
+                  {renderStatusSelect('min-w-[90px] whitespace-nowrap')}
+                </div>
+                <div className="flex flex-1 items-center gap-1">
+                  {renderCancelButton('flex-1 min-w-0 whitespace-nowrap px-3 py-2')}
+                  {renderSubmitButton('flex-1 min-w-0 whitespace-nowrap px-3 py-2')}
+                </div>
               </div>
               <div className="mt-2 hidden justify-end gap-2 sm:flex">
                 {renderCancelButton()}
