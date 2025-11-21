@@ -92,6 +92,7 @@ export default function PositionsPage() {
   const [selected, setSelected] = React.useState<PositionRecord | null>(null)
   const [form, setForm] = React.useState<FormState>(createEmptyForm)
   const [avatarPreview, setAvatarPreview] = React.useState<string | null>(null)
+  const [profileInputMode, setProfileInputMode] = React.useState<'url' | 'file'>('url')
   const [submitting, setSubmitting] = React.useState(false)
 
   const [chartSymbol, setChartSymbol] = React.useState<string>(TV_DEFAULT_SYMBOL)
@@ -244,17 +245,17 @@ export default function PositionsPage() {
     setSelected(null)
     setForm(createEmptyForm())
     setAvatarPreview(null)
+    setProfileInputMode('url')
   }
 
   const beginEdit = (pos: PositionRecord) => {
     setSelected(pos)
     setForm({
       nickname: pos.nickname || '',
-        profile_url: pos.profile_url || '',
-        liquidation_price: pos.liquidation_price || 0,
-        symbol: pos.symbol,
-        direction: pos.direction,
-        leverage: pos.leverage ?? 1,
+      profile_url: pos.profile_url || '',
+      symbol: pos.symbol,
+      direction: pos.direction,
+      leverage: pos.leverage ?? 1,
       amount: pos.amount ?? 0,
       entry_price: pos.entry_price ?? 0,
       current_price: pos.current_price ?? 0,
@@ -264,6 +265,7 @@ export default function PositionsPage() {
       status: pos.status || 'on',
     })
     setAvatarPreview(pos.profile_url || null)
+    setProfileInputMode(pos.profile_url?.startsWith('data:') ? 'file' : 'url')
     setChartSymbol(normalizeTvSymbol(pos.symbol))
   }
 
@@ -276,7 +278,7 @@ export default function PositionsPage() {
     setSubmitting(true)
     const payload = {
       nickname: form.nickname.trim(),
-      profile_url: form.profile_url.trim() || null,
+      profile_url: form.profile_url ? form.profile_url : null,
       symbol: form.symbol.trim(),
       direction: form.direction,
       leverage: Number(form.leverage),
@@ -444,29 +446,81 @@ export default function PositionsPage() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-8">
-          <section className="space-y-3">
+          <section className="space-y-4">
             <div className="flex items-center justify-between border-b border-border pb-2">
               <span className="text-sm font-semibold text-white">사용자 정보</span>
             </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <label className="space-y-1 text-xs text-muted-foreground">
-              <span>닉네임</span>
-              <input
-                value={form.nickname}
-                onChange={(e) => setForm((prev) => ({ ...prev, nickname: e.target.value }))}
-                className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
-              />
-            </label>
-            <label className="space-y-1 text-xs text-muted-foreground">
-              <span>프로필 URL</span>
-              <input
-                value={form.profile_url}
-                onChange={(e) => setForm((prev) => ({ ...prev, profile_url: e.target.value }))}
-                className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
-              />
-            </label>
-          </div>
-        </section>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="h-10 w-10 rounded-full border border-border bg-neutral-900 overflow-hidden">
+                  <img
+                    src={avatarPreview || form.profile_url || 'https://i.pravatar.cc/64'}
+                    alt="avatar preview"
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+                <label className="space-y-1 text-xs text-muted-foreground">
+                  <span>프로필 이미지</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0]
+                      if (!file) return
+                      const reader = new FileReader()
+                      reader.onload = () => {
+                        const value = reader.result as string
+                        setForm((prev) => ({ ...prev, profile_url: value }))
+                        setAvatarPreview(value)
+                        setProfileInputMode('file')
+                      }
+                      reader.readAsDataURL(file)
+                    }}
+                    className="block w-44 rounded border border-border bg-[#070a10] px-3 py-2 text-xs text-white"
+                  />
+                </label>
+                {profileInputMode === 'file' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileInputMode('url')
+                      setForm((prev) => ({ ...prev, profile_url: '' }))
+                      setAvatarPreview(null)
+                    }}
+                    className="text-xs text-primary hover:underline"
+                  >
+                    업로드 취소
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <label className="space-y-1 text-xs text-muted-foreground">
+                  <span>닉네임</span>
+                  <input
+                    value={form.nickname}
+                    onChange={(e) => setForm((prev) => ({ ...prev, nickname: e.target.value }))}
+                    className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+                  />
+                </label>
+                <label className="space-y-1 text-xs text-muted-foreground">
+                  <span>프로필 URL</span>
+                  <input
+                    value={profileInputMode === 'url' ? form.profile_url : ''}
+                    onChange={(e) => {
+                      if (profileInputMode !== 'url') setProfileInputMode('url')
+                      setForm((prev) => ({ ...prev, profile_url: e.target.value }))
+                      setAvatarPreview(e.target.value || null)
+                    }}
+                    className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+                    disabled={profileInputMode === 'file'}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    파일 업로드 후에는 URL 대신 업로드한 이미지가 사용됩니다.
+                  </p>
+                </label>
+              </div>
+            </div>
+          </section>
 
         <section className="space-y-3">
           <div className="flex items-center gap-3">
