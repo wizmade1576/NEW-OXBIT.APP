@@ -38,13 +38,10 @@ type PositionCardProps = {
   mark: number
   liq: number
   pnlKrw?: number
-  pnlTag: '수익' | '손실'
   online?: boolean
-  onlineFor?: string
   spark?: number[]
   onHover?: (id: string) => void
   onLeave?: () => void
-  compact?: boolean
 }
 
 export default function PositionsPage() {
@@ -503,60 +500,57 @@ function PositionCard({
   mark,
   liq,
   pnlKrw,
-  pnlTag,
   online,
-  onlineFor,
   spark,
   onHover,
   onLeave,
-  compact = false,
 }: PositionCardProps) {
   const up = (pnlUsd || 0) >= 0
   return (
     <Card
-      className={`bg-[#12131f] border border-neutral-800 ${compact ? 'p-3' : ''}`}
+      className="bg-[#12131f] border border-neutral-800 p-3"
       onMouseEnter={() => onHover?.(id)}
       onMouseLeave={() => onLeave?.()}
     >
-      <CardHeader className={`flex items-center justify-between gap-3 ${compact ? 'p-2' : ''}`}>
+      <CardHeader className="flex items-center justify-between gap-2 py-1">
         <div className="flex items-center gap-3">
           <img src={bjAvatar || 'https://i.pravatar.cc/40'} alt={bjName} className="h-10 w-10 rounded-full border border-border object-cover" />
           <div>
-            <div className="flex flex-wrap gap-2 items-center">
-              <span className="text-sm font-semibold text-white">{bjName}</span>
-              {leverage ? <span className="text-[11px] text-emerald-300 whitespace-nowrap">x{leverage}</span> : null}
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+              <span>{bjName}</span>
+              {leverage && <span className="text-[11px] text-emerald-300 whitespace-nowrap">x{leverage}</span>}
             </div>
             <div className="text-xs text-muted-foreground">{symbol}</div>
           </div>
         </div>
-        <div className="text-right">
-          <div className={`text-xs ${side === 'Long' ? 'text-emerald-400' : 'text-rose-400'} font-semibold`}>{side}</div>
-          <div className="text-[12px] text-muted-foreground">{online ? `ON · ${onlineFor}` : 'OFF'}</div>
+        <div className="text-xs text-right">
+          <div className={`font-semibold ${side === 'Long' ? 'text-emerald-400' : 'text-rose-400'}`}>{side}</div>
+          <div className="text-[11px] text-muted-foreground">{online ? 'ON' : 'OFF'}</div>
         </div>
       </CardHeader>
-      <CardContent className={`grid ${compact ? 'grid-cols-2 gap-2 text-[12px]' : 'grid-cols-3 gap-3 text-sm'} text-white`}>
-        <div>
-          <div className="text-xs text-muted-foreground">진입가</div>
+      <CardContent className="grid grid-cols-3 gap-2 text-xs text-white">
+        <div className="space-y-0.5">
+          <div className="text-muted-foreground">진입가</div>
           <div className="font-semibold">{fmtNum(entry)}</div>
         </div>
-        <div>
-          <div className="text-xs text-muted-foreground">현재가</div>
+        <div className="space-y-0.5">
+          <div className="text-muted-foreground">현재가</div>
           <div className="font-semibold">{fmtNum(mark)}</div>
         </div>
-        <div>
-          <div className="text-xs text-muted-foreground">청산가</div>
+        <div className="space-y-0.5">
+          <div className="text-muted-foreground">청산가</div>
           <div className="font-semibold">{fmtNum(liq)}</div>
         </div>
-        <div>
-          <div className="text-xs text-muted-foreground">수량</div>
+        <div className="space-y-0.5">
+          <div className="text-muted-foreground">수량</div>
           <div className="font-semibold">{qty ?? '--'}</div>
         </div>
-        <div>
-          <div className="text-xs text-muted-foreground">PnL</div>
+        <div className="space-y-0.5">
+          <div className="text-muted-foreground">PnL</div>
           <div className={`font-semibold ${up ? 'text-emerald-400' : 'text-rose-400'}`}>{fmtUSD(pnlUsd)}</div>
         </div>
-        <div>
-          <div className="text-xs text-muted-foreground">KRW</div>
+        <div className="space-y-0.5">
+          <div className="text-muted-foreground">KRW</div>
           <div className={`font-semibold ${up ? 'text-emerald-300' : 'text-rose-300'}`}>{fmtKRW(pnlKrw)}</div>
         </div>
       </CardContent>
