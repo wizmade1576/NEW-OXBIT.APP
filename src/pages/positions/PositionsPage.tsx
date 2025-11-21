@@ -512,7 +512,7 @@ function PositionCard({
       onMouseEnter={() => onHover?.(id)}
       onMouseLeave={() => onLeave?.()}
     >
-      <CardHeader className="space-y-2 p-1">
+      <CardHeader className="flex items-center justify-between gap-3 p-1">
         <div className="flex items-center gap-3">
           <img src={bjAvatar || 'https://i.pravatar.cc/40'} alt={bjName} className="h-10 w-10 rounded-full border border-border object-cover" />
           <div>
@@ -520,12 +520,12 @@ function PositionCard({
             <div className="text-xs text-muted-foreground">{symbol}</div>
           </div>
         </div>
-        <div className="flex flex-col gap-1 text-[12px] text-white">
+        <div className="flex flex-col items-end text-[12px] text-white">
           <div className={`flex items-center gap-2 font-semibold ${side === 'Long' ? 'text-emerald-400' : 'text-rose-400'}`}>
             <span>{side}</span>
             {leverage && <span className="text-[11px] text-emerald-300 whitespace-nowrap">x{leverage}</span>}
           </div>
-          <span className="text-[10px] text-muted-foreground">{online ? 'ON' : 'OFF'}</span>
+          <span className="text-[11px] text-muted-foreground">{online ? 'ON' : 'OFF'}</span>
         </div>
       </CardHeader>
       <CardContent className="grid grid-cols-3 gap-2 text-xs text-white">
