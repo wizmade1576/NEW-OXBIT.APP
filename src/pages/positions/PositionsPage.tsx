@@ -509,6 +509,7 @@ function PositionCard({
   spark,
   onHover,
   onLeave,
+  compact = false,
 }: PositionCardProps) {
   const up = (pnlUsd || 0) >= 0
   return (
