@@ -568,14 +568,20 @@ export default function PositionsPage() {
               <span className="text-sm font-semibold text-white">포지션 정보</span>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label className="space-y-1 text-xs text-muted-foreground">
-                <span>심볼</span>
-                <input
-                  value={form.symbol}
-                  onChange={(e) => setForm((prev) => ({ ...prev, symbol: e.target.value }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
-                />
-              </label>
+      <label className="space-y-1 text-xs text-muted-foreground">
+        <span>심볼</span>
+        <select
+          value={form.symbol}
+          onChange={(e) => setForm((prev) => ({ ...prev, symbol: e.target.value }))}
+          className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+        >
+          {PRESET_SYMBOLS.map((sym) => (
+            <option key={sym} value={sym.replace('BINANCE:', '')}>
+              {sym.includes(':') ? sym.split(':')[1] : sym}
+            </option>
+          ))}
+        </select>
+      </label>
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>방향</span>
                 <select
