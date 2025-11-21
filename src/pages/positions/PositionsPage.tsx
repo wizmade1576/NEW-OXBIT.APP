@@ -86,9 +86,10 @@ export default function PositionsPage() {
       const { data, error } = await supabase.from('positions').select('*').order('updated_at', { ascending: false })
       if (error) throw error
       const normalized = (data || []).map(mapSupabaseToPosition)
+      console.debug('[PositionsPage] fetched', normalized.length, 'rows', normalized.map((r) => r.id))
       setList(normalized)
     } catch (error) {
-      console.error(error)
+      console.error('[PositionsPage] fetch error', error)
     } finally {
       setLoading(false)
     }
@@ -100,7 +101,8 @@ export default function PositionsPage() {
     if (!supabase) return
     const channel = supabase
       .channel('public:positions-user')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'positions' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'positions' }, (payload) => {
+        console.debug('[PositionsPage] realtime', payload.eventType, payload.new)
         fetchPositions()
       })
       .subscribe()
