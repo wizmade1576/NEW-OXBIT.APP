@@ -608,7 +608,8 @@ export default function PositionsPage() {
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>진입가</span>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={formatNumberValue(form.entry_price)}
                   onChange={(e) => handleNumericInput('entry_price', e.target.value)}
                   className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
@@ -617,7 +618,8 @@ export default function PositionsPage() {
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>현재가</span>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={formatNumberValue(form.current_price)}
                   onChange={(e) => handleNumericInput('current_price', e.target.value)}
                   className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
@@ -626,7 +628,8 @@ export default function PositionsPage() {
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>청산가</span>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={formatNumberValue(form.liquidation_price)}
                   onChange={(e) => handleNumericInput('liquidation_price', e.target.value)}
                   className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
@@ -643,7 +646,8 @@ export default function PositionsPage() {
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>P&L (USD)</span>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={formatNumberValue(form.pnl_usd)}
                   onChange={(e) => handleNumericInput('pnl_usd', e.target.value)}
                   className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
@@ -652,7 +656,8 @@ export default function PositionsPage() {
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>P&L (KRW)</span>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
                   value={formatNumberValue(form.pnl_krw)}
                   onChange={(e) => handleNumericInput('pnl_krw', e.target.value)}
                   className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
