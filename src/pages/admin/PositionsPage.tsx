@@ -84,6 +84,11 @@ const createEmptyForm = (): FormState => ({
   status: 'on',
 })
 
+const formatNumberValue = (value?: number | null) => {
+  if (value == null || Number.isNaN(Number(value))) return ''
+  return Number(value).toLocaleString('en-US')
+}
+
 export default function PositionsPage() {
   const [positions, setPositions] = React.useState<PositionRecord[]>([])
   const [loading, setLoading] = React.useState(false)
@@ -94,6 +99,11 @@ export default function PositionsPage() {
   const [avatarPreview, setAvatarPreview] = React.useState<string | null>(null)
   const [profileInputMode, setProfileInputMode] = React.useState<'url' | 'file'>('url')
   const [submitting, setSubmitting] = React.useState(false)
+  const handleNumericInput = (field: keyof FormState, raw: string) => {
+    const cleaned = raw.replace(/,/g, '').replace(/[^0-9.-]/g, '')
+    const value = cleaned === '' ? 0 : Number(cleaned)
+    setForm((prev) => ({ ...prev, [field]: Number.isFinite(value) ? value : 0 }))
+  }
 
   const [chartSymbol, setChartSymbol] = React.useState<string>(TV_DEFAULT_SYMBOL)
   const [tvScriptLoaded, setTvScriptLoaded] = React.useState(false)
@@ -599,8 +609,8 @@ export default function PositionsPage() {
                 <span>진입가</span>
                 <input
                   type="number"
-                  value={form.entry_price}
-                  onChange={(e) => setForm((prev) => ({ ...prev, entry_price: Number(e.target.value) }))}
+                  value={formatNumberValue(form.entry_price)}
+                  onChange={(e) => handleNumericInput('entry_price', e.target.value)}
                   className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
@@ -608,8 +618,8 @@ export default function PositionsPage() {
                 <span>현재가</span>
                 <input
                   type="number"
-                  value={form.current_price}
-                  onChange={(e) => setForm((prev) => ({ ...prev, current_price: Number(e.target.value) }))}
+                  value={formatNumberValue(form.current_price)}
+                  onChange={(e) => handleNumericInput('current_price', e.target.value)}
                   className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
@@ -617,8 +627,8 @@ export default function PositionsPage() {
                 <span>청산가</span>
                 <input
                   type="number"
-                  value={form.liquidation_price}
-                  onChange={(e) => setForm((prev) => ({ ...prev, liquidation_price: Number(e.target.value) }))}
+                  value={formatNumberValue(form.liquidation_price)}
+                  onChange={(e) => handleNumericInput('liquidation_price', e.target.value)}
                   className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
@@ -634,8 +644,8 @@ export default function PositionsPage() {
                 <span>P&L (USD)</span>
                 <input
                   type="number"
-                  value={form.pnl_usd}
-                  onChange={(e) => setForm((prev) => ({ ...prev, pnl_usd: Number(e.target.value) }))}
+                  value={formatNumberValue(form.pnl_usd)}
+                  onChange={(e) => handleNumericInput('pnl_usd', e.target.value)}
                   className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
@@ -643,8 +653,8 @@ export default function PositionsPage() {
                 <span>P&L (KRW)</span>
                 <input
                   type="number"
-                  value={form.pnl_krw}
-                  onChange={(e) => setForm((prev) => ({ ...prev, pnl_krw: Number(e.target.value) }))}
+                  value={formatNumberValue(form.pnl_krw)}
+                  onChange={(e) => handleNumericInput('pnl_krw', e.target.value)}
                   className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
