@@ -95,17 +95,6 @@ export default function PositionsPage() {
     }
   }, [])
 
-  const handleDelete = React.useCallback(
-    async (id: string) => {
-      if (!window.confirm('정말 이 포지션을 삭제하시겠습니까?')) return
-      const supabase = getSupabase()
-      if (!supabase) return
-      await supabase.from('positions').delete().eq('id', id)
-      await fetchPositions()
-    },
-    [fetchPositions]
-  )
-
   React.useEffect(() => {
     fetchPositions()
     const supabase = getSupabase()
@@ -245,7 +234,7 @@ export default function PositionsPage() {
             onHover: (id) => setHoveredId(id),
             onLeave: () => setHoveredId(undefined),
           }
-          return <PositionCard key={p.id} {...cardProps} onDelete={() => handleDelete(p.id)} />
+          return <PositionCard key={p.id} {...cardProps} />
         })}
       </div>
     </section>
@@ -519,7 +508,6 @@ function PositionCard({
   spark,
   onHover,
   onLeave,
-  onDelete,
 }: PositionCardProps) {
   const up = (pnlUsd || 0) >= 0
   return (
@@ -532,20 +520,8 @@ function PositionCard({
             <div className="text-xs text-muted-foreground">{symbol}</div>
           </div>
         </div>
-        <div className="text-right flex items-center gap-2">
+        <div className="text-right">
           <div className={`text-xs ${side === 'Long' ? 'text-emerald-400' : 'text-rose-400'} font-semibold`}>{side}{leverage ? ` x${leverage}` : ''}</div>
-          {onDelete && (
-            <button
-              className="text-[10px] text-rose-400 hover:text-rose-200"
-              onClick={(event) => {
-                event.preventDefault()
-                event.stopPropagation()
-                onDelete()
-              }}
-            >
-              삭제
-            </button>
-          )}
           <div className="text-[12px] text-muted-foreground">{online ? `ON · ${onlineFor}` : 'OFF'}</div>
         </div>
       </CardHeader>
