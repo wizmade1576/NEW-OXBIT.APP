@@ -44,6 +44,7 @@ type PositionCardProps = {
   spark?: number[]
   onHover?: (id: string) => void
   onLeave?: () => void
+  compact?: boolean
 }
 
 export default function PositionsPage() {
@@ -234,7 +235,7 @@ export default function PositionsPage() {
             onHover: (id) => setHoveredId(id),
             onLeave: () => setHoveredId(undefined),
           }
-          return <PositionCard key={p.id} {...cardProps} />
+          return <PositionCard key={p.id} {...cardProps} compact />
         })}
       </div>
     </section>
@@ -508,29 +509,32 @@ function PositionCard({
   spark,
   onHover,
   onLeave,
+  compact = false,
 }: PositionCardProps) {
   const up = (pnlUsd || 0) >= 0
   return (
-    <Card className="bg-[#12131f] border border-neutral-800" onMouseEnter={() => onHover?.(id)} onMouseLeave={() => onLeave?.()}>
-      <CardHeader className="flex items-center justify-between gap-3">
+    <Card
+      className={`bg-[#12131f] border border-neutral-800 ${compact ? 'p-3' : ''}`}
+      onMouseEnter={() => onHover?.(id)}
+      onMouseLeave={() => onLeave?.()}
+    >
+      <CardHeader className={`flex items-center justify-between gap-3 ${compact ? 'p-2' : ''}`}>
         <div className="flex items-center gap-3">
           <img src={bjAvatar || 'https://i.pravatar.cc/40'} alt={bjName} className="h-10 w-10 rounded-full border border-border object-cover" />
           <div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-white">{bjName}</span>
-              {leverage ? (
-                <span className="text-[11px] text-emerald-300">x{leverage}</span>
-              ) : null}
+              {leverage ? <span className="text-[11px] text-emerald-300">x{leverage}</span> : null}
             </div>
             <div className="text-xs text-muted-foreground">{symbol}</div>
           </div>
         </div>
         <div className="text-right">
-          <div className={`text-xs ${side === 'Long' ? 'text-emerald-400' : 'text-rose-400'} font-semibold`}>{side}{leverage ? ` x${leverage}` : ''}</div>
+          <div className={`text-xs ${side === 'Long' ? 'text-emerald-400' : 'text-rose-400'} font-semibold`}>{side}</div>
           <div className="text-[12px] text-muted-foreground">{online ? `ON · ${onlineFor}` : 'OFF'}</div>
         </div>
       </CardHeader>
-      <CardContent className="grid grid-cols-3 gap-3 text-sm text-white">
+      <CardContent className={`grid ${compact ? 'grid-cols-2 gap-2 text-[12px]' : 'grid-cols-3 gap-3 text-sm'} text-white`}>
         <div>
           <div className="text-xs text-muted-foreground">진입가</div>
           <div className="font-semibold">{fmtNum(entry)}</div>
