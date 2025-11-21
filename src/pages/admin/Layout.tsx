@@ -1,4 +1,3 @@
-// React import not needed with react-jsx
 import { NavLink, Outlet } from 'react-router-dom'
 
 export default function AdminLayout() {
@@ -7,11 +6,24 @@ export default function AdminLayout() {
       <aside className="rounded-lg border border-border bg-card p-4 h-fit sticky top-16">
         <h3 className="mb-3 text-sm font-semibold">관리자</h3>
         <nav className="flex flex-col gap-2 text-sm">
-          <NavLink to="/admin" end className={({isActive})=> isActive? 'text-primary' : 'text-muted-foreground hover:text-foreground'}>대시보드</NavLink>
-          <NavLink to="/admin/users" className={({isActive})=> isActive? 'text-primary' : 'text-muted-foreground hover:text-foreground'}>회원관리</NavLink>
-          <NavLink to="/admin/positions" className={({isActive})=> isActive? 'text-primary' : 'text-muted-foreground hover:text-foreground'}>포지션</NavLink>
-          <NavLink to="/admin/breaking" className={({isActive})=> isActive? 'text-primary' : 'text-muted-foreground hover:text-foreground'}>속보</NavLink>
-          <NavLink to="/admin/ads" className={({isActive})=> isActive? 'text-primary' : 'text-muted-foreground hover:text-foreground'}>광고</NavLink>
+          <NavLink to="/admin" end className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>
+            대시보드
+          </NavLink>
+          <NavLink to="/admin/analytics" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>
+            방문자 애널리틱스
+          </NavLink>
+          <NavLink to="/admin/users" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>
+            회원관리
+          </NavLink>
+          <NavLink to="/admin/positions" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>
+            실시간 포지션
+          </NavLink>
+          <NavLink to="/admin/breaking" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>
+            속보
+          </NavLink>
+          <NavLink to="/admin/ads" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>
+            광고
+          </NavLink>
         </nav>
       </aside>
       <main>

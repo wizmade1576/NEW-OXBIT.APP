@@ -40,6 +40,7 @@ import AdminBreakingPage from '../../pages/admin/BreakingPage'
 import AdminAdsPage from '../../pages/admin/AdsPage'
 import AdminUsersPage from '../../pages/admin/UsersPage'
 import AdminPositionsPage from '../../pages/admin/PositionsPage'
+import AdminAnalyticsPage from '../../pages/admin/AnalyticsPage'
 
 export const router = createBrowserRouter([
   {
@@ -102,6 +103,7 @@ export const router = createBrowserRouter([
         ),
         children: [
           { index: true, element: <AdminDashboardPage /> },
+          { path: 'analytics', element: <AdminAnalyticsPage /> },
           { path: 'users', element: <AdminUsersPage /> },
           { path: 'positions', element: <AdminPositionsPage /> },
           { path: 'breaking', element: <AdminBreakingPage /> },
