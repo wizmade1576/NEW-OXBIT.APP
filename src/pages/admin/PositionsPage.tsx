@@ -84,11 +84,6 @@ const createEmptyForm = (): FormState => ({
   status: 'on',
 })
 
-const formatNumberValue = (value?: number | null) => {
-  if (value == null || Number.isNaN(Number(value))) return ''
-  return Number(value).toLocaleString('en-US')
-}
-
 export default function PositionsPage() {
   const [positions, setPositions] = React.useState<PositionRecord[]>([])
   const [loading, setLoading] = React.useState(false)
@@ -701,4 +696,9 @@ export default function PositionsPage() {
       </Card>
     </section>
   )
+}
+
+const formatNumberValue = (value?: number | null) => {
+  if (value == null || Number.isNaN(Number(value))) return ''
+  return Number(value).toLocaleString('en-US')
 }
