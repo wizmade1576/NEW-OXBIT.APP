@@ -516,7 +516,12 @@ function PositionCard({
         <div className="flex items-center gap-3">
           <img src={bjAvatar || 'https://i.pravatar.cc/40'} alt={bjName} className="h-10 w-10 rounded-full border border-border object-cover" />
           <div>
-            <div className="text-sm font-semibold text-white">{bjName}</div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-semibold text-white">{bjName}</span>
+              {leverage ? (
+                <span className="text-[11px] text-emerald-300">x{leverage}</span>
+              ) : null}
+            </div>
             <div className="text-xs text-muted-foreground">{symbol}</div>
           </div>
         </div>
