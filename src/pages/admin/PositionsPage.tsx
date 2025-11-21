@@ -522,7 +522,7 @@ export default function PositionsPage() {
             </div>
           </section>
 
-        <section className="space-y-3">
+        <section className="space-y-3 hidden">
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-full border border-border bg-neutral-900 overflow-hidden">
               <img
