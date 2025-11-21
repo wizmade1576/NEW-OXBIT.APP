@@ -445,7 +445,7 @@ export default function PositionsPage() {
                 <input
                   value={form.nickname}
                   onChange={(e) => setForm((prev) => ({ ...prev, nickname: e.target.value }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-black"
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
@@ -453,7 +453,7 @@ export default function PositionsPage() {
                 <input
                   value={form.profile_url}
                   onChange={(e) => setForm((prev) => ({ ...prev, profile_url: e.target.value }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-black"
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
             </div>
@@ -469,7 +469,7 @@ export default function PositionsPage() {
                 <input
                   value={form.symbol}
                   onChange={(e) => setForm((prev) => ({ ...prev, symbol: e.target.value }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-black"
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
@@ -477,7 +477,7 @@ export default function PositionsPage() {
                 <select
                   value={form.direction}
                   onChange={(e) => setForm((prev) => ({ ...prev, direction: e.target.value as 'long' | 'short' }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-black"
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 >
                   <option value="long">Long</option>
                   <option value="short">Short</option>
@@ -489,7 +489,7 @@ export default function PositionsPage() {
                   type="number"
                   value={form.leverage}
                   onChange={(e) => setForm((prev) => ({ ...prev, leverage: Number(e.target.value) }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-black"
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
@@ -498,7 +498,7 @@ export default function PositionsPage() {
                   type="number"
                   value={form.amount}
                   onChange={(e) => setForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-black"
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
@@ -507,7 +507,7 @@ export default function PositionsPage() {
                   type="number"
                   value={form.entry_price}
                   onChange={(e) => setForm((prev) => ({ ...prev, entry_price: Number(e.target.value) }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-black"
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
@@ -516,7 +516,7 @@ export default function PositionsPage() {
                   type="number"
                   value={form.current_price}
                   onChange={(e) => setForm((prev) => ({ ...prev, current_price: Number(e.target.value) }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-black"
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
             </div>
@@ -533,7 +533,7 @@ export default function PositionsPage() {
                   type="number"
                   value={form.pnl_usd}
                   onChange={(e) => setForm((prev) => ({ ...prev, pnl_usd: Number(e.target.value) }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-black"
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
@@ -542,7 +542,7 @@ export default function PositionsPage() {
                   type="number"
                   value={form.pnl_krw}
                   onChange={(e) => setForm((prev) => ({ ...prev, pnl_krw: Number(e.target.value) }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-black"
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
@@ -550,7 +550,7 @@ export default function PositionsPage() {
                 <select
                   value={form.status}
                   onChange={(e) => setForm((prev) => ({ ...prev, status: e.target.value as 'on' | 'off' }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-black"
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 >
                   <option value="on">ON</option>
                   <option value="off">OFF</option>
