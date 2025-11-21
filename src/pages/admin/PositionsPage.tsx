@@ -91,6 +91,7 @@ export default function PositionsPage() {
   const [onlyOn, setOnlyOn] = React.useState(false)
   const [selected, setSelected] = React.useState<PositionRecord | null>(null)
   const [form, setForm] = React.useState<FormState>(createEmptyForm)
+  const [avatarPreview, setAvatarPreview] = React.useState<string | null>(null)
   const [submitting, setSubmitting] = React.useState(false)
 
   const [chartSymbol, setChartSymbol] = React.useState<string>(TV_DEFAULT_SYMBOL)
@@ -242,16 +243,18 @@ export default function PositionsPage() {
   const beginAdd = () => {
     setSelected(null)
     setForm(createEmptyForm())
+    setAvatarPreview(null)
   }
 
   const beginEdit = (pos: PositionRecord) => {
     setSelected(pos)
     setForm({
       nickname: pos.nickname || '',
-      profile_url: pos.profile_url || '',
-      symbol: pos.symbol,
-      direction: pos.direction,
-      leverage: pos.leverage ?? 1,
+        profile_url: pos.profile_url || '',
+        liquidation_price: pos.liquidation_price || 0,
+        symbol: pos.symbol,
+        direction: pos.direction,
+        leverage: pos.leverage ?? 1,
       amount: pos.amount ?? 0,
       entry_price: pos.entry_price ?? 0,
       current_price: pos.current_price ?? 0,
@@ -260,6 +263,7 @@ export default function PositionsPage() {
       pnl_krw: pos.pnl_krw ?? 0,
       status: pos.status || 'on',
     })
+    setAvatarPreview(pos.profile_url || null)
     setChartSymbol(normalizeTvSymbol(pos.symbol))
   }
 
@@ -444,25 +448,56 @@ export default function PositionsPage() {
             <div className="flex items-center justify-between border-b border-border pb-2">
               <span className="text-sm font-semibold text-white">사용자 정보</span>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label className="space-y-1 text-xs text-muted-foreground">
-                <span>닉네임</span>
-                <input
-                  value={form.nickname}
-                  onChange={(e) => setForm((prev) => ({ ...prev, nickname: e.target.value }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
-                />
-              </label>
-              <label className="space-y-1 text-xs text-muted-foreground">
-                <span>프로필 URL</span>
-                <input
-                  value={form.profile_url}
-                  onChange={(e) => setForm((prev) => ({ ...prev, profile_url: e.target.value }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
-                />
-              </label>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <label className="space-y-1 text-xs text-muted-foreground">
+              <span>닉네임</span>
+              <input
+                value={form.nickname}
+                onChange={(e) => setForm((prev) => ({ ...prev, nickname: e.target.value }))}
+                className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+              />
+            </label>
+            <label className="space-y-1 text-xs text-muted-foreground">
+              <span>프로필 URL</span>
+              <input
+                value={form.profile_url}
+                onChange={(e) => setForm((prev) => ({ ...prev, profile_url: e.target.value }))}
+                className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+              />
+            </label>
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full border border-border bg-neutral-900 overflow-hidden">
+              <img
+                src={avatarPreview || form.profile_url || 'https://i.pravatar.cc/64'}
+                alt="Avatar preview"
+                className="h-full w-full object-cover"
+              />
             </div>
-          </section>
+            <label className="space-y-1 text-xs text-muted-foreground">
+              <span>프로필 이미지 파일</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => {
+                  const file = event.target.files?.[0]
+                  if (!file) return
+                  const reader = new FileReader()
+                  reader.onload = () => {
+                    const value = reader.result as string
+                    setForm((prev) => ({ ...prev, profile_url: value }))
+                    setAvatarPreview(value)
+                  }
+                  reader.readAsDataURL(file)
+                }}
+                className="block w-44 rounded border border-border bg-[#070a10] px-3 py-2 text-xs text-white"
+              />
+            </label>
+          </div>
+        </section>
 
           <section className="space-y-3">
             <div className="flex items-center justify-between border-b border-border pb-2">
