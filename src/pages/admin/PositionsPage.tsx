@@ -253,6 +253,18 @@ export default function PositionsPage() {
     setProfileInputMode('url')
   }
 
+  const handleDelete = async (pos: PositionRecord) => {
+    if (!window.confirm('이 포지션을 삭제하시겠습니까?')) return
+    const supabase = getSupabase()
+    if (!supabase) return
+    try {
+      await supabase.from('positions').delete().eq('id', pos.id)
+      fetchPositions()
+    } catch (error) {
+      console.error(error)
+    }
+  }
+
   const beginEdit = (pos: PositionRecord) => {
     setSelected(pos)
     setForm({
@@ -397,6 +409,12 @@ export default function PositionsPage() {
                   <div className="flex gap-2">
                     <button onClick={() => beginEdit(pos)} className="text-xs text-amber-400 hover:underline">
                       수정
+                    </button>
+                    <button
+                      onClick={() => handleDelete(pos)}
+                      className="text-xs text-rose-400 hover:underline"
+                    >
+                      삭제
                     </button>
                   </div>
                 </div>
