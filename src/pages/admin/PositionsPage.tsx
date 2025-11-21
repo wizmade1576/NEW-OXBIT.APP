@@ -46,6 +46,7 @@ type PositionRecord = {
   amount?: number
   entry_price?: number
   current_price?: number
+  liquidation_price?: number
   pnl_usd?: number
   pnl_krw?: number
   status?: 'on' | 'off'
@@ -62,6 +63,7 @@ type FormState = {
   amount: number
   entry_price: number
   current_price: number
+  liquidation_price: number
   pnl_usd: number
   pnl_krw: number
   status: 'on' | 'off'
@@ -76,6 +78,7 @@ const createEmptyForm = (): FormState => ({
   amount: 0,
   entry_price: 0,
   current_price: 0,
+  liquidation_price: 0,
   pnl_usd: 0,
   pnl_krw: 0,
   status: 'on',
@@ -252,6 +255,7 @@ export default function PositionsPage() {
       amount: pos.amount ?? 0,
       entry_price: pos.entry_price ?? 0,
       current_price: pos.current_price ?? 0,
+      liquidation_price: pos.liquidation_price ?? 0,
       pnl_usd: pos.pnl_usd ?? 0,
       pnl_krw: pos.pnl_krw ?? 0,
       status: pos.status || 'on',
@@ -275,6 +279,7 @@ export default function PositionsPage() {
       amount: Number(form.amount),
       entry_price: Number(form.entry_price),
       current_price: Number(form.current_price),
+      liquidation_price: Number(form.liquidation_price),
       pnl_usd: Number(form.pnl_usd),
       pnl_krw: Number(form.pnl_krw),
       status: form.status,
@@ -516,6 +521,15 @@ export default function PositionsPage() {
                   type="number"
                   value={form.current_price}
                   onChange={(e) => setForm((prev) => ({ ...prev, current_price: Number(e.target.value) }))}
+                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+                />
+              </label>
+              <label className="space-y-1 text-xs text-muted-foreground">
+                <span>청산가</span>
+                <input
+                  type="number"
+                  value={form.liquidation_price}
+                  onChange={(e) => setForm((prev) => ({ ...prev, liquidation_price: Number(e.target.value) }))}
                   className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
                 />
               </label>
