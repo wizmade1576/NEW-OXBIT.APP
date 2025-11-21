@@ -509,7 +509,11 @@ function PositionCard({
   spark,
   onHover,
   onLeave,
+<<<<<<< ours
   compact = false,
+=======
+  onDelete,
+>>>>>>> theirs
 }: PositionCardProps) {
   const up = (pnlUsd || 0) >= 0
   return (
@@ -522,15 +526,36 @@ function PositionCard({
         <div className="flex items-center gap-3">
           <img src={bjAvatar || 'https://i.pravatar.cc/40'} alt={bjName} className="h-10 w-10 rounded-full border border-border object-cover" />
           <div>
+<<<<<<< ours
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold text-white">{bjName}</span>
               {leverage ? <span className="text-[11px] text-emerald-300">x{leverage}</span> : null}
             </div>
+=======
+            <div className="text-sm font-semibold text-white">{bjName}</div>
+>>>>>>> theirs
             <div className="text-xs text-muted-foreground">{symbol}</div>
           </div>
         </div>
+<<<<<<< ours
         <div className="text-right">
           <div className={`text-xs ${side === 'Long' ? 'text-emerald-400' : 'text-rose-400'} font-semibold`}>{side}</div>
+=======
+        <div className="text-right flex items-center gap-2">
+          <div className={`text-xs ${side === 'Long' ? 'text-emerald-400' : 'text-rose-400'} font-semibold`}>{side}{leverage ? ` x${leverage}` : ''}</div>
+          {onDelete && (
+            <button
+              className="text-[10px] text-rose-400 hover:text-rose-200"
+              onClick={(event) => {
+                event.preventDefault()
+                event.stopPropagation()
+                onDelete()
+              }}
+            >
+              삭제
+            </button>
+          )}
+>>>>>>> theirs
           <div className="text-[12px] text-muted-foreground">{online ? `ON · ${onlineFor}` : 'OFF'}</div>
         </div>
       </CardHeader>
