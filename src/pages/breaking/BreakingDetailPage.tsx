@@ -186,7 +186,9 @@ export default function BreakingDetailPage() {
 
   const onShare = async () => {
     if (!key || !item) return
-    const url = `${window.location.origin}/breaking/${key}`
+  const encodedKey = key ? encodeURIComponent(key) : ''
+  const fallbackUrl = `${window.location.origin}/breaking${encodedKey ? `/${encodedKey}` : ''}`
+  const url = item.url || fallbackUrl
     try {
       if (navigator.share) {
         const file = await makeShareImage(item.title, item.tag)

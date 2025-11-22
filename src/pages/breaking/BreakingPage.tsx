@@ -74,7 +74,9 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
   }, [item.id])
 
   const share = async () => {
-    const url = `${window.location.origin}/breaking/${item.key}`
+    const encoded = item.key ? encodeURIComponent(item.key) : ''
+    const fallback = `${window.location.origin}/breaking${encoded ? `/${encoded}` : ''}`
+    const url = item.url || fallback
     try {
       if (navigator.share) {
         await navigator.share({ title: item.title, url })
