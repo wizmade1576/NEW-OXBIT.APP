@@ -301,6 +301,7 @@ export default function PositionsPage() {
               <input
                 type="text"
                 inputMode="decimal"
+                pattern="[0-9.,]*"
                 value={adminForm.entry || ''}
                 onChange={(e) => handleAdminChangeNumeric('entry', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
@@ -311,6 +312,7 @@ export default function PositionsPage() {
               <input
                 type="text"
                 inputMode="decimal"
+                pattern="[0-9.,]*"
                 value={adminForm.mark || ''}
                 onChange={(e) => handleAdminChangeNumeric('mark', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
@@ -321,6 +323,7 @@ export default function PositionsPage() {
               <input
                 type="text"
                 inputMode="decimal"
+                pattern="[0-9.,]*"
                 value={adminForm.liq || ''}
                 onChange={(e) => handleAdminChangeNumeric('liq', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
@@ -333,6 +336,7 @@ export default function PositionsPage() {
               <input
                 type="text"
                 inputMode="decimal"
+                pattern="[0-9.,]*"
                 value={adminForm.pnlUsd || ''}
                 onChange={(e) => handleAdminChangeNumeric('pnlUsd', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
@@ -343,6 +347,7 @@ export default function PositionsPage() {
               <input
                 type="text"
                 inputMode="decimal"
+                pattern="[0-9.,]*"
                 value={adminForm.pnlKrw || ''}
                 onChange={(e) => handleAdminChangeNumeric('pnlKrw', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
@@ -353,6 +358,7 @@ export default function PositionsPage() {
               <input
                 type="text"
                 inputMode="decimal"
+                pattern="[0-9.,]*"
                 value={adminForm.qty || ''}
                 onChange={(e) => handleAdminChangeNumeric('qty', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"

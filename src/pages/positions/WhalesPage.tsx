@@ -111,16 +111,8 @@ export default function WhalesPage() {
               <CardDescription>거래소 대규모 체결 · 기준 {thresholdKrw.toLocaleString()}원 이상</CardDescription>
             </div>
             <div className="flex items-center gap-2 w-full sm:w-auto">
-              <div className="inline-flex rounded-md border border-neutral-700 overflow-hidden">
-                {[100_000_000, 500_000_000, 1_000_000_000].map((v) => (
-                  <button
-                    key={v}
-                    onClick={() => setThresholdKrw(v)}
-                    className={`px-3 py-1.5 text-sm ${thresholdKrw === v ? 'bg-emerald-600/20 text-emerald-300' : 'bg-[#1a1a1a] hover:bg-[#1e1e1e]'}`}
-                  >
-                    {v === 100_000_000 ? '1억' : v === 500_000_000 ? '5억' : '10억'}
-                  </button>
-                ))}
+              <div className="inline-flex rounded-md border border-neutral-700 bg-[#1a1a1a]/80 px-3 py-1.5 text-sm text-foreground">
+                1억 이상
               </div>
               <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                 <input type="checkbox" checked={!paused} onChange={(e) => setPaused(!e.target.checked)} /> 실시간
