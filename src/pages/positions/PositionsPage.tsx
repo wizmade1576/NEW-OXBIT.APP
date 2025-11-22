@@ -299,7 +299,7 @@ export default function PositionsPage() {
             <label className="text-xs text-muted-foreground space-y-1">
               진입가
               <input
-                type="text"
+                type="tel"
                 inputMode="decimal"
                 pattern="[0-9.,]*"
                 value={adminForm.entry || ''}
@@ -310,7 +310,7 @@ export default function PositionsPage() {
             <label className="text-xs text-muted-foreground space-y-1">
               현재가
               <input
-                type="text"
+                type="tel"
                 inputMode="decimal"
                 pattern="[0-9.,]*"
                 value={adminForm.mark || ''}
@@ -321,7 +321,7 @@ export default function PositionsPage() {
             <label className="text-xs text-muted-foreground space-y-1">
               청산가
               <input
-                type="text"
+                type="tel"
                 inputMode="decimal"
                 pattern="[0-9.,]*"
                 value={adminForm.liq || ''}
@@ -334,7 +334,7 @@ export default function PositionsPage() {
             <label className="text-xs text-muted-foreground space-y-1">
               P&L (USD)
               <input
-                type="text"
+                type="tel"
                 inputMode="decimal"
                 pattern="[0-9.,]*"
                 value={adminForm.pnlUsd || ''}
@@ -345,7 +345,7 @@ export default function PositionsPage() {
             <label className="text-xs text-muted-foreground space-y-1">
               P&L (KRW)
               <input
-                type="text"
+                type="tel"
                 inputMode="decimal"
                 pattern="[0-9.,]*"
                 value={adminForm.pnlKrw || ''}
@@ -356,7 +356,7 @@ export default function PositionsPage() {
             <label className="text-xs text-muted-foreground space-y-1">
               수량
               <input
-                type="text"
+                type="tel"
                 inputMode="decimal"
                 pattern="[0-9.,]*"
                 value={adminForm.qty || ''}
