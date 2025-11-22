@@ -60,12 +60,12 @@ type FormState = {
   symbol: string
   direction: 'long' | 'short'
   leverage: number
-  amount: number
-  entry_price: number
-  current_price: number
-  liquidation_price: number
-  pnl_usd: number
-  pnl_krw: number
+  amount: string
+  entry_price: string
+  current_price: string
+  liquidation_price: string
+  pnl_usd: string
+  pnl_krw: string
   status: 'on' | 'off'
 }
 
@@ -75,12 +75,12 @@ const createEmptyForm = (): FormState => ({
   symbol: 'BTCUSDT',
   direction: 'long',
   leverage: 1,
-  amount: 0,
-  entry_price: 0,
-  current_price: 0,
-  liquidation_price: 0,
-  pnl_usd: 0,
-  pnl_krw: 0,
+  amount: '',
+  entry_price: '',
+  current_price: '',
+  liquidation_price: '',
+  pnl_usd: '',
+  pnl_krw: '',
   status: 'on',
 })
 
@@ -94,15 +94,22 @@ export default function PositionsPage() {
   const [avatarPreview, setAvatarPreview] = React.useState<string | null>(null)
   const [profileInputMode, setProfileInputMode] = React.useState<'url' | 'file'>('url')
   const [submitting, setSubmitting] = React.useState(false)
-  const handleNumericInput = (field: keyof FormState, raw: string) => {
-    const cleaned = raw.replace(/,/g, '').replace(/[^0-9.-]/g, '')
-    const negative = cleaned.startsWith('-')
+  const handleNumericInput = (
+    field: keyof Pick<FormState, 'entry_price' | 'current_price' | 'liquidation_price' | 'pnl_usd' | 'pnl_krw' | 'amount'>,
+    raw: string,
+  ) => {
+    const negative = raw.trim().startsWith('-') ? '-' : ''
+    const cleaned = raw.replace(/[^0-9.,]/g, '')
     const unsigned = cleaned.replace(/-/g, '')
-    const [intPart, ...decParts] = unsigned.split('.')
-    const decimal = decParts.length ? decParts[0].slice(0, 2) : ''
-    const normalized = `${negative ? '-' : ''}${intPart}${decimal ? `.${decimal}` : ''}`
-    const value = normalized === '' || normalized === '-' ? 0 : Number(normalized)
-    setForm((prev) => ({ ...prev, [field]: Number.isFinite(value) ? Math.round(value * 100) / 100 : 0 }))
+    const parts = unsigned.split('.')
+    const intPart = parts[0]
+    const decimalPart = parts.length > 1 ? parts[1].replace(/,/g, '').slice(0, 2) : ''
+    let value = negative + intPart
+    if (parts.length > 1) {
+      value += '.'
+      value += decimalPart
+    }
+    setForm((prev) => ({ ...prev, [field]: value }))
   }
 
   const [chartSymbol, setChartSymbol] = React.useState<string>(TV_DEFAULT_SYMBOL)
@@ -278,17 +285,24 @@ export default function PositionsPage() {
       symbol: pos.symbol,
       direction: pos.direction,
       leverage: pos.leverage ?? 1,
-      amount: pos.amount ?? 0,
-      entry_price: pos.entry_price ?? 0,
-      current_price: pos.current_price ?? 0,
-      liquidation_price: pos.liquidation_price ?? 0,
-      pnl_usd: pos.pnl_usd ?? 0,
-      pnl_krw: pos.pnl_krw ?? 0,
+      amount: pos.amount != null ? String(pos.amount) : '',
+      entry_price: pos.entry_price != null ? String(pos.entry_price) : '',
+      current_price: pos.current_price != null ? String(pos.current_price) : '',
+      liquidation_price: pos.liquidation_price != null ? String(pos.liquidation_price) : '',
+      pnl_usd: pos.pnl_usd != null ? String(pos.pnl_usd) : '',
+      pnl_krw: pos.pnl_krw != null ? String(pos.pnl_krw) : '',
       status: pos.status || 'on',
     })
     setAvatarPreview(pos.profile_url || null)
     setProfileInputMode(pos.profile_url?.startsWith('data:') ? 'file' : 'url')
     setChartSymbol(normalizeTvSymbol(pos.symbol))
+  }
+
+  const formatDisplayNumber = (value: string) => {
+    if (!value) return ''
+    const n = Number(value)
+    if (!Number.isFinite(n)) return ''
+    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
   const handleSubmit = async () => {
@@ -298,21 +312,25 @@ export default function PositionsPage() {
     const supabase = getSupabase()
     if (!supabase) return
     setSubmitting(true)
-    const payload = {
-      nickname: form.nickname.trim(),
-      profile_url: form.profile_url ? form.profile_url : null,
-      symbol: form.symbol.trim(),
-      direction: form.direction,
-      leverage: Number(form.leverage),
-      amount: Number(form.amount),
-      entry_price: Number(form.entry_price),
-      current_price: Number(form.current_price),
-      liquidation_price: Number(form.liquidation_price),
-      pnl_usd: Number(form.pnl_usd),
-      pnl_krw: Number(form.pnl_krw),
-      status: form.status,
-      updated_at: new Date().toISOString(),
-    }
+      const toNumber = (value: string) => {
+        const n = Number(value)
+        return Number.isFinite(n) ? n : 0
+      }
+      const payload = {
+        nickname: form.nickname.trim(),
+        profile_url: form.profile_url ? form.profile_url : null,
+        symbol: form.symbol.trim(),
+        direction: form.direction,
+        leverage: toNumber(form.leverage),
+        amount: toNumber(form.amount),
+        entry_price: toNumber(form.entry_price),
+        current_price: toNumber(form.current_price),
+        liquidation_price: toNumber(form.liquidation_price),
+        pnl_usd: toNumber(form.pnl_usd),
+        pnl_krw: toNumber(form.pnl_krw),
+        status: form.status,
+        updated_at: new Date().toISOString(),
+      }
     try {
       if (selected) {
         await supabase.from('positions').update(payload).eq('id', selected.id)
@@ -622,42 +640,43 @@ export default function PositionsPage() {
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>수량</span>
-                <input
-                  type="number"
-                  value={form.amount}
-                  onChange={(e) => setForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
-                />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.amount || ''}
+                onChange={(e) => handleNumericInput('amount', e.target.value)}
+                className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+              />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>진입가</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formatNumberValue(form.entry_price)}
-                  onChange={(e) => handleNumericInput('entry_price', e.target.value)}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
-                />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.entry_price || ''}
+                onChange={(e) => handleNumericInput('entry_price', e.target.value)}
+                className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+              />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>현재가</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formatNumberValue(form.current_price)}
-                  onChange={(e) => handleNumericInput('current_price', e.target.value)}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
-                />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.current_price || ''}
+                onChange={(e) => handleNumericInput('current_price', e.target.value)}
+                className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+              />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>청산가</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formatNumberValue(form.liquidation_price)}
-                  onChange={(e) => handleNumericInput('liquidation_price', e.target.value)}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
-                />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.liquidation_price || ''}
+                onChange={(e) => handleNumericInput('liquidation_price', e.target.value)}
+                className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+              />
               </label>
             </div>
           </section>
@@ -669,23 +688,23 @@ export default function PositionsPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>P&L (USD)</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formatNumberValue(form.pnl_usd)}
-                  onChange={(e) => handleNumericInput('pnl_usd', e.target.value)}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
-                />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.pnl_usd || ''}
+                onChange={(e) => handleNumericInput('pnl_usd', e.target.value)}
+                className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+              />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>P&L (KRW)</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={formatNumberValue(form.pnl_krw)}
-                  onChange={(e) => handleNumericInput('pnl_krw', e.target.value)}
-                  className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
-                />
+              <input
+                type="text"
+                inputMode="numeric"
+                value={form.pnl_krw || ''}
+                onChange={(e) => handleNumericInput('pnl_krw', e.target.value)}
+                className="w-full rounded-md border border-border bg-[#070a10] px-3 py-2 text-sm text-white"
+              />
               </label>
               <label className="space-y-1 text-xs text-muted-foreground">
                 <span>상태</span>
@@ -721,7 +740,3 @@ export default function PositionsPage() {
   )
 }
 
-const formatNumberValue = (value?: number | null) => {
-  if (value == null || Number.isNaN(Number(value))) return ''
-  return Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-}

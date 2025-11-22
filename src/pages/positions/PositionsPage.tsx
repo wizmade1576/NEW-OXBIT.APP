@@ -77,6 +77,32 @@ export default function PositionsPage() {
     '1h'
   )
   const [loading, setLoading] = React.useState(false)
+  const [adminForm, setAdminForm] = React.useState({
+    symbol: 'BTCUSDT',
+    side: 'Long' as 'Long' | 'Short',
+    leverage: '1',
+    qty: '',
+    entry: '',
+    mark: '',
+    liq: '',
+    pnlUsd: '',
+    pnlKrw: '',
+    status: 'on' as 'on' | 'off',
+    streamerName: '관리자',
+  })
+  const [adminNotice, setAdminNotice] = React.useState<string | null>(null)
+  const [adminError, setAdminError] = React.useState<string | null>(null)
+  const [adminLoading, setAdminLoading] = React.useState(false)
+
+  const handleAdminChangeNumeric = React.useCallback(
+    (field: keyof Pick<typeof adminForm, 'entry' | 'mark' | 'liq' | 'pnlUsd' | 'pnlKrw' | 'qty'>, value: string) => {
+      const normalized = value.replace(/[^0-9.]/g, '')
+      const withSingleDot = normalized.includes('.') ? normalized.replace(/\.(?=.*\.)/g, '') : normalized
+      setAdminForm((prev) => ({ ...prev, [field]: withSingleDot }))
+    },
+    []
+  )
+  const showAdminPanel = (import.meta.env.VITE_SHOW_ADMIN_POSITIONS === 'true')
 
   const fetchPositions = React.useCallback(async () => {
     const supabase = getSupabase()
@@ -105,6 +131,53 @@ export default function PositionsPage() {
     },
     [fetchPositions]
   )
+
+  const handleAdminChange = React.useCallback(
+    (field: keyof typeof adminForm, value: string) => {
+      setAdminForm((prev) => ({ ...prev, [field]: value }))
+    },
+    []
+  )
+
+  const parseAdminNumber = React.useCallback((value: string) => {
+    if (!value) return 0
+    const num = Number(value)
+    return Number.isFinite(num) ? num : 0
+  }, [])
+
+  const handleAdminSave = React.useCallback(async () => {
+    setAdminError(null)
+    setAdminNotice(null)
+    const supabase = getSupabase()
+    if (!supabase) {
+      setAdminError('Supabase 설정을 확인해주세요.')
+      return
+    }
+    setAdminLoading(true)
+    try {
+      const { error } = await supabase.from('positions').upsert({
+        symbol: adminForm.symbol,
+        direction: adminForm.side.toLowerCase(),
+        leverage: parseAdminNumber(adminForm.leverage) || 1,
+        amount: parseAdminNumber(adminForm.qty),
+        entry_price: parseAdminNumber(adminForm.entry),
+        current_price: parseAdminNumber(adminForm.mark),
+        liquidation_price: parseAdminNumber(adminForm.liq),
+        pnl_usd: parseAdminNumber(adminForm.pnlUsd),
+        pnl_krw: parseAdminNumber(adminForm.pnlKrw),
+        status: adminForm.status,
+        streamer_id: 'admin',
+        streamer_name: adminForm.streamerName,
+      })
+      if (error) throw error
+      setAdminNotice('입력값이 저장되었습니다.')
+      await fetchPositions()
+    } catch (error: any) {
+      setAdminError(error?.message || '저장 중 오류가 발생했습니다.')
+    } finally {
+      setAdminLoading(false)
+    }
+  }, [adminForm, fetchPositions, parseAdminNumber])
 
   React.useEffect(() => {
     fetchPositions()
@@ -205,6 +278,155 @@ export default function PositionsPage() {
           />
         </CardContent>
       </Card>
+
+      {showAdminPanel ? (
+        <Card className="bg-[#141414] border-neutral-800" style={{ overflowAnchor: 'none' }}>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <CardTitle>관리자 포지션 입력</CardTitle>
+              <CardDescription>소수점 두 자리까지 직접 입력해서 저장하세요.</CardDescription>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap text-xs sm:text-sm">
+              <span className="text-muted-foreground">입력값은 Supabase positions 테이블에 저장됩니다.</span>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {adminError ? <div className="text-sm text-red-400">{adminError}</div> : null}
+          {adminNotice ? <div className="text-sm text-emerald-400">{adminNotice}</div> : null}
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="text-xs text-muted-foreground space-y-1">
+              진입가
+              <input
+                type="text"
+                inputMode="decimal"
+                value={adminForm.entry || ''}
+                onChange={(e) => handleAdminChangeNumeric('entry', e.target.value)}
+                className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
+              />
+            </label>
+            <label className="text-xs text-muted-foreground space-y-1">
+              현재가
+              <input
+                type="text"
+                inputMode="decimal"
+                value={adminForm.mark || ''}
+                onChange={(e) => handleAdminChangeNumeric('mark', e.target.value)}
+                className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
+              />
+            </label>
+            <label className="text-xs text-muted-foreground space-y-1">
+              청산가
+              <input
+                type="text"
+                inputMode="decimal"
+                value={adminForm.liq || ''}
+                onChange={(e) => handleAdminChangeNumeric('liq', e.target.value)}
+                className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
+              />
+            </label>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="text-xs text-muted-foreground space-y-1">
+              P&L (USD)
+              <input
+                type="text"
+                inputMode="decimal"
+                value={adminForm.pnlUsd || ''}
+                onChange={(e) => handleAdminChangeNumeric('pnlUsd', e.target.value)}
+                className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
+              />
+            </label>
+            <label className="text-xs text-muted-foreground space-y-1">
+              P&L (KRW)
+              <input
+                type="text"
+                inputMode="decimal"
+                value={adminForm.pnlKrw || ''}
+                onChange={(e) => handleAdminChangeNumeric('pnlKrw', e.target.value)}
+                className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
+              />
+            </label>
+            <label className="text-xs text-muted-foreground space-y-1">
+              수량
+              <input
+                type="text"
+                inputMode="decimal"
+                value={adminForm.qty || ''}
+                onChange={(e) => handleAdminChangeNumeric('qty', e.target.value)}
+                className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
+              />
+            </label>
+          </div>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="text-xs text-muted-foreground space-y-1">
+              심볼
+              <select
+                value={adminForm.symbol}
+                onChange={(e) => handleAdminChange('symbol', e.target.value)}
+                className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
+              >
+                {availableSymbols.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="text-xs text-muted-foreground space-y-1">
+              방향
+              <select
+                value={adminForm.side}
+                onChange={(e) => handleAdminChange('side', e.target.value as 'Long' | 'Short')}
+                className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
+              >
+                <option value="Long">Long</option>
+                <option value="Short">Short</option>
+              </select>
+            </label>
+            <label className="text-xs text-muted-foreground space-y-1">
+              상태
+              <select
+                value={adminForm.status}
+                onChange={(e) => handleAdminChange('status', e.target.value as 'on' | 'off')}
+                className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
+              >
+                <option value="on">ON</option>
+                <option value="off">OFF</option>
+              </select>
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={handleAdminSave}
+              disabled={adminLoading}
+              className="rounded-md border border-transparent bg-emerald-500 px-4 py-2 text-sm font-semibold text-black transition-colors disabled:opacity-50"
+            >
+              {adminLoading ? '저장 중...' : '저장'}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setAdminForm((prev) => ({
+                  ...prev,
+                  entry: '',
+                  mark: '',
+                  liq: '',
+                  pnlUsd: '',
+                  pnlKrw: '',
+                  qty: '',
+                }))
+              }
+              className="rounded-md border border-neutral-700 bg-[#101116] px-4 py-2 text-sm font-semibold text-white hover:border-white"
+            >
+              초기화
+            </button>
+          </div>
+        </CardContent>
+        </Card>
+      ) : null}
 
       <div className="flex items-center gap-1 sm:gap-2 flex-nowrap sm:flex-wrap overflow-hidden">
         <input
@@ -551,24 +773,28 @@ function PositionCard({
         </div>
       </CardHeader>
       <CardContent className="grid grid-cols-3 gap-3 text-sm text-white">
-        <div>
-          <div className="text-xs text-muted-foreground">진입가</div>
-          <div className="font-semibold">{fmtNum(entry)}</div>
-        </div>
-        <div>
-          <div className="text-xs text-muted-foreground">현재가</div>
-          <div className="font-semibold">{fmtNum(mark)}</div>
-        </div>
-        <div>
-          <div className="text-xs text-muted-foreground">청산가</div>
-          <div className="font-semibold text-amber-400">{fmtNum(liq)}</div>
-        </div>
+        {[
+          { label: '진입가', value: fmtNum(entry) },
+          { label: '현재가', value: fmtNum(mark) },
+          {
+            label: '청산가',
+            value: fmtNum(liq),
+            className: 'text-amber-400',
+          },
+        ].map((item) => (
+          <div key={item.label}>
+            <div className="text-xs text-muted-foreground">{item.label}</div>
+            <div className={`font-semibold ${item.className || ''}`.trim()}>{item.value}</div>
+          </div>
+        ))}
+      </CardContent>
+      <CardContent className="grid grid-cols-3 gap-3 text-sm text-white">
         <div>
           <div className="text-xs text-muted-foreground">수량</div>
           <div className="font-semibold">{qty ?? '--'}</div>
         </div>
         <div>
-          <div className="text-xs text-muted-foreground">PnL</div>
+          <div className="text-xs text-muted-foreground">P&L</div>
           <div className={`font-semibold ${up ? 'text-emerald-400' : 'text-rose-400'}`}>{fmtUSD(pnlUsd)}</div>
         </div>
         <div>
