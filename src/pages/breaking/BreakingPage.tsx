@@ -1,5 +1,5 @@
-﻿import * as React from 'react'
-import { Link } from 'react-router-dom'
+import * as React from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import Button from '../../components/ui/Button'
 import { fetchAllTopics } from '../../lib/news/aggregate'
 import { fetchBreaking, type BreakingRecord, countLikes, hasLiked, like, unlike, countComments } from '../../lib/breaking/api'
@@ -232,6 +232,14 @@ export default function BreakingPage() {
   const [page, setPage] = React.useState(1)
   const pageSize = 20
   const [hasMore, setHasMore] = React.useState(true)
+  const location = useLocation()
+  React.useEffect(() => {
+    if (!location.pathname.startsWith('/breaking/')) return
+    const key = location.pathname.replace(/^\/breaking\//, '')
+    const params = new URLSearchParams(location.search)
+    params.set('key', key)
+    window.history.replaceState(null, '', `/breaking?${params.toString()}`)
+  }, [location.pathname, location.search])
 
   const load = React.useCallback(async (nextPage = 1, append = false) => {
     try {
