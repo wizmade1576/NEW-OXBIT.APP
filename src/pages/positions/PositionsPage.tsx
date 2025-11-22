@@ -284,7 +284,11 @@ function fmtUSD(v?: number) {
 }
 function fmtNum(v?: number) {
   if (!Number.isFinite(v as number)) return '--'
-  return (v as number).toLocaleString()
+  const num = v as number
+  return num.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 }
 function fmtKRW(v?: number) {
   if (!Number.isFinite(v as number)) return '--'
@@ -557,7 +561,7 @@ function PositionCard({
         </div>
         <div>
           <div className="text-xs text-muted-foreground">청산가</div>
-          <div className="font-semibold">{fmtNum(liq)}</div>
+          <div className="font-semibold text-amber-400">{fmtNum(liq)}</div>
         </div>
         <div>
           <div className="text-xs text-muted-foreground">수량</div>

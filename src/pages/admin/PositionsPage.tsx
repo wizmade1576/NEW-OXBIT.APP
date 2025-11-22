@@ -96,8 +96,13 @@ export default function PositionsPage() {
   const [submitting, setSubmitting] = React.useState(false)
   const handleNumericInput = (field: keyof FormState, raw: string) => {
     const cleaned = raw.replace(/,/g, '').replace(/[^0-9.-]/g, '')
-    const value = cleaned === '' ? 0 : Number(cleaned)
-    setForm((prev) => ({ ...prev, [field]: Number.isFinite(value) ? value : 0 }))
+    const negative = cleaned.startsWith('-')
+    const unsigned = cleaned.replace(/-/g, '')
+    const [intPart, ...decParts] = unsigned.split('.')
+    const decimal = decParts.length ? decParts[0].slice(0, 2) : ''
+    const normalized = `${negative ? '-' : ''}${intPart}${decimal ? `.${decimal}` : ''}`
+    const value = normalized === '' || normalized === '-' ? 0 : Number(normalized)
+    setForm((prev) => ({ ...prev, [field]: Number.isFinite(value) ? Math.round(value * 100) / 100 : 0 }))
   }
 
   const [chartSymbol, setChartSymbol] = React.useState<string>(TV_DEFAULT_SYMBOL)
@@ -718,5 +723,5 @@ export default function PositionsPage() {
 
 const formatNumberValue = (value?: number | null) => {
   if (value == null || Number.isNaN(Number(value))) return ''
-  return Number(value).toLocaleString('en-US')
+  return Number(value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
