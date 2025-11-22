@@ -102,6 +102,16 @@ export default function PositionsPage() {
     },
     []
   )
+  const handleAdminAppend = React.useCallback(
+    (field: keyof Pick<typeof adminForm, 'entry' | 'mark' | 'liq' | 'pnlUsd' | 'pnlKrw' | 'qty'>, symbol: '.' | ',') => {
+      setAdminForm((prev) => {
+        const current = prev[field] || ''
+        if (symbol === '.' && current.includes('.')) return prev
+        return { ...prev, [field]: current + symbol }
+      })
+    },
+    []
+  )
   const showAdminPanel = (import.meta.env.VITE_SHOW_ADMIN_POSITIONS === 'true')
 
   const fetchPositions = React.useCallback(async () => {
@@ -306,6 +316,14 @@ export default function PositionsPage() {
                 onChange={(e) => handleAdminChangeNumeric('entry', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
               />
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <button type="button" onClick={() => handleAdminAppend('entry', '.')} className="rounded border border-neutral-700 px-2 py-1">
+                  .
+                </button>
+                <button type="button" onClick={() => handleAdminAppend('entry', ',')} className="rounded border border-neutral-700 px-2 py-1">
+                  ,
+                </button>
+              </div>
             </label>
             <label className="text-xs text-muted-foreground space-y-1">
               현재가
@@ -317,6 +335,14 @@ export default function PositionsPage() {
                 onChange={(e) => handleAdminChangeNumeric('mark', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
               />
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <button type="button" onClick={() => handleAdminAppend('mark', '.')} className="rounded border border-neutral-700 px-2 py-1">
+                  .
+                </button>
+                <button type="button" onClick={() => handleAdminAppend('mark', ',')} className="rounded border border-neutral-700 px-2 py-1">
+                  ,
+                </button>
+              </div>
             </label>
             <label className="text-xs text-muted-foreground space-y-1">
               청산가
@@ -328,6 +354,14 @@ export default function PositionsPage() {
                 onChange={(e) => handleAdminChangeNumeric('liq', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
               />
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <button type="button" onClick={() => handleAdminAppend('liq', '.')} className="rounded border border-neutral-700 px-2 py-1">
+                  .
+                </button>
+                <button type="button" onClick={() => handleAdminAppend('liq', ',')} className="rounded border border-neutral-700 px-2 py-1">
+                  ,
+                </button>
+              </div>
             </label>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
@@ -341,6 +375,14 @@ export default function PositionsPage() {
                 onChange={(e) => handleAdminChangeNumeric('pnlUsd', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
               />
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <button type="button" onClick={() => handleAdminAppend('pnlUsd', '.')} className="rounded border border-neutral-700 px-2 py-1">
+                  .
+                </button>
+                <button type="button" onClick={() => handleAdminAppend('pnlUsd', ',')} className="rounded border border-neutral-700 px-2 py-1">
+                  ,
+                </button>
+              </div>
             </label>
             <label className="text-xs text-muted-foreground space-y-1">
               P&L (KRW)
@@ -352,6 +394,14 @@ export default function PositionsPage() {
                 onChange={(e) => handleAdminChangeNumeric('pnlKrw', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
               />
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <button type="button" onClick={() => handleAdminAppend('pnlKrw', '.')} className="rounded border border-neutral-700 px-2 py-1">
+                  .
+                </button>
+                <button type="button" onClick={() => handleAdminAppend('pnlKrw', ',')} className="rounded border border-neutral-700 px-2 py-1">
+                  ,
+                </button>
+              </div>
             </label>
             <label className="text-xs text-muted-foreground space-y-1">
               수량
@@ -363,6 +413,14 @@ export default function PositionsPage() {
                 onChange={(e) => handleAdminChangeNumeric('qty', e.target.value)}
                 className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
               />
+              <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                <button type="button" onClick={() => handleAdminAppend('qty', '.')} className="rounded border border-neutral-700 px-2 py-1">
+                  .
+                </button>
+                <button type="button" onClick={() => handleAdminAppend('qty', ',')} className="rounded border border-neutral-700 px-2 py-1">
+                  ,
+                </button>
+              </div>
             </label>
           </div>
           <div className="grid gap-3 md:grid-cols-3">
