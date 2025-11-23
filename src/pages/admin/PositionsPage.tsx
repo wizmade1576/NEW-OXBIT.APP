@@ -313,7 +313,8 @@ export default function PositionsPage() {
     if (!supabase) return
     setSubmitting(true)
       const toNumber = (value: string) => {
-        const n = Number(value)
+        const normalized = (value ?? '').replace(/,/g, '').trim()
+        const n = Number(normalized)
         return Number.isFinite(n) ? n : 0
       }
       const payload = {
@@ -739,4 +740,3 @@ export default function PositionsPage() {
     </section>
   )
 }
-
