@@ -103,7 +103,8 @@ export default function PositionsPage() {
     const unsigned = cleaned.replace(/-/g, '')
     const parts = unsigned.split('.')
     const intPart = parts[0]
-    const decimalPart = parts.length > 1 ? parts[1].replace(/,/g, '').slice(0, 2) : ''
+    const decimalLimit = field === 'amount' ? 5 : 2
+    const decimalPart = parts.length > 1 ? parts[1].replace(/,/g, '').slice(0, decimalLimit) : ''
     let value = negative + intPart
     if (parts.length > 1) {
       value += '.'
