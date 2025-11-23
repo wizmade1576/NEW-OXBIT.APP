@@ -95,6 +95,7 @@ Deno.serve(async (req) => {
       user_id: userId,
       event_type: eventType,
       meta,
+      ip,
     })
 
     if (error) throw error

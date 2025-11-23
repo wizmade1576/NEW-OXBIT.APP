@@ -16,11 +16,15 @@ import {
 } from "recharts"
 
 const emptyWeeklyData: { date: string; visitors: number }[] = []
+const emptyDailyUnique: { date: string; uniqueVisitors: number }[] = []
 const emptyTopPaths: { path: string; hits: number }[] = []
 const emptyDeviceData: { name: string; value: number }[] = []
 const emptyCountryData: { name: string; value: number }[] = []
 
 const COLORS = ["#34d399", "#60a5fa", "#f97316", "#ef4444", "#c084fc"]
+const formatDate = (d: Date) => d.toISOString().slice(0, 10)
+const todayStr = formatDate(new Date())
+const defaultFrom = formatDate(new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)) // 최근 30일(오늘 포함)
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ""
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ""
 const ANALYTICS_SECRET = import.meta.env.VITE_ANALYTICS_INGEST_SECRET || ""
@@ -48,17 +52,32 @@ function StatsCard({ label, value, helper }: { label: string; value: string | nu
 
 export default function AnalyticsPage() {
   const [weeklyData, setWeeklyData] = React.useState(emptyWeeklyData)
+  const [dailyUnique, setDailyUnique] = React.useState(emptyDailyUnique)
   const [topPaths, setTopPaths] = React.useState(emptyTopPaths)
   const [deviceData, setDeviceData] = React.useState(emptyDeviceData)
   const [countryData, setCountryData] = React.useState(emptyCountryData)
   const [realtimeVisitors, setRealtimeVisitors] = React.useState(0)
   const [todayVisitors, setTodayVisitors] = React.useState<number | null>(null)
   const [isPolling, setIsPolling] = React.useState(true)
+  const [fromDate, setFromDate] = React.useState(defaultFrom)
+  const [toDate, setToDate] = React.useState(todayStr)
+  const [loadingRange, setLoadingRange] = React.useState(false)
 
-  React.useEffect(() => {
-    const fetchAnalytics = async () => {
+  const buildUrl = React.useCallback(
+    (from: string, to: string) => {
+      const url = new URL(ANALYTICS_ENDPOINT, window.location.origin)
+      if (from) url.searchParams.set("from", from)
+      if (to) url.searchParams.set("to", to)
+      return url.toString()
+    },
+    []
+  )
+
+  const fetchAnalytics = React.useCallback(
+    async (from: string, to: string) => {
+      setLoadingRange(true)
       try {
-        const res = await fetch(ANALYTICS_ENDPOINT, {
+        const res = await fetch(buildUrl(from, to), {
           method: "GET",
           headers: FUNCTION_HEADERS,
         })
@@ -68,11 +87,13 @@ export default function AnalyticsPage() {
         const json = await res.json()
         const source = json.source || "unknown"
         const weekly = Array.isArray(json.weeklyVisits) ? json.weeklyVisits : []
+        const uniques = Array.isArray(json.dailyUniqueVisitors) ? json.dailyUniqueVisitors : []
         const paths = Array.isArray(json.topPaths) ? json.topPaths : []
         const devices = Array.isArray(json.deviceShare) ? json.deviceShare : []
         const countries = Array.isArray(json.countryShare) ? json.countryShare : []
 
         setWeeklyData(weekly.length ? weekly : source === "supabase" ? [] : emptyWeeklyData)
+        setDailyUnique(uniques.length ? uniques : source === "supabase" ? [] : emptyDailyUnique)
         setTopPaths(paths.length ? paths : source === "supabase" ? [] : emptyTopPaths)
         setDeviceData(devices.length ? devices : source === "supabase" ? [] : emptyDeviceData)
         setCountryData(countries.length ? countries : source === "supabase" ? [] : emptyCountryData)
@@ -84,11 +105,16 @@ export default function AnalyticsPage() {
         }
       } catch (err) {
         console.warn("[analytics-page] fallback to defaults", err)
+      } finally {
+        setLoadingRange(false)
       }
-    }
+    },
+    [buildUrl]
+  )
 
-    fetchAnalytics()
-  }, [])
+  React.useEffect(() => {
+    fetchAnalytics(fromDate, toDate)
+  }, []) // initial load
 
   React.useEffect(() => {
     if (!isPolling) return
@@ -96,7 +122,7 @@ export default function AnalyticsPage() {
 
     const tick = async () => {
       try {
-        const res = await fetch(ANALYTICS_ENDPOINT, { method: "GET", headers: FUNCTION_HEADERS })
+        const res = await fetch(buildUrl(fromDate, toDate), { method: "GET", headers: FUNCTION_HEADERS })
         if (!res.ok) throw new Error("failed")
         const contentType = res.headers.get("content-type") ?? ""
         if (!contentType.includes("application/json")) throw new Error("non-json")
@@ -128,12 +154,50 @@ export default function AnalyticsPage() {
         </p>
       </header>
 
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-[#0a1021] p-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="text-xs uppercase tracking-[0.2em] text-neutral-400">기간</span>
+          <input
+            type="date"
+            value={fromDate}
+            max={toDate}
+            onChange={(e) => {
+              const v = e.target.value || fromDate
+              setFromDate(v)
+              if (v > toDate) setToDate(v)
+            }}
+            className="rounded border border-border bg-[#0f0f15] px-3 py-1.5 text-sm text-white"
+          />
+          <span className="text-xs text-muted-foreground">~</span>
+          <input
+            type="date"
+            value={toDate}
+            min={fromDate}
+            max={todayStr}
+            onChange={(e) => {
+              const v = e.target.value || toDate
+              setToDate(v)
+              if (v < fromDate) setFromDate(v)
+            }}
+            className="rounded border border-border bg-[#0f0f15] px-3 py-1.5 text-sm text-white"
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => fetchAnalytics(fromDate, toDate)}
+          className="rounded-md border border-border bg-primary/80 px-4 py-2 text-sm font-semibold text-white hover:bg-primary disabled:opacity-60"
+          disabled={loadingRange}
+        >
+          {loadingRange ? "불러오는 중..." : "적용"}
+        </button>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <StatsCard label="오늘 방문" value={todayVisitors ?? "0"} helper="집계: page_events (오늘)" />
         <StatsCard label="실시간 방문(10초)" value={`${realtimeVisitors} 명`} helper="10초마다 폴링/폴백" />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-3">
         <div className="rounded-2xl border border-border bg-[#0e1424] p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">최근 7일 방문 추이</p>
           <div className="mt-4 h-64">
@@ -143,6 +207,20 @@ export default function AnalyticsPage() {
                 <YAxis stroke="#4b5563" />
                 <Tooltip contentStyle={{ backgroundColor: "#0a1120", border: "none" }} />
                 <Line type="monotone" dataKey="visitors" stroke="#38bdf8" strokeWidth={3} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-[#0e1424] p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">하루 유니크 방문자(IP)</p>
+          <div className="mt-4 h-64">
+            <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
+              <LineChart data={dailyUnique}>
+                <XAxis dataKey="date" stroke="#4b5563" />
+                <YAxis stroke="#4b5563" />
+                <Tooltip contentStyle={{ backgroundColor: "#0a1120", border: "none" }} />
+                <Line type="monotone" dataKey="uniqueVisitors" stroke="#34d399" strokeWidth={3} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -160,21 +238,6 @@ export default function AnalyticsPage() {
                 </Pie>
                 <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: "#cbd5f5" }} />
               </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-border bg-[#0e1424] p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-400">국가별 분포</p>
-          <div className="mt-4 h-56">
-            <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
-              <BarChart data={countryData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                <XAxis dataKey="name" stroke="#4b5563" />
-                <YAxis stroke="#4b5563" />
-                <Tooltip contentStyle={{ backgroundColor: "#0a1120", border: "none" }} />
-                <Bar dataKey="value" fill="#818cf8" />
-              </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
@@ -214,3 +277,6 @@ export default function AnalyticsPage() {
     </section>
   )
 }
+
+
+

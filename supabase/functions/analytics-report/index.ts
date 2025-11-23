@@ -35,49 +35,56 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, { auth: { autoRefreshToken: false, persistSession: false } })
 
-    const since7 = new Date()
-    since7.setDate(since7.getDate() - 7)
+    const url = new URL(req.url)
+    const fromParam = url.searchParams.get('from')
+    const toParam = url.searchParams.get('to')
+
+    const toDate = toParam ? new Date(toParam) : new Date()
+    toDate.setHours(23, 59, 59, 999)
+    const fromDate = fromParam ? new Date(fromParam) : new Date(toDate)
+    if (!fromParam) {
+      fromDate.setDate(toDate.getDate() - 29) // default 30일(오늘 포함)
+    }
+    fromDate.setHours(0, 0, 0, 0)
+
     const since5min = new Date(Date.now() - 5 * 60 * 1000)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    // Weekly visits (group by date)
-    const weeklyRes = await supabase
+    // Fetch events for the requested range once, then aggregate in JS (avoid `.group` runtime issue)
+    const eventsRes = await supabase
       .from('page_events')
-      .select('date:created_at::date, visitors:count()', { head: false })
+      .select('path, device, country, ip, created_at', { head: false })
       .eq('event_type', 'page_view')
-      .gte('created_at', since7.toISOString())
-      .group('date')
-      .order('date', { ascending: true })
+      .gte('created_at', fromDate.toISOString())
+      .lte('created_at', toDate.toISOString())
 
-    // Top paths
-    const topRes = await supabase
-      .from('page_events')
-      .select('path, hits:count()', { head: false })
-      .eq('event_type', 'page_view')
-      .gte('created_at', since7.toISOString())
-      .group('path')
-      .order('hits', { ascending: false })
-      .limit(10)
+    if (eventsRes.error) throw eventsRes.error
 
-    // Device share
-    const deviceRes = await supabase
-      .from('page_events')
-      .select('device, value:count()', { head: false })
-      .eq('event_type', 'page_view')
-      .gte('created_at', since7.toISOString())
-      .group('device')
-      .order('value', { ascending: false })
+    const weeklyMap = new Map<string, number>()
+    const pathMap = new Map<string, number>()
+    const deviceMap = new Map<string, number>()
+    const countryMap = new Map<string, number>()
+    const uniqueDailyMap = new Map<string, Set<string>>()
 
-    // Country share
-    const countryRes = await supabase
-      .from('page_events')
-      .select('country, value:count()', { head: false })
-      .eq('event_type', 'page_view')
-      .gte('created_at', since7.toISOString())
-      .group('country')
-      .order('value', { ascending: false })
-      .limit(10)
+    ;(eventsRes.data as GroupRow[] | null)?.forEach((row) => {
+      const date = (row.created_at || '').slice(0, 10)
+      if (date) weeklyMap.set(date, (weeklyMap.get(date) || 0) + 1)
+      if (date) {
+        if (!uniqueDailyMap.has(date)) uniqueDailyMap.set(date, new Set())
+        const ip = (row.ip || 'unknown').toString().slice(0, 128)
+        uniqueDailyMap.get(date)!.add(ip)
+      }
+
+      const path = row.path || '/'
+      pathMap.set(path, (pathMap.get(path) || 0) + 1)
+
+      const device = row.device || 'unknown'
+      deviceMap.set(device, (deviceMap.get(device) || 0) + 1)
+
+      const country = row.country || 'unknown'
+      countryMap.set(country, (countryMap.get(country) || 0) + 1)
+    })
 
     // Realtime (last 5 minutes)
     const realtimeRes = await supabase
@@ -92,40 +99,32 @@ Deno.serve(async (req) => {
       .eq('event_type', 'page_view')
       .gte('created_at', today.toISOString())
 
-    if (weeklyRes.error) throw weeklyRes.error
-    if (topRes.error) throw topRes.error
-    if (deviceRes.error) throw deviceRes.error
-    if (countryRes.error) throw countryRes.error
     if (realtimeRes.error) throw realtimeRes.error
     if (todayRes.error) throw todayRes.error
 
-    const weeklyVisits =
-      (weeklyRes.data as GroupRow[] | null)?.map((r) => ({
-        date: r.date,
-        visitors: safeNumber(r.visitors),
-      })) ?? []
+    const weeklyVisits = Array.from(weeklyMap.entries())
+      .map(([date, visitors]) => ({ date, visitors: safeNumber(visitors) }))
+      .sort((a, b) => a.date.localeCompare(b.date))
 
-    const topPaths =
-      (topRes.data as GroupRow[] | null)?.map((r) => ({
-        path: r.path || '/',
-        hits: safeNumber(r.hits),
-      })) ?? []
+    const topPaths = Array.from(pathMap.entries())
+      .map(([path, hits]) => ({ path, hits: safeNumber(hits) }))
+      .sort((a, b) => b.hits - a.hits)
+      .slice(0, 10)
 
-    const deviceShare =
-      (deviceRes.data as GroupRow[] | null)
-        ?.filter((r) => r.device)
-        .map((r) => ({
-          name: r.device,
-          value: safeNumber(r.value),
-        })) ?? []
+    const deviceShare = Array.from(deviceMap.entries())
+      .filter(([name]) => !!name)
+      .map(([name, value]) => ({ name, value: safeNumber(value) }))
+      .sort((a, b) => b.value - a.value)
 
-    const countryShare =
-      (countryRes.data as GroupRow[] | null)
-        ?.filter((r) => r.country)
-        .map((r) => ({
-          name: r.country,
-          value: safeNumber(r.value),
-      })) ?? []
+    const countryShare = Array.from(countryMap.entries())
+      .filter(([name]) => !!name)
+      .map(([name, value]) => ({ name, value: safeNumber(value) }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 10)
+
+    const dailyUniqueVisitors = Array.from(uniqueDailyMap.entries())
+      .map(([date, set]) => ({ date, uniqueVisitors: set.size }))
+      .sort((a, b) => a.date.localeCompare(b.date))
 
     const realtimeVisitors = safeNumber(realtimeRes.count)
     const todayVisitors = safeNumber(todayRes.count)
@@ -135,6 +134,7 @@ Deno.serve(async (req) => {
       topPaths,
       deviceShare,
       countryShare,
+      dailyUniqueVisitors,
       realtimeVisitors,
       todayVisitors,
       source: 'supabase',
@@ -147,6 +147,7 @@ Deno.serve(async (req) => {
         topPaths: [],
         deviceShare: [],
         countryShare: [],
+        dailyUniqueVisitors: [],
         realtimeVisitors: null,
         todayVisitors: null,
         error: String(err?.message || err),
