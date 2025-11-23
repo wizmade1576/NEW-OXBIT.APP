@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/breaking/:path*", "destination": "/breaking" },
+    { "source": "/(.*)", "destination": "/" }
+  ]
+}
