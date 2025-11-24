@@ -27,7 +27,7 @@ export default function FuturesPage() {
 
   React.useEffect(() => {
     if (user) return
-    const id = window.setTimeout(() => setShowSignupModal(true), 60_000)
+    const id = window.setTimeout(() => setShowSignupModal(true), 30_000)
     return () => clearTimeout(id)
   }, [user])
 
@@ -698,4 +698,3 @@ function formatCurrency(v?: number, currency: 'USD' | 'KRW' = 'USD') {
     ? `$${(v as number).toLocaleString('en-US')}`
     : `${Math.round(v as number).toLocaleString('ko-KR')} KRW`
 }
-

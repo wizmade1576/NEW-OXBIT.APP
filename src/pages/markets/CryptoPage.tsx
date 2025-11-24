@@ -29,7 +29,7 @@ export default function CryptoPage() {
   // 60초 뒤 회원가입 안내 모달 (비로그인만)
   React.useEffect(() => {
     if (user) return
-    const id = window.setTimeout(() => setShowSignupModal(true), 60_000)
+    const id = window.setTimeout(() => setShowSignupModal(true), 30_000)
     return () => clearTimeout(id)
   }, [user])
 
@@ -615,4 +615,3 @@ function SparkLine({ data, up }: { data: number[]; up: boolean }) {
     </svg>
   )
 }
-

@@ -29,7 +29,7 @@ export default function WhalesPage() {
   const [showSignupModal, setShowSignupModal] = React.useState(false)
   React.useEffect(() => {
     if (user) return
-    const id = window.setTimeout(() => setShowSignupModal(true), 60000)
+    const id = window.setTimeout(() => setShowSignupModal(true), 30000)
     return () => clearTimeout(id)
   }, [user])
 
