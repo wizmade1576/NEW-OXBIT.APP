@@ -1,5 +1,7 @@
 import * as React from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
+import { useAuthStore } from '@/store/useAuthStore'
 
 type ContractType = 'PERP' | 'FUTURES'
 
@@ -19,6 +21,15 @@ type Row = {
 export default function FuturesPage() {
   // 필터 모달
   const [showFilter, setShowFilter] = React.useState(false)
+  const navigate = useNavigate()
+  const user = useAuthStore((s) => s.user)
+  const [showSignupModal, setShowSignupModal] = React.useState(false)
+
+  React.useEffect(() => {
+    if (user) return
+    const id = window.setTimeout(() => setShowSignupModal(true), 60_000)
+    return () => clearTimeout(id)
+  }, [user])
 
   // Supabase Edge Function proxy
   const prox = React.useCallback((qs: string) => {
@@ -113,8 +124,8 @@ export default function FuturesPage() {
 
           const mm = j?.metrics || {}
           if (mm && Object.keys(mm).length) {
-            setRows(prev =>
-              prev.map(x => {
+            setRows((prev) =>
+              prev.map((x) => {
                 const m = mm[x.symbol]
                 if (!m) return x
                 const add: Partial<Row> = {}
@@ -125,14 +136,14 @@ export default function FuturesPage() {
             )
 
             const nextRatio: Record<string, { long: number; short: number }> = {}
-            Object.keys(mm).forEach(sym => {
+            Object.keys(mm).forEach((sym) => {
               const m = mm[sym]
               if (typeof m.long === 'number' && typeof m.short === 'number') {
                 nextRatio[sym] = { long: m.long, short: m.short }
               }
             })
             if (Object.keys(nextRatio).length) {
-              setRatioMap(prev => ({ ...prev, ...nextRatio }))
+              setRatioMap((prev) => ({ ...prev, ...nextRatio }))
             }
           }
         } else if (exchange === 'Bybit') {
@@ -145,13 +156,13 @@ export default function FuturesPage() {
 
           const mm = j?.metrics || {}
           if (mm && Object.keys(mm).length) {
-            setRows(prev =>
-              prev.map(x => {
+            setRows((prev) =>
+              prev.map((x) => {
                 const m = mm[x.symbol]
                 if (!m) return x
                 const add: Partial<Row> = {}
                 if (typeof m.funding === 'number') add.funding = m.funding
-                if (typeof m.oi === 'number') add.oi = m.oi // Bybit는 이미 가치 기준
+                if (typeof m.oi === 'number') add.oi = m.oi
                 return { ...x, ...add }
               }),
             )
@@ -166,8 +177,8 @@ export default function FuturesPage() {
 
           const mm = j?.metrics || {}
           if (mm && Object.keys(mm).length) {
-            setRows(prev =>
-              prev.map(x => {
+            setRows((prev) =>
+              prev.map((x) => {
                 const m = mm[x.symbol]
                 if (!m) return x
                 const add: Partial<Row> = {}
@@ -196,10 +207,10 @@ export default function FuturesPage() {
   // ---------------- 필터 + 정렬 ----------------
   const filteredSorted = React.useMemo(() => {
     let list = rows
-    if (typeFilter !== 'ALL') list = list.filter(r => r.contractType === typeFilter)
+    if (typeFilter !== 'ALL') list = list.filter((r) => r.contractType === typeFilter)
     if (query.trim()) {
       const q = query.trim().toLowerCase()
-      list = list.filter(r => r.symbol.toLowerCase().includes(q))
+      list = list.filter((r) => r.symbol.toLowerCase().includes(q))
     }
     const dir = sortDir === 'asc' ? 1 : -1
     list = [...list].sort((a, b) => ((a[sortBy] ?? -Infinity) - (b[sortBy] ?? -Infinity)) * dir)
@@ -210,9 +221,9 @@ export default function FuturesPage() {
   React.useEffect(() => {
     const el = sentinelRef.current
     if (!el) return
-    const io = new IntersectionObserver(entries => {
-      if (entries.some(x => x.isIntersecting)) {
-        setVisibleCount(c => Math.min(c + PAGE_SIZE, Math.min(TOP_LIMIT, filteredSorted.length)))
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((x) => x.isIntersecting)) {
+        setVisibleCount((c) => Math.min(c + PAGE_SIZE, Math.min(TOP_LIMIT, filteredSorted.length)))
       }
     })
     io.observe(el)
@@ -221,7 +232,33 @@ export default function FuturesPage() {
 
   return (
     <section className="space-y-6">
-      {/* slide-up keyframes */}
+      {!user && showSignupModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-[#0e1424] p-6 shadow-xl">
+            <h3 className="mb-3 text-lg font-semibold text-white">회원가입 안내</h3>
+            <p className="mb-6 text-sm text-muted-foreground">
+              서비스를 계속 이용 하실려면 회원가입이 필요합니다.
+            </p>
+            <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+                onClick={() => navigate('/signup')}
+              >
+                회원가입 하기
+              </button>
+              <button
+                type="button"
+                className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-white hover:bg-[#1a2235]"
+                onClick={() => navigate('/breaking')}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`
         @keyframes futures-slide-up {
           from { transform: translateY(100%); opacity: 0; }
@@ -230,7 +267,6 @@ export default function FuturesPage() {
         .animate-futures-slide-up {
           animation: futures-slide-up 0.22s ease-out;
         }
-        /* Mobile-only: hide Futures section heading (선물 마켓) */
         @media (max-width: 639px) {
           .futures-hide-title [class*="text-\\[18px\\]"] { display: none !important; }
         }
@@ -246,7 +282,7 @@ export default function FuturesPage() {
         </button>
         <input
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={(e) => setQuery(e.target.value)}
           placeholder="심볼 검색 (예: BTCUSDT)"
           className="w-1/2 px-3 py-2 rounded-md border border-neutral-700 bg-[#111318] text-sm text-neutral-100 placeholder:text-neutral-500"
         />
@@ -258,15 +294,22 @@ export default function FuturesPage() {
             <div>
               <CardTitle className="text-[18px] text-white">선물 마켓</CardTitle>
               <CardDescription className="text-xs text-neutral-400">
-                거래소별 상위 선물/영구선물 실시간 지표
+                거래소별 선물/무기한 리스트
               </CardDescription>
             </div>
 
-            {/* 데스크탑용 간단 필터 요약 배지 */}
+            {/* 데스크탑용 간단 요약 */}
             <div className="hidden sm:flex flex-col items-end text-[11px] text-neutral-400">
               <span>{exchange}</span>
               <span>
-                {currency} · {sortBy === 'volume' ? '거래량' : sortBy === 'funding' ? '펀딩비' : sortBy === 'oi' ? 'OI' : '24h'}
+                {currency} ·{' '}
+                {sortBy === 'volume'
+                  ? '거래량'
+                  : sortBy === 'funding'
+                  ? '펀딩비'
+                  : sortBy === 'oi'
+                  ? 'OI'
+                  : '24h'}
                 {sortDir === 'desc' ? ' ↓' : ' ↑'}
               </span>
             </div>
@@ -276,11 +319,11 @@ export default function FuturesPage() {
         <CardContent className="space-y-4">
           {error && <div className="text-xs text-amber-300 mb-2">API 오류: {error}</div>}
 
-          {/* 데스크탑 필터 바 (기존 유지) */}
+          {/* 데스크탑 필터 영역 */}
           <div className="hidden sm:flex flex-wrap gap-2 mb-2">
             <select
               value={exchange}
-              onChange={e => setExchange(e.target.value as any)}
+              onChange={(e) => setExchange(e.target.value as any)}
               className="px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm"
             >
               <option>Binance</option>
@@ -289,24 +332,24 @@ export default function FuturesPage() {
             </select>
             <select
               value={sortBy}
-              onChange={e => setSortBy(e.target.value as any)}
+              onChange={(e) => setSortBy(e.target.value as any)}
               className="px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm"
             >
               <option value="volume">거래량(24h)</option>
               <option value="funding">펀딩비</option>
-              <option value="oi">미결제약정(OI)</option>
+              <option value="oi">미결제약(OI)</option>
               <option value="change24h">24h 변동률</option>
             </select>
             <select
               value={rankBy}
-              onChange={e => setRankBy(e.target.value as any)}
+              onChange={(e) => setRankBy(e.target.value as any)}
               className="px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm"
             >
-              <option value="volume">상위 기준: 거래량</option>
-              <option value="oi">상위 기준: OI</option>
+              <option value="volume">순위 기준: 거래량</option>
+              <option value="oi">순위 기준: OI</option>
             </select>
             <button
-              onClick={() => setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))}
+              onClick={() => setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))}
               className="px-2 py-1 rounded border border-neutral-700 bg-[#14161c] hover:bg-[#191c23] text-sm"
             >
               {sortDir === 'desc' ? '내림차순' : '오름차순'}
@@ -331,7 +374,7 @@ export default function FuturesPage() {
             </div>
             <select
               value={typeFilter}
-              onChange={e => setTypeFilter(e.target.value as any)}
+              onChange={(e) => setTypeFilter(e.target.value as any)}
               className="px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm"
             >
               <option value="ALL">전체</option>
@@ -340,7 +383,7 @@ export default function FuturesPage() {
             </select>
             <input
               value={query}
-              onChange={e => setQuery(e.target.value)}
+              onChange={(e) => setQuery(e.target.value)}
               placeholder="심볼 검색"
               className="order-first px-2 py-1 rounded border border-neutral-700 bg-[#14161c] text-sm w-1/2 min-w-[140px]"
             />
@@ -348,7 +391,7 @@ export default function FuturesPage() {
 
           {/* =================== 모바일 카드 리스트 =================== */}
           <div className="sm:hidden space-y-3">
-            {filteredSorted.slice(0, visibleCount).map(r => {
+            {filteredSorted.slice(0, visibleCount).map((r) => {
               const ratio = ratioMap[r.symbol]
               const long = ratio?.long ?? r.long
               const short = ratio?.short ?? r.short
@@ -363,10 +406,9 @@ export default function FuturesPage() {
                   key={`${exchange}-${r.symbol}`}
                   className="p-4 rounded-2xl border border-neutral-800 bg-gradient-to-b from-[#141820] to-[#0d1016] shadow-sm"
                 >
-                  {/* 1줄: 심볼 + 가격 */}
+                  {/* 심볼 + 가격 */}
                   <div className="flex justify-between items-center mb-2">
                     <div className="flex items-center gap-3">
-                      {/* 심볼 로고 */}
                       <div className="hidden w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500/80 to-cyan-400/80 flex items-center justify-center text-[11px] font-semibold text-black shadow-sm">
                         {base || r.symbol.slice(0, 3)}
                       </div>
@@ -390,23 +432,23 @@ export default function FuturesPage() {
                     </div>
                   </div>
 
-                  {/* 2줄: 펀딩비 + 거래량 */}
+                  {/* 펀딩비 + 거래량 */}
                   <div className="flex justify-between items-center text-[11px] mt-1">
                     <div className="flex flex-col gap-0.5">
                       <span className="text-neutral-400">펀딩비</span>
                       <span className={pctClass(r.funding)}>{fmtPct(r.funding)}</span>
                     </div>
                     <div className="flex flex-col items-end gap-0.5">
-                      <span className="text-neutral-400">거래량 (24h)</span>
+                      <span className="text-neutral-400">거래량(24h)</span>
                       <span className="text-neutral-100">
                         {formatCurrency(convert(r.volume, currency, usdkrw), currency)}
                       </span>
                     </div>
                   </div>
 
-                  {/* 3줄: 롱/숏 비율 bar */}
+                  {/* 롱/숏 비율 bar */}
                   <div className="mt-3 flex justify-between items-center">
-                    <span className="text-[11px] text-neutral-400">롱 / 숏 포지션 비율</span>
+                    <span className="text-[11px] text-neutral-400">롱 / 숏 비율</span>
                     <RatioBar longPct={long} shortPct={short} compact />
                   </div>
                 </div>
@@ -423,13 +465,13 @@ export default function FuturesPage() {
                   <th className="px-3 py-2 text-right">현재가</th>
                   <th className="px-3 py-2 text-right">24h</th>
                   <th className="px-3 py-2 text-right">펀딩비</th>
-                  <th className="px-3 py-2 text-right hidden sm:table-cell">미결제약정</th>
+                  <th className="px-3 py-2 text-right hidden sm:table-cell">미결제약(OI)</th>
                   <th className="px-3 py-2 text-right hidden md:table-cell">롱/숏</th>
                   <th className="px-3 py-2 text-right">거래량(24h)</th>
                 </tr>
               </thead>
               <tbody>
-                {filteredSorted.slice(0, visibleCount).map(r => {
+                {filteredSorted.slice(0, visibleCount).map((r) => {
                   const ratio = ratioMap[r.symbol]
                   const long = ratio?.long ?? r.long
                   const short = ratio?.short ?? r.short
@@ -471,7 +513,7 @@ export default function FuturesPage() {
             <div className="mt-2 flex justify-center">
               <button
                 onClick={() =>
-                  setVisibleCount(c =>
+                  setVisibleCount((c) =>
                     Math.min(c + PAGE_SIZE, Math.min(TOP_LIMIT, filteredSorted.length)),
                   )
                 }
@@ -482,7 +524,7 @@ export default function FuturesPage() {
             </div>
           )}
           {loading && (
-            <div className="text-center text-xs text-neutral-400 mt-2">업데이트 중...</div>
+            <div className="text-center text-xs text-neutral-400 mt-2">데이터 로딩...</div>
           )}
         </CardContent>
       </Card>
@@ -506,7 +548,7 @@ export default function FuturesPage() {
                 <label className="text-neutral-400">거래소</label>
                 <select
                   value={exchange}
-                  onChange={e => setExchange(e.target.value as any)}
+                  onChange={(e) => setExchange(e.target.value as any)}
                   className="w-full px-3 py-2 rounded border border-neutral-700 bg-[#151821]"
                 >
                   <option>Binance</option>
@@ -519,21 +561,21 @@ export default function FuturesPage() {
                 <label className="text-neutral-400">정렬 기준</label>
                 <select
                   value={sortBy}
-                  onChange={e => setSortBy(e.target.value as any)}
+                  onChange={(e) => setSortBy(e.target.value as any)}
                   className="w-full px-3 py-2 rounded border border-neutral-700 bg-[#151821]"
                 >
                   <option value="volume">거래량(24h)</option>
                   <option value="funding">펀딩비</option>
-                  <option value="oi">미결제약정(OI)</option>
+                  <option value="oi">미결제약(OI)</option>
                   <option value="change24h">24h 변동률</option>
                 </select>
               </div>
 
               <div className="space-y-1">
-                <label className="text-neutral-400">상위 기준</label>
+                <label className="text-neutral-400">순위 기준</label>
                 <select
                   value={rankBy}
-                  onChange={e => setRankBy(e.target.value as any)}
+                  onChange={(e) => setRankBy(e.target.value as any)}
                   className="w-full px-3 py-2 rounded border border-neutral-700 bg-[#151821]"
                 >
                   <option value="volume">거래량 기준</option>
@@ -571,7 +613,7 @@ export default function FuturesPage() {
                 <label className="text-neutral-400">계약 종류</label>
                 <select
                   value={typeFilter}
-                  onChange={e => setTypeFilter(e.target.value as any)}
+                  onChange={(e) => setTypeFilter(e.target.value as any)}
                   className="w-full px-3 py-2 rounded border border-neutral-700 bg-[#151821]"
                 >
                   <option value="ALL">전체</option>
@@ -654,5 +696,6 @@ function formatCurrency(v?: number, currency: 'USD' | 'KRW' = 'USD') {
   if (!Number.isFinite(v as number)) return '--'
   return currency === 'USD'
     ? `$${(v as number).toLocaleString('en-US')}`
-    : `${Math.round(v as number).toLocaleString('ko-KR')}원`
+    : `${Math.round(v as number).toLocaleString('ko-KR')} KRW`
 }
+
