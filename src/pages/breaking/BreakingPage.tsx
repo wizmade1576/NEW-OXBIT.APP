@@ -119,9 +119,15 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
       
       {/* ?쒓컙 */}
       <div className="flex items-start justify-end pr-1 relative z-10">
-        <span className="relative z-10 rounded-md bg-accent px-1.5 py-0.5 text-[10px] sm:text-xs text-foreground/90">
-          {item.time}
-        </span>
+        {item.important ? (
+          <span className="rounded-md px-1.5 py-0.5 text-[10px] sm:text-xs bg-red-500 text-white">
+            {item.time}
+          </span>
+        ) : (
+          <span className="rounded-md px-1.5 py-0.5 text-[10px] sm:text-xs bg-accent text-foreground/90">
+            {item.time}
+          </span>
+        )}
       </div>
 
       {/* ?댁슜 */}

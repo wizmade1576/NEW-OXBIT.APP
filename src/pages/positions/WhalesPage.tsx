@@ -21,8 +21,10 @@ export default function WhalesPage() {
   const [events, setEvents] = React.useState<WhaleTrade[]>([])
   const [paused, setPaused] = React.useState(false)
   const [connected, setConnected] = React.useState(false)
+  const lastConnected = React.useRef<boolean>(false) // 변경: 동일 상태 재설정 방지
   const [usdkrw, setUsdkrw] = React.useState<number>(0)
   const [thresholdKrw, setThresholdKrw] = React.useState<number>(100_000_000) // 1억 기본
+  const lastEventId = React.useRef<string | null>(null) // 변경: 중복 이벤트 렌더 방지
 
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.user)
@@ -72,8 +74,18 @@ export default function WhalesPage() {
     const stream = symbols.map((s) => `${s}@aggTrade`).join('/')
     const url = `wss://fstream.binance.com/stream?streams=${stream}`
     const ws = new WebSocket(url)
-    ws.onopen = () => setConnected(true)
-    ws.onclose = () => setConnected(false)
+    ws.onopen = () => {
+      if (!lastConnected.current) {
+        lastConnected.current = true
+        setConnected(true) // 변경: 동일 값이면 스킵
+      }
+    }
+    ws.onclose = () => {
+      if (lastConnected.current) {
+        lastConnected.current = false
+        setConnected(false) // 변경: 동일 값이면 스킵
+      }
+    }
     ws.onmessage = (ev) => {
       try {
         const m = JSON.parse(ev.data as string)
@@ -89,8 +101,11 @@ export default function WhalesPage() {
         const krw = usd * rate
         if (krw && krw < thresholdKrw) return // 기준 금액 미만은 제외
         const aggId = (d && (d.a ?? (d.A as any))) ?? Math.random()
+        const newId = `${s}-${ts}-${String(aggId)}`
+        if (lastEventId.current === newId) return // 변경: 동일 이벤트 반복 시 무시
+        lastEventId.current = newId
         const item: WhaleTrade = {
-          id: `${s}-${ts}-${String(aggId)}`,
+          id: newId,
           ts: ts,
           exchange: 'Binance',
           symbol: s,
@@ -99,7 +114,11 @@ export default function WhalesPage() {
           qty: qty,
           usd: usd,
         }
-        setEvents((prev) => [item, ...prev].slice(0, 500))
+        // 변경: 최대 길이 축소(메모리/렌더 비용 감소) 및 동일 첫 항목이면 skip
+        setEvents((prev) => {
+          if (prev.length && prev[0].id === item.id) return prev
+          return [item, ...prev].slice(0, 300)
+        })
       } catch {}
     }
     return () => {
@@ -153,7 +172,7 @@ export default function WhalesPage() {
               <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
                 <input type="checkbox" checked={!paused} onChange={(e) => setPaused(!e.target.checked)} /> 실시간
               </label>
-              <span className={`text-xs ${connected ? 'text-emerald-400' : 'text-red-400'}`}>{connected ? '연결됨' : '연결 끊김'}</span>
+              <span className={`text-xs ${connected ? 'text-emerald-400' : 'text-red-400'}`}>{connected ? '실시간 연결됨' : '연결 끊김'}</span>
             </div>
           </div>
         </CardHeader>
@@ -178,3 +197,4 @@ export default function WhalesPage() {
     </section>
   )
 }
+
