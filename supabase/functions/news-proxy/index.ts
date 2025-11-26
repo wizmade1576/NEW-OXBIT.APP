@@ -207,7 +207,6 @@ function parseRss(xml: string, fallbackSource: string) {
 const RSS_SOURCES: { name: string; url: string; defaultTopic: Topic }[] = [
   { name: 'TokenPost',  url: 'https://www.tokenpost.kr/rss', defaultTopic: 'crypto' },
   { name: 'BlockMedia', url: 'https://www.blockmedia.co.kr/feed', defaultTopic: 'crypto' },
-  { name: 'CoinReaders', url: 'https://www.coinreaders.com/rss/rss_news.php', defaultTopic: 'crypto' },
 ]
 
 // ---------- Alternative Mirrors ---------------------------------------------
@@ -218,9 +217,6 @@ const ALT_RSS: Record<string, string[]> = {
   ],
   BlockMedia: [
     'https://www.blockmedia.co.kr/rss',
-  ],
-  CoinReaders: [
-    'https://m.coinreaders.com/plugin/rss',
   ],
 }
 

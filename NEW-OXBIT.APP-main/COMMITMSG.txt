@@ -1,2 +1,0 @@
-markets: halve search bar width on FuturesPage
-breaking: show login-required alert on detail entry, title/comment links, and more button
