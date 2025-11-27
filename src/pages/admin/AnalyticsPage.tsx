@@ -24,7 +24,8 @@ const emptyCountryData: { name: string; value: number }[] = []
 const COLORS = ["#34d399", "#60a5fa", "#f97316", "#ef4444", "#c084fc"]
 const formatDate = (d: Date) => d.toISOString().slice(0, 10)
 const todayStr = formatDate(new Date())
-const defaultFrom = formatDate(new Date(Date.now() - 29 * 24 * 60 * 60 * 1000)) // 최근 30일(오늘 포함)
+// 기본 조회 범위: 오늘만
+const defaultFrom = todayStr
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ""
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ""
 const ANALYTICS_SECRET = import.meta.env.VITE_ANALYTICS_INGEST_SECRET || ""
@@ -231,11 +232,41 @@ export default function AnalyticsPage() {
           <div className="mt-4 h-56">
             <ResponsiveContainer width="100%" height="100%" minWidth={200} minHeight={200}>
               <PieChart>
-                <Pie data={deviceData} dataKey="value" nameKey="name" innerRadius={40} outerRadius={80} paddingAngle={4}>
+                <Pie
+                  data={deviceData}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={40}
+                  outerRadius={80}
+                  paddingAngle={4}
+                  label={({ cx, cy, midAngle, outerRadius, name, value }) => {
+                    const RAD = Math.PI / 180
+                    const radius = outerRadius + 18 // push label slightly outward
+                    const x = cx + radius * Math.cos(-midAngle * RAD)
+                    const y = cy + radius * Math.sin(-midAngle * RAD) + 8 // nudge downward for readability
+                    return (
+                      <text
+                        x={x}
+                        y={y}
+                        fill="#e5e7eb"
+                        textAnchor={x > cx ? "start" : "end"}
+                        dominantBaseline="middle"
+                        fontSize={12}
+                      >
+                        {`${name}: ${value}`}
+                      </text>
+                    )
+                  }}
+                  labelLine={false}
+                >
                   {deviceData.map((entry, idx) => (
                     <Cell key={`device-${idx}`} fill={COLORS[idx % COLORS.length]} />
                   ))}
                 </Pie>
+                <Tooltip
+                  formatter={(value: number) => value.toLocaleString()}
+                  contentStyle={{ backgroundColor: "#0a1120", border: "none" }}
+                />
                 <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: "#cbd5f5" }} />
               </PieChart>
             </ResponsiveContainer>
@@ -277,6 +308,3 @@ export default function AnalyticsPage() {
     </section>
   )
 }
-
-
-

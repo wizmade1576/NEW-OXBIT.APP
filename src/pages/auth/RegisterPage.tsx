@@ -4,14 +4,34 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import Button from '../../components/ui/Button'
 import getSupabase from '../../lib/supabase/client'
 
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
+const FUNCTIONS_BASE = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : ''
+
 function normalizePhone(input: string): string {
   const cleaned = input.replace(/[\s-]/g, '')
   if (!cleaned) return ''
   if (cleaned.startsWith('+')) return cleaned
-  if (cleaned.startsWith('010')) {
-    return '+82' + cleaned.slice(1)
-  }
+  if (cleaned.startsWith('010')) return '+82' + cleaned.slice(1)
   return cleaned
+}
+
+async function postJson(path: string, body: Record<string, any>) {
+  const endpoint = FUNCTIONS_BASE ? `${FUNCTIONS_BASE}/${path}` : `/functions/v1/${path}`
+  const authHeaders =
+    SUPABASE_ANON_KEY
+      ? { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+      : {}
+  const res = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...authHeaders },
+    body: JSON.stringify(body),
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok || json.error) {
+    throw new Error(json.error || `request_failed_${path}`)
+  }
+  return json
 }
 
 export default function RegisterPage() {
@@ -26,6 +46,7 @@ export default function RegisterPage() {
   const [nickname, setNickname] = React.useState('')
   const [otpCode, setOtpCode] = React.useState('')
   const [otpMessage, setOtpMessage] = React.useState<string | null>(null)
+  const [otpError, setOtpError] = React.useState<string | null>(null)
   const [otpSent, setOtpSent] = React.useState(false)
   const [phoneVerified, setPhoneVerified] = React.useState(false)
   const [verifiedPhone, setVerifiedPhone] = React.useState('')
@@ -35,7 +56,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [notice, setNotice] = React.useState<string | null>(null)
-  const debug = (import.meta.env.DEV || (import.meta as any).env.VITE_DEBUG_AUTH === 'true') as boolean
+  const [verifyToken, setVerifyToken] = React.useState<string | null>(null)
 
   const handlePhoneChange = React.useCallback((value: string) => {
     setPhone(value)
@@ -44,168 +65,140 @@ export default function RegisterPage() {
     setOtpSent(false)
     setOtpCode('')
     setOtpMessage(null)
+    setOtpError(null)
+    setVerifyToken(null)
+  }, [])
+
+  const mapOtpError = React.useCallback((code: string) => {
+    if (!code) return '요청에 실패했습니다. 잠시 후 다시 시도해 주세요.'
+    const c = code.toLowerCase()
+    if (c.includes('rate_limited')) return '요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.'
+    if (c.includes('invalid_phone')) return '전화번호 형식을 확인해 주세요.'
+    if (c.includes('otp_expired')) return '인증번호가 만료되었습니다. 다시 요청해 주세요.'
+    if (c.includes('otp_mismatch')) return '인증번호가 올바르지 않습니다.'
+    if (c.includes('otp_not_found')) return '인증번호를 먼저 요청해 주세요.'
+    if (c.includes('too_many_attempts')) return '시도 횟수를 초과했습니다. 잠시 후 재시도해 주세요.'
+    if (c.includes('verification_required')) return '전화번호 인증을 완료해 주세요.'
+    if (c.includes('verification_expired')) return '전화번호 인증이 만료되었습니다. 다시 인증해 주세요.'
+    if (c.includes('missing_supabase_credentials')) return '서버 설정(SUPABASE 키)이 누락되었습니다. 관리자에게 문의하세요.'
+    if (c.includes('aligo_send_failed')) return '인증번호 발송에 실패했습니다. 알리고 설정을 확인해 주세요.'
+    if (c.includes('request_failed')) return '요청에 실패했습니다. 잠시 후 다시 시도해 주세요.'
+    return '오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
   }, [])
 
   const handleSendOtp = React.useCallback(async () => {
     setError(null)
     setNotice(null)
     setOtpMessage(null)
-    if (!phone) {
-      setError('전화번호를 입력해주세요.')
-      return
-    }
+    setOtpError(null)
     const normalizedPhone = normalizePhone(phone)
     if (!normalizedPhone) {
-      setError('전화번호 형식이 올바르지 않습니다.')
-      return
-    }
-    const supabase = getSupabase()
-    if (!supabase) {
-      setError('Supabase 설정을 확인해주세요. (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)')
+      setError('전화번호 형식을 확인해 주세요.')
       return
     }
     setOtpSending(true)
     try {
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        phone: normalizedPhone,
-        options: { shouldCreateUser: true },
-      })
-      if (otpError) {
-        setError(otpError.message || '인증번호를 발송할 수 없습니다.')
-        return
-      }
+      await postJson('aligo-send-otp', { phone: normalizedPhone })
       setOtpSent(true)
-      setOtpMessage('인증번호가 전송되었습니다. 휴대폰에서 확인해주세요.')
-    } catch (e) {
-      setError('인증번호 요청 중 오류가 발생했습니다.')
+      setOtpMessage('인증번호가 발송되었습니다. 문자 메시지를 확인해 주세요.')
+    } catch (e: any) {
+      const msg = mapOtpError(String(e?.message || ''))
+      setError(msg)
+      setOtpError(msg)
     } finally {
       setOtpSending(false)
     }
-  }, [phone])
+  }, [mapOtpError, phone])
 
   const handleVerifyOtp = React.useCallback(async () => {
     setError(null)
     setNotice(null)
     setOtpMessage(null)
-    if (!phone) {
-      setError('전화번호를 입력해주세요.')
+    setOtpError(null)
+    const normalizedPhone = normalizePhone(phone)
+    if (!normalizedPhone) {
+      setError('전화번호 형식을 확인해 주세요.')
       return
     }
     if (!otpCode) {
-      setError('인증번호를 입력해주세요.')
-      return
-    }
-    const normalizedPhone = normalizePhone(phone)
-    if (!normalizedPhone) {
-      setError('전화번호 형식이 올바르지 않습니다.')
-      return
-    }
-    const supabase = getSupabase()
-    if (!supabase) {
-      setError('Supabase 설정을 확인해주세요. (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)')
+      setError('인증번호를 입력해 주세요.')
       return
     }
     setOtpVerifying(true)
     try {
-      const { error: verifyError } = await supabase.auth.verifyOtp({
-        phone: normalizedPhone,
-        token: otpCode,
-        type: 'sms',
-      })
-      if (verifyError) {
-        setError(verifyError.message || '인증번호가 일치하지 않습니다.')
-        return
-      }
+      const res = await postJson('aligo-verify-otp', { phone: normalizedPhone, code: otpCode })
       setPhoneVerified(true)
       setVerifiedPhone(normalizedPhone)
+      setVerifyToken(res.verificationToken || null)
       setOtpSent(false)
       setOtpCode('')
       setOtpMessage('전화번호 인증이 완료되었습니다.')
-      await supabase.auth.signOut().catch(() => {})
-    } catch (e) {
-      setError('인증 확인 중 오류가 발생했습니다.')
+    } catch (e: any) {
+      const msg = mapOtpError(String(e?.message || ''))
+      setError(msg)
+      setOtpError(msg)
     } finally {
       setOtpVerifying(false)
     }
-  }, [phone, otpCode])
+  }, [mapOtpError, phone, otpCode])
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     setNotice(null)
+    if (!email || !email.includes('@')) {
+      setError('이메일을 올바르게 입력해 주세요.')
+      return
+    }
     if (password !== confirm) {
       setError('비밀번호가 일치하지 않습니다.')
       return
     }
     if (!gender) {
-      setError('성별을 선택해주세요.')
+      setError('성별을 선택해 주세요.')
       return
     }
     if (!interest) {
-      setError('관심분야를 선택해주세요.')
+      setError('관심분야를 선택해 주세요.')
       return
     }
     const normalizedPhone = normalizePhone(phone)
     if (!normalizedPhone) {
-      setError('전화번호를 입력해주세요.')
+      setError('전화번호를 입력해 주세요.')
       return
     }
-    if (!phoneVerified || normalizedPhone !== verifiedPhone) {
-      setError('전화번호 인증을 완료해주세요.')
+    if (!phoneVerified || normalizedPhone !== verifiedPhone || !verifyToken) {
+      setError('전화번호 인증을 완료해 주세요.')
       return
     }
     const supabase = getSupabase()
     if (!supabase) {
-      setError('Supabase 환경 변수를 확인해주세요. (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)')
+      setError('Supabase 환경 변수를 확인해 주세요. (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)')
       return
     }
     try {
       setLoading(true)
-      const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL as string | undefined
-      if (supabaseUrl) {
-        const healthUrl = supabaseUrl.replace(/\/$/, '') + '/auth/v1/health'
-        if (debug) console.debug('[auth] health check (signup)', healthUrl)
-        await Promise.race([
-          fetch(healthUrl, { method: 'GET', mode: 'no-cors' as RequestMode }).catch((e) => e),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('auth-health-timeout')), 5000)),
-        ]).catch((e) => {
-          if (debug) console.debug('[auth] health error (signup, non-blocking)', e)
-        })
-      }
-
-      if (debug) console.debug('[auth] signUp start', { email })
-      const signUpPromise = supabase.auth.signUp({
+      await postJson('aligo-register', {
         email,
+        phone: normalizedPhone,
         password,
-        options: {
-          emailRedirectTo: window.location.origin + '/login',
-          data: { name, nickname, gender, interest, phone: normalizedPhone },
-        },
+        name,
+        nickname,
+        gender,
+        interest,
+        verificationToken: verifyToken,
       })
-      const { data, error } = await Promise.race([
-        signUpPromise,
-        new Promise<{ data: any; error: any }>((_, reject) => setTimeout(() => reject(new Error('timeout')), 15000)),
-      ]).catch((e) => {
-        throw e
-      }) as { data: any; error: any }
-      if (error) {
-        setError(error.message || '가입 중 오류가 발생했습니다.')
+
+      const { error: signInErr } = await supabase.auth.signInWithPassword({ phone: normalizedPhone, password })
+      if (signInErr) {
+        setNotice('가입이 완료되었습니다. 로그인 화면으로 이동합니다.')
+        setTimeout(() => navigate('/login'), 1000)
         return
       }
-
-      try {
-        const userId = data?.user?.id
-        if (userId) {
-          await supabase.from('profiles').update({ name, nickname, gender, interest, phone: normalizedPhone }).eq('id', userId)
-        }
-      } catch {}
-
-      setNotice('가입이 완료되었습니다. 이메일 인증 후 로그인해주세요.')
-      setTimeout(() => navigate('/login'), 1200)
+      setNotice('가입 및 로그인되었습니다.')
+      setTimeout(() => navigate('/'), 800)
     } catch (e: any) {
-      const code = String(e?.message || '')
-      if (code === 'timeout') setError('요청이 지연되었습니다. 네트워크를 확인해주세요.')
-      else setError(code || '가입 중 오류가 발생했습니다.')
+      setError(e?.message || '가입 처리 중 오류가 발생했습니다.')
     } finally {
       setLoading(false)
     }
@@ -223,7 +216,7 @@ export default function RegisterPage() {
       <Card>
         <CardHeader>
           <CardTitle>회원가입</CardTitle>
-          <CardDescription>필수 정보를 입력해 주세요</CardDescription>
+          <CardDescription>필수 정보를 입력해 주세요.</CardDescription>
         </CardHeader>
         <CardContent>
           {error ? <div className="mb-3 text-sm text-red-400">{error}</div> : null}
@@ -314,9 +307,10 @@ export default function RegisterPage() {
                   {otpSending ? '요청 중...' : '인증번호 요청'}
                 </button>
                 <span className={`text-xs ${phoneVerified ? 'text-emerald-400' : 'text-muted-foreground'}`}>
-                  {phoneVerified ? '전화번호가 인증되었습니다.' : '전화번호 인증을 진행해주세요.'}
+                  {phoneVerified ? '전화번호가 인증되었습니다.' : '전화번호 인증을 진행해 주세요.'}
                 </span>
               </div>
+              {otpError ? <p className="text-xs text-red-400">{otpError}</p> : null}
               {otpSent && !phoneVerified ? (
                 <div className="flex gap-2">
                   <input
@@ -355,7 +349,7 @@ export default function RegisterPage() {
                 </select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">관심 분야</label>
+                <label className="text-sm font-medium">관심분야</label>
                 <select
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   value={interest}

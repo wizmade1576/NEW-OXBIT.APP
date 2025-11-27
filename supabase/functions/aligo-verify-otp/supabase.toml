@@ -1,0 +1,2 @@
+[functions.aligo-verify-otp]
+verify_jwt = false

@@ -1,0 +1,2 @@
+[functions.aligo-register]
+verify_jwt = false
