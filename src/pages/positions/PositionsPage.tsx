@@ -44,6 +44,7 @@ type PositionCardProps = {
   onHover?: (id: string) => void
   onLeave?: () => void
   onDelete?: () => void
+  isRisk?: boolean
 }
 
 const fmtUSD = (v?: number) => {
@@ -57,7 +58,7 @@ const fmtNum = (v?: number) => {
 }
 const fmtKRW = (v?: number) => {
   if (!Number.isFinite(v as number)) return "--"
-  return "₩" + Math.round(v as number).toLocaleString("ko-KR")
+  return "KRW " + Math.round(v as number).toLocaleString("ko-KR")
 }
 
 const PositionCard = React.memo(function PositionCardInner({
@@ -75,14 +76,16 @@ const PositionCard = React.memo(function PositionCardInner({
   pnlKrw,
   online,
   spark,
+  isRisk,
   onHover,
   onLeave,
   onDelete,
 }: PositionCardProps) {
   const up = (pnlUsd || 0) >= 0
-  const showCardSpark = false // 변경: 카드 내 스파크라인 기본 비표시 (원치 않는 그래프 숨김)
+  const showCardSpark = false // 기본: 카드 내 스파크라인 표시 안 함
+  const cardTone = isRisk ? "bg-[#2a0f15] border-red-500/60" : "bg-[#12131f] border border-neutral-800"
   return (
-    <Card className="bg-[#12131f] border border-neutral-800" onMouseEnter={() => onHover?.(id)} onMouseLeave={() => onLeave?.()}>
+    <Card className={cardTone} onMouseEnter={() => onHover?.(id)} onMouseLeave={() => onLeave?.()}>
       <CardHeader className="grid grid-cols-[auto_auto] items-start gap-3 w-full">
         <div className="flex items-center gap-3 min-w-0">
           <img
@@ -96,20 +99,25 @@ const PositionCard = React.memo(function PositionCardInner({
           </div>
         </div>
 
-        <div className="flex flex-col items-end leading-tight whitespace-nowrap justify-start self-start justify-self-end">
-          <div className="text-sm font-semibold">
-            <span className={side === "Long" ? "text-emerald-400" : "text-rose-400"}>{side}</span>
-            {leverage ? <span className="text-emerald-400 font-semibold">{` x${leverage}`}</span> : null}
-          </div>
+        <div className="flex flex-col items-end leading-tight whitespace-nowrap justify-start self-start justify-self-end gap-1">
+          {isRisk ? (
+            <span className="inline-flex items-center rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-semibold text-red-200">
+              LIQUIDATION RISK
+            </span>
+          ) : null}
+          <span className={side === "Long" ? "text-emerald-400" : "text-rose-400"}>{side}</span>
+          {leverage ? <span className="text-emerald-400 font-semibold">{`x${leverage}`}</span> : null}
           <div className="text-xs text-muted-foreground">{online ? "ON" : "OFF"}</div>
         </div>
+
+
       </CardHeader>
       <CardContent className="grid grid-cols-3 gap-3 text-sm text-white">
         {[
-          { label: "진입가", value: fmtNum(entry) },
-          { label: "현재가", value: fmtNum(mark) },
+          { label: "Entry", value: fmtNum(entry) },
+          { label: "Mark", value: fmtNum(mark) },
           {
-            label: "청산가",
+            label: "Liq",
             value: fmtNum(liq),
             className: "text-amber-400",
           },
@@ -122,7 +130,7 @@ const PositionCard = React.memo(function PositionCardInner({
       </CardContent>
       <CardContent className="grid grid-cols-3 gap-3 text-sm text-white">
         <div>
-          <div className="text-xs text-muted-foreground">수량</div>
+          <div className="text-xs text-muted-foreground">Qty</div>
           <div className="font-semibold">{qty ?? "--"}</div>
         </div>
         <div>
@@ -657,6 +665,8 @@ export default function PositionsPage() {
           const KRW_RATE = 1350
           const pnlUsd = p.pnl
           const pnlKrw = (pnlUsd || 0) * KRW_RATE
+          const liqGap = Math.abs((p.mark ?? 0) - (p.liq ?? 0))
+          const isRisk = Number.isFinite(liqGap) && liqGap <= 200
           const cardProps: PositionCardProps = {
             id: p.id,
             bjName: p.streamer.name,
@@ -673,6 +683,7 @@ export default function PositionsPage() {
             online: p.streamer.online,
             onlineFor: p.streamer.onlineFor,
             spark: p.spark,
+            isRisk,
             onHover: (id) => setHoveredId(id),
             onLeave: () => setHoveredId(undefined),
             onDelete: showAdminPanel ? () => handleDelete(p.id) : undefined,
@@ -747,6 +758,7 @@ function PriceChartLW({
   const ref = React.useRef<HTMLDivElement | null>(null)
   const chartRef = React.useRef<any>(null)
   const seriesRef = React.useRef<any>(null)
+  const entriesSeriesRef = React.useRef<any>(null)
   const [data, setData] = React.useState<{ time: number; open: number; high: number; low: number; close: number }[]>([])
 
   React.useEffect(() => {
@@ -828,7 +840,7 @@ function PriceChartLW({
           height: 240,
           layout: { background: { color: "#0f0f0f" }, textColor: "#c9d1d9" },
           grid: { vertLines: { color: "#202020" }, horzLines: { color: "#202020" } },
-          rightPriceScale: { borderColor: "#2a2a2a", visible: false },
+          rightPriceScale: { borderColor: "#2a2a2a", visible: true },
           leftPriceScale: { borderColor: "#2a2a2a", visible: true, autoScale: true },
           timeScale: {
             borderColor: "#2a2a2a",
@@ -846,13 +858,21 @@ function PriceChartLW({
           localization: { locale: "ko-KR" },
         })
         seriesRef.current = chartRef.current.addCandlestickSeries({
-          priceScaleId: "left",
+          priceScaleId: "right",
           upColor: "#22c55e",
           downColor: "#ef4444",
           borderUpColor: "#16a34a",
           borderDownColor: "#dc2626",
           wickUpColor: "#22c55e",
           wickDownColor: "#ef4444",
+        })
+        entriesSeriesRef.current = chartRef.current.addLineSeries({
+          priceScaleId: "left",
+          color: "transparent",
+          lineWidth: 0,
+          lastValueVisible: false,
+          priceLineVisible: false,
+          crosshairMarkerVisible: false,
         })
       }
       const resize = () => {
@@ -876,25 +896,41 @@ function PriceChartLW({
       } catch {}
       if (data && data.length && seriesRef.current) {
         seriesRef.current.setData(data)
+        // Keep the left scale in sync by feeding close values into a transparent series
+        entriesSeriesRef.current?.setData(
+          data.map((candle) => ({ time: candle.time, value: candle.close }))
+        )
       }
       const cur: any = chartRef.current as any
       if (cur && cur._entryLines) {
-        cur._entryLines.forEach((pl: any) => seriesRef.current?.removePriceLine(pl))
+        cur._entryLines.forEach((pl: any) => {
+          if (pl?.left) entriesSeriesRef.current?.removePriceLine(pl.left)
+          if (pl?.right) seriesRef.current?.removePriceLine(pl.right)
+        })
         cur._entryLines = []
       }
       const lines: any[] = []
       entries.forEach((e) => {
         const extra = e.leverage ? `x${e.leverage}` : ""
         const title = `${e.label}-${e.side}${extra ? ` (${extra})` : ""}`
-        const pl = seriesRef.current?.createPriceLine({
+        const leftLine = entriesSeriesRef.current?.createPriceLine({
           price: e.price,
           color: e.side === "Long" ? "#34d399" : "#f87171",
           lineStyle: 2,
           lineWidth: hoveredId === e.id ? 3 : 1,
           axisLabelVisible: true,
+          axisLabelFormatter: () => "",
           title,
         })
-        if (pl) lines.push(pl)
+        const rightLine = seriesRef.current?.createPriceLine({
+          price: e.price,
+          color: e.side === "Long" ? "#34d399" : "#f87171",
+          lineStyle: 2,
+          lineWidth: hoveredId === e.id ? 3 : 1,
+          axisLabelVisible: true, // 우측 가격만 표기
+          title: "",
+        })
+        if (leftLine || rightLine) lines.push({ left: leftLine, right: rightLine })
       })
       if (cur) cur._entryLines = lines
       return () => {
@@ -917,6 +953,8 @@ function PriceChartLW({
 
   return <div ref={ref} className="h-[260px] md:h-[360px] w-full max-w-full min-w-0 overflow-hidden bg-[#0f0f0f]" />
 }
+
+
 
 
 

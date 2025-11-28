@@ -35,8 +35,16 @@ export default function RegisterPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [notice, setNotice] = React.useState<string | null>(null)
   const [verifyToken, setVerifyToken] = React.useState<string | null>(null)
-  const passwordMismatch =
-    password.trim().length > 0 && confirm.trim().length > 0 && password.trim() !== confirm.trim()
+
+  const passwordError = React.useMemo(() => {
+    const pass = password.trim()
+    const conf = confirm.trim()
+    if (!pass && !conf) return null
+    if (pass.length < 8) return '비밀번호는 8자 이상이어야 합니다.'
+    if (!/[A-Za-z]/.test(pass) || !/[0-9]/.test(pass)) return '비밀번호는 영문과 숫자를 모두 포함해야 합니다.'
+    if (pass !== conf) return '비밀번호와 비밀번호 확인이 일치하지 않습니다.'
+    return null
+  }, [password, confirm])
 
   const handlePhoneChange = React.useCallback((value: string) => {
     setPhone(value)
@@ -58,10 +66,10 @@ export default function RegisterPage() {
     if (c.includes('otp_expired')) return '인증번호가 만료되었습니다. 다시 요청해 주세요.'
     if (c.includes('otp_mismatch')) return '인증번호가 올바르지 않습니다.'
     if (c.includes('otp_not_found')) return '인증번호를 먼저 요청해 주세요.'
-    if (c.includes('too_many_attempts')) return '시도 횟수를 초과했습니다. 잠시 후 재시도해 주세요.'
+    if (c.includes('too_many_attempts')) return '시도 횟수가 초과되었습니다. 잠시 후 다시 시도해 주세요.'
     if (c.includes('verification_required')) return '전화번호 인증을 완료해 주세요.'
     if (c.includes('verification_expired')) return '전화번호 인증이 만료되었습니다. 다시 인증해 주세요.'
-    if (c.includes('missing_supabase_credentials')) return '서버 설정(SUPABASE 키)이 누락되었습니다. 관리자에게 문의하세요.'
+    if (c.includes('missing_supabase_credentials')) return '서버 설정(Supabase)을 확인해 주세요. 관리자에게 문의하세요.'
     if (c.includes('aligo_send_failed')) return '인증번호 발송에 실패했습니다. 알리고 설정을 확인해 주세요.'
     if (c.includes('request_failed')) return '요청에 실패했습니다. 잠시 후 다시 시도해 주세요.'
     return '오류가 발생했습니다. 잠시 후 다시 시도해 주세요.'
@@ -151,8 +159,12 @@ export default function RegisterPage() {
       setError('이메일을 올바르게 입력해 주세요.')
       return
     }
+    if (pass.length < 8 || !/[A-Za-z]/.test(pass) || !/[0-9]/.test(pass)) {
+      setError('비밀번호는 영문/숫자 조합 8자 이상이어야 합니다.')
+      return
+    }
     if (!pass || !conf || pass !== conf) {
-      setError('비밀번호와 확인 비밀번호가 일치하지 않습니다.')
+      setError('비밀번호와 비밀번호 확인이 일치하지 않습니다.')
       return
     }
     if (!gender) {
@@ -174,7 +186,7 @@ export default function RegisterPage() {
     }
     const supabase = getSupabase()
     if (!supabase) {
-      setError('Supabase 환경 변수를 확인해 주세요. (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY)')
+      setError('Supabase 환경 변수를 확인해 주세요 (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).')
       return
     }
     try {
@@ -248,6 +260,9 @@ export default function RegisterPage() {
                 required
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               />
+              {passwordError && confirm.trim().length > 0 ? (
+                <p className="text-xs text-red-400">{passwordError}</p>
+              ) : null}
             </div>
 
             <div className="space-y-2">
@@ -404,7 +419,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="my-2 h-px w-full bg-border" />
-            <Button type="submit" className="w-full" disabled={loading || passwordMismatch}>
+            <Button type="submit" className="w-full" disabled={loading || !!passwordError}>
               {loading ? '처리 중...' : '계정 만들기'}
             </Button>
           </form>
