@@ -43,7 +43,7 @@ function Bar({ row }: { row: LongShortRow }) {
       <div className="w-full h-6 bg-neutral-800 rounded overflow-hidden flex border border-neutral-700">
         <div
           className="flex items-center justify-center text-white font-semibold text-sm"
-          style={{ width: `${longPercent}%`, backgroundColor: "#267bd0ff", transition: "width 0.4s ease" }}
+          style={{ width: `${longPercent}%`, backgroundColor: "#1ba45bff", transition: "width 0.4s ease" }}
           title={`Long ${longPercent}%`}
         >
            {longPercent}%
