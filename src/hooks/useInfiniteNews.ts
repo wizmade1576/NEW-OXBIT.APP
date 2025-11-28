@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { fetchTopic } from '../lib/news/providers'
 
-export type Topic = 'crypto' | 'stocks' | 'fx'
+export type Topic = 'all' | 'crypto' | 'stocks' | 'fx'
 
 export type NewsItem = {
   id: string

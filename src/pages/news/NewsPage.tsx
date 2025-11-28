@@ -35,7 +35,7 @@ const formatKSTDate = (input?: string | number | null) => {
   return `${get("year")}.${get("month")}.${get("day")} ${get("hour")}:${get("minute")}`
 }
 
-type NewsItem = InfiniteNewsItem
+type NewsItem = InfiniteNewsItem & { fetchedAt?: number | string }
 
 const NewsCard = React.memo(function NewsCard({ item }: { item: NewsItem }) {
   const hasImage = typeof item.image === "string" && item.image.trim() !== ""
@@ -75,8 +75,8 @@ const NewsCard = React.memo(function NewsCard({ item }: { item: NewsItem }) {
   )
 })
 
-const NewsPage = () => {
-  const [topic, setTopic] = React.useState<"all" | "crypto" | "stocks" | "fx">("all")
+const NewsPage = ({ initialTopic = "all" }: { initialTopic?: "all" | "crypto" | "stocks" | "fx" }) => {
+  const [topic, setTopic] = React.useState<"all" | "crypto" | "stocks" | "fx">(initialTopic)
   const { items, loading, error, hasMore, fetchNext } = useInfiniteNews({
     topic,
     pageSize: 20,

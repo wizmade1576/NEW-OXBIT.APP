@@ -1,8 +1,7 @@
 {
   "name": "vps-aligo-proxy",
   "version": "1.0.0",
-  "main": "server.js",
-  "type": "module",
+  "main": "server.cjs",
   "dependencies": {
     "cors": "^2.8.5",
     "dotenv": "^16.0.3",

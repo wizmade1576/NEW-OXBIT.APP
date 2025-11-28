@@ -1,5 +1,5 @@
 ﻿import * as React from 'react'
-import { fetchBreaking, type BreakingRecord } from '../../lib/breaking/api'
+import { type BreakingRecord } from '../../lib/breaking/api'
 import getSupabase from '../../lib/supabase/client'
 
 export default function AdminBreakingPage() {
@@ -416,7 +416,6 @@ function toLocalInputKST(iso: string): string {
     return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
   }
 }
-
 
 
 

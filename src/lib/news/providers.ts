@@ -1,7 +1,3 @@
-// Reddit fallback removed; keep types local
-import getSupabase from '../supabase/client'
-import { fetchWithTimeout } from '../net/proxy'
-
 export interface NewsItem {
   id: string
   title: string
@@ -13,11 +9,7 @@ export interface NewsItem {
   fetchedAt: number
 }
 
-type Topic = 'crypto' | 'stocks' | 'fx'
-
-const MARKET_AUX_KEY = import.meta.env.VITE_MARKETAUX_KEY as string | undefined
-const FINNHUB_KEY = import.meta.env.VITE_FINNHUB_KEY as string | undefined
-const NEWSAPI_KEY = import.meta.env.VITE_NEWSAPI_KEY as string | undefined
+type Topic = 'all' | 'crypto' | 'stocks' | 'fx'
 
 // Unified entry per topic with fallback
 // Always use Supabase Edge Function ONLY

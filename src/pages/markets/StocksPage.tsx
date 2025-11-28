@@ -32,8 +32,8 @@ export default function StocksPage() {
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [loaded, setLoaded] = React.useState(false)
   const [symbol, setSymbol] = React.useState<string>('FOREXCOM:NAS100')
-  const [interval, setIntervalState] = React.useState<string>('15')
-  const [theme, setTheme] = React.useState<'dark' | 'light'>('dark')
+  const [interval] = React.useState<string>('15')
+  const theme: 'dark' | 'light' = 'dark'
 
   // TradingView 스크립트 로더
   React.useEffect(() => {

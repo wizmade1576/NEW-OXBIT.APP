@@ -12,23 +12,68 @@ type UserProfile = {
   gender: string | null
   interest: string | null
   created_at: string
+  profile_url?: string | null
+  symbol?: string | null
+  direction?: 'long' | 'short' | null
+  leverage?: number | null
+  amount?: number | null
+  entry_price?: number | null
+  current_price?: number | null
+  pnl_usd?: number | null
+  pnl_krw?: number | null
+  status?: 'on' | 'off' | null
+  chart?: string | null
 }
+
+type FormState = {
+  nickname: string
+  phone: string
+  gender: string
+  interest: string
+  profile_url: string
+  symbol: string
+  direction: 'long' | 'short'
+  leverage: string
+  amount: string
+  entry_price: string
+  current_price: string
+  pnl_usd: string
+  pnl_krw: string
+  status: 'on' | 'off'
+  chart: string
+}
+
+const createEmptyForm = (): FormState => ({
+  nickname: '',
+  phone: '',
+  gender: '',
+  interest: '',
+  profile_url: '',
+  symbol: '',
+  direction: 'long',
+  leverage: '1',
+  amount: '',
+  entry_price: '',
+  current_price: '',
+  pnl_usd: '',
+  pnl_krw: '',
+  status: 'on',
+  chart: '',
+})
 
 export default function UsersPage() {
   const [users, setUsers] = React.useState<UserProfile[]>([])
-  const [loading, setLoading] = React.useState(false)
   const [search, setSearch] = React.useState('')
   const [page, setPage] = React.useState(1)
   const [hasMore, setHasMore] = React.useState(true)
   const [modal, setModal] = React.useState<UserProfile | null>(null)
   const [edit, setEdit] = React.useState<UserProfile | null>(null)
-  const [form, setForm] = React.useState({ nickname: '', phone: '', gender: '', interest: '' })
+  const [form, setForm] = React.useState<FormState>(createEmptyForm)
   const limit = 10
 
   const fetchUsers = React.useCallback(async () => {
     const supabase = getSupabase()
     if (!supabase) return
-    setLoading(true)
     try {
       let query = supabase
         .from('user_profile')
@@ -47,8 +92,6 @@ export default function UsersPage() {
       setHasMore(Boolean(count && page * limit < count))
     } catch (error) {
       console.error(error)
-    } finally {
-      setLoading(false)
     }
   }, [page, search])
 
@@ -67,6 +110,17 @@ export default function UsersPage() {
       phone: user.phone || '',
       gender: user.gender || '',
       interest: user.interest || '',
+      profile_url: user.profile_url || '',
+      symbol: user.symbol || '',
+      direction: user.direction || 'long',
+      leverage: user.leverage != null ? String(user.leverage) : '1',
+      amount: user.amount != null ? String(user.amount) : '',
+      entry_price: user.entry_price != null ? String(user.entry_price) : '',
+      current_price: user.current_price != null ? String(user.current_price) : '',
+      pnl_usd: user.pnl_usd != null ? String(user.pnl_usd) : '',
+      pnl_krw: user.pnl_krw != null ? String(user.pnl_krw) : '',
+      status: user.status || 'on',
+      chart: user.chart || '',
     })
   }
 
@@ -74,16 +128,58 @@ export default function UsersPage() {
     if (!edit) return
     const supabase = getSupabase()
     if (!supabase) return
+    const toNumber = (v: string) => {
+      const n = Number((v || '').replace(/,/g, ''))
+      return Number.isFinite(n) ? n : null
+    }
     const { error } = await supabase
       .from('user_profile')
-      .update({ ...form, updated_at: new Date().toISOString() })
+      .update({
+        nickname: form.nickname || null,
+        phone: form.phone || null,
+        gender: form.gender || null,
+        interest: form.interest || null,
+        profile_url: form.profile_url || null,
+        symbol: form.symbol || null,
+        direction: form.direction,
+        leverage: toNumber(form.leverage),
+        amount: toNumber(form.amount),
+        entry_price: toNumber(form.entry_price),
+        current_price: toNumber(form.current_price),
+        pnl_usd: toNumber(form.pnl_usd),
+        pnl_krw: toNumber(form.pnl_krw),
+        status: form.status,
+        chart: form.chart || null,
+        updated_at: new Date().toISOString(),
+      })
       .eq('id', edit.id)
     if (error) {
       console.error(error)
       return
     }
     setUsers((prev) =>
-      prev.map((u) => (u.id === edit.id ? { ...u, ...form } : u))
+      prev.map((u) =>
+        u.id === edit.id
+          ? {
+              ...u,
+              nickname: form.nickname || null,
+              phone: form.phone || null,
+              gender: form.gender || null,
+              interest: form.interest || null,
+              profile_url: form.profile_url || null,
+              symbol: form.symbol || null,
+              direction: form.direction,
+              leverage: toNumber(form.leverage),
+              amount: toNumber(form.amount),
+              entry_price: toNumber(form.entry_price),
+              current_price: toNumber(form.current_price),
+              pnl_usd: toNumber(form.pnl_usd),
+              pnl_krw: toNumber(form.pnl_krw),
+              status: form.status,
+              chart: form.chart || null,
+            }
+          : u,
+      ),
     )
     setEdit(null)
   }
@@ -250,7 +346,7 @@ export default function UsersPage() {
                     <input
                       type="number"
                       value={form.leverage}
-                      onChange={(e) => setForm((prev) => ({ ...prev, leverage: Number(e.target.value) }))}
+                      onChange={(e) => setForm((prev) => ({ ...prev, leverage: e.target.value }))}
                       className="w-full rounded-md border border-border bg-[#0f0f15] px-3 py-2 text-sm"
                     />
                   </label>
@@ -259,7 +355,7 @@ export default function UsersPage() {
                     <input
                       type="number"
                       value={form.amount}
-                      onChange={(e) => setForm((prev) => ({ ...prev, amount: Number(e.target.value) }))}
+                      onChange={(e) => setForm((prev) => ({ ...prev, amount: e.target.value }))}
                       className="w-full rounded-md border border-border bg-[#0f0f15] px-3 py-2 text-sm"
                     />
                   </label>
@@ -268,7 +364,7 @@ export default function UsersPage() {
                     <input
                       type="number"
                       value={form.entry_price}
-                      onChange={(e) => setForm((prev) => ({ ...prev, entry_price: Number(e.target.value) }))}
+                      onChange={(e) => setForm((prev) => ({ ...prev, entry_price: e.target.value }))}
                       className="w-full rounded-md border border-border bg-[#0f0f15] px-3 py-2 text-sm"
                     />
                   </label>
@@ -277,7 +373,7 @@ export default function UsersPage() {
                     <input
                       type="number"
                       value={form.current_price}
-                      onChange={(e) => setForm((prev) => ({ ...prev, current_price: Number(e.target.value) }))}
+                      onChange={(e) => setForm((prev) => ({ ...prev, current_price: e.target.value }))}
                       className="w-full rounded-md border border-border bg-[#0f0f15] px-3 py-2 text-sm"
                     />
                   </label>
@@ -297,7 +393,7 @@ export default function UsersPage() {
                     <input
                       type="number"
                       value={form.pnl_usd}
-                      onChange={(e) => setForm((prev) => ({ ...prev, pnl_usd: Number(e.target.value) }))}
+                      onChange={(e) => setForm((prev) => ({ ...prev, pnl_usd: e.target.value }))}
                       className="w-full rounded-md border border-border bg-[#0f0f15] px-3 py-2 text-sm"
                     />
                   </label>
@@ -306,7 +402,7 @@ export default function UsersPage() {
                     <input
                       type="number"
                       value={form.pnl_krw}
-                      onChange={(e) => setForm((prev) => ({ ...prev, pnl_krw: Number(e.target.value) }))}
+                      onChange={(e) => setForm((prev) => ({ ...prev, pnl_krw: e.target.value }))}
                       className="w-full rounded-md border border-border bg-[#0f0f15] px-3 py-2 text-sm"
                     />
                   </label>

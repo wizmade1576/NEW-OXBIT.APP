@@ -23,7 +23,7 @@ export default function WhalesPage() {
   const [connected, setConnected] = React.useState(false)
   const lastConnected = React.useRef<boolean>(false) // 변경: 동일 상태 재설정 방지
   const [usdkrw, setUsdkrw] = React.useState<number>(0)
-  const [thresholdKrw, setThresholdKrw] = React.useState<number>(100_000_000) // 1억 기본
+  const [thresholdKrw] = React.useState<number>(100_000_000) // 1억 기본
   const lastEventId = React.useRef<string | null>(null) // 변경: 중복 이벤트 렌더 방지
 
   const navigate = useNavigate()
@@ -197,4 +197,3 @@ export default function WhalesPage() {
     </section>
   )
 }
-

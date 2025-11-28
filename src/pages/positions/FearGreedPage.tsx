@@ -135,6 +135,7 @@ function FGChart({ rawPoints, maPoints, up, hourMode }: { rawPoints: { time: num
       return (window as any).LightweightCharts
     }
     let chart: any, area: any, ma: any, tooltip: HTMLDivElement | null = null
+    let onResize: (() => void) | null = null
     load().then((LW:any)=>{
       if (!LW || !ref.current) return
       setLoaded(true)
@@ -157,7 +158,7 @@ function FGChart({ rawPoints, maPoints, up, hourMode }: { rawPoints: { time: num
         ma = chart.addLineSeries({ color:'#60a5fa', lineWidth:2 })
         ma.setData(maPoints)
       }
-      const onResize = () => {
+      onResize = () => {
         const s = getSize()
         try { chart.applyOptions({ width: s.width, height: s.height }) } catch {}
       }
@@ -187,7 +188,7 @@ function FGChart({ rawPoints, maPoints, up, hourMode }: { rawPoints: { time: num
         tooltip!.style.display = 'block'
       })
     })
-    return () => { try { chart?.remove() } catch {}; try { window.removeEventListener('resize', onResize as any) } catch {} }
+    return () => { try { chart?.remove() } catch {}; try { if (onResize) window.removeEventListener('resize', onResize) } catch {} }
   }, [JSON.stringify(rawPoints), JSON.stringify(maPoints), up, hourMode])
   if (!loaded) {
     // quick SVG fallback so 차트가 비지 않도록

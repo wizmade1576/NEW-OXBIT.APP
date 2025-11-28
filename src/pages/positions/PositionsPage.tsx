@@ -38,13 +38,26 @@ type PositionCardProps = {
   mark: number
   liq: number
   pnlKrw?: number
-  pnlTag: "수익" | "손실"
   online?: boolean
   onlineFor?: string
   spark?: number[]
   onHover?: (id: string) => void
   onLeave?: () => void
   onDelete?: () => void
+}
+
+const fmtUSD = (v?: number) => {
+  if (!Number.isFinite(v as number)) return "--"
+  return "$" + (v as number).toLocaleString("en-US", { maximumFractionDigits: 2 })
+}
+const fmtNum = (v?: number) => {
+  if (!Number.isFinite(v as number)) return "--"
+  const num = v as number
+  return num.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+const fmtKRW = (v?: number) => {
+  if (!Number.isFinite(v as number)) return "--"
+  return "₩" + Math.round(v as number).toLocaleString("ko-KR")
 }
 
 const PositionCard = React.memo(function PositionCardInner({
@@ -60,7 +73,6 @@ const PositionCard = React.memo(function PositionCardInner({
   mark,
   liq,
   pnlKrw,
-  pnlTag,
   online,
   spark,
   onHover,
@@ -645,7 +657,6 @@ export default function PositionsPage() {
           const KRW_RATE = 1350
           const pnlUsd = p.pnl
           const pnlKrw = (pnlUsd || 0) * KRW_RATE
-          const pnlTag: "수익" | "손실" = (pnlUsd || 0) >= 0 ? "수익" : "손실"
           const cardProps: PositionCardProps = {
             id: p.id,
             bjName: p.streamer.name,
@@ -659,7 +670,6 @@ export default function PositionsPage() {
             mark: p.mark,
             liq: p.liq,
             pnlKrw,
-            pnlTag,
             online: p.streamer.online,
             onlineFor: p.streamer.onlineFor,
             spark: p.spark,
@@ -699,23 +709,6 @@ function computePnl(p: Position) {
   const side = p.side === "Long" ? 1 : -1
   return (p.mark - p.entry) * side * (p.size || 0)
 }
-function fmtUSD(v?: number) {
-  if (!Number.isFinite(v as number)) return "--"
-  return "$" + (v as number).toLocaleString("en-US", { maximumFractionDigits: 2 })
-}
-function fmtNum(v?: number) {
-  if (!Number.isFinite(v as number)) return "--"
-  const num = v as number
-  return num.toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-}
-function fmtKRW(v?: number) {
-  if (!Number.isFinite(v as number)) return "--"
-  return "₩" + Math.round(v as number).toLocaleString("ko-KR")
-}
-
 const SparkLine = React.memo(function SparkLine({ data, up, height = 36 }: { data: number[]; up: boolean; height?: number }) {
   if (!data || data.length === 0) return <div style={{ height }} className="w-full bg-neutral-800 rounded" />
   const w = 120
@@ -924,3 +917,6 @@ function PriceChartLW({
 
   return <div ref={ref} className="h-[260px] md:h-[360px] w-full max-w-full min-w-0 overflow-hidden bg-[#0f0f0f]" />
 }
+
+
+

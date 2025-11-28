@@ -4,34 +4,11 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import Button from '../../components/ui/Button'
 import getSupabase from '../../lib/supabase/client'
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || ''
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || ''
-const FUNCTIONS_BASE = SUPABASE_URL ? `${SUPABASE_URL}/functions/v1` : ''
+const PROXY_URL = (import.meta as any).env?.VITE_PROXY_URL || 'http://58.227.42.203:3001'
+const PROXY_TOKEN = (import.meta as any).env?.VITE_PROXY_TOKEN || 'oxbit-secret'
 
 function normalizePhone(input: string): string {
-  const cleaned = input.replace(/[\s-]/g, '')
-  if (!cleaned) return ''
-  if (cleaned.startsWith('+')) return cleaned
-  if (cleaned.startsWith('010')) return '+82' + cleaned.slice(1)
-  return cleaned
-}
-
-async function postJson(path: string, body: Record<string, any>) {
-  const endpoint = FUNCTIONS_BASE ? `${FUNCTIONS_BASE}/${path}` : `/functions/v1/${path}`
-  const authHeaders =
-    SUPABASE_ANON_KEY
-      ? { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
-      : {}
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', ...authHeaders },
-    body: JSON.stringify(body),
-  })
-  const json = await res.json().catch(() => ({}))
-  if (!res.ok || json.error) {
-    throw new Error(json.error || `request_failed_${path}`)
-  }
-  return json
+  return input.replace(/-/g, '').trim()
 }
 
 export default function RegisterPage() {
@@ -49,6 +26,7 @@ export default function RegisterPage() {
   const [otpError, setOtpError] = React.useState<string | null>(null)
   const [otpSent, setOtpSent] = React.useState(false)
   const [phoneVerified, setPhoneVerified] = React.useState(false)
+  const [sentCode, setSentCode] = React.useState<string | null>(null)
   const [verifiedPhone, setVerifiedPhone] = React.useState('')
   const [otpSending, setOtpSending] = React.useState(false)
   const [otpVerifying, setOtpVerifying] = React.useState(false)
@@ -57,6 +35,8 @@ export default function RegisterPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [notice, setNotice] = React.useState<string | null>(null)
   const [verifyToken, setVerifyToken] = React.useState<string | null>(null)
+  const passwordMismatch =
+    password.trim().length > 0 && confirm.trim().length > 0 && password.trim() !== confirm.trim()
 
   const handlePhoneChange = React.useCallback((value: string) => {
     setPhone(value)
@@ -66,6 +46,7 @@ export default function RegisterPage() {
     setOtpCode('')
     setOtpMessage(null)
     setOtpError(null)
+    setSentCode(null)
     setVerifyToken(null)
   }, [])
 
@@ -98,7 +79,24 @@ export default function RegisterPage() {
     }
     setOtpSending(true)
     try {
-      await postJson('aligo-send-otp', { phone: normalizedPhone })
+      const code = Math.floor(100000 + Math.random() * 900000).toString()
+      setSentCode(code)
+      const headers: HeadersInit = {
+        'content-type': 'application/json',
+        ...(PROXY_TOKEN ? { 'x-proxy-token': PROXY_TOKEN } : {}),
+      }
+      const res = await fetch(`${PROXY_URL.replace(/\/$/, '')}/send-otp`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          phone: normalizedPhone,
+          msg: `[OXBIT] 인증번호는 ${code} 입니다.`,
+        }),
+      })
+      if (!res.ok) {
+        const t = await res.text()
+        throw new Error(t || 'request_failed_proxy')
+      }
       setOtpSent(true)
       setOtpMessage('인증번호가 발송되었습니다. 문자 메시지를 확인해 주세요.')
     } catch (e: any) {
@@ -126,10 +124,11 @@ export default function RegisterPage() {
     }
     setOtpVerifying(true)
     try {
-      const res = await postJson('aligo-verify-otp', { phone: normalizedPhone, code: otpCode })
+      if (!sentCode) throw new Error('요청된 인증번호가 없습니다.')
+      if (otpCode.trim() !== sentCode) throw new Error('인증번호가 올바르지 않습니다.')
       setPhoneVerified(true)
       setVerifiedPhone(normalizedPhone)
-      setVerifyToken(res.verificationToken || null)
+      setVerifyToken(sentCode)
       setOtpSent(false)
       setOtpCode('')
       setOtpMessage('전화번호 인증이 완료되었습니다.')
@@ -140,18 +139,20 @@ export default function RegisterPage() {
     } finally {
       setOtpVerifying(false)
     }
-  }, [mapOtpError, phone, otpCode])
+  }, [mapOtpError, phone, otpCode, sentCode])
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
     setNotice(null)
+    const pass = password.trim()
+    const conf = confirm.trim()
     if (!email || !email.includes('@')) {
       setError('이메일을 올바르게 입력해 주세요.')
       return
     }
-    if (password !== confirm) {
-      setError('비밀번호가 일치하지 않습니다.')
+    if (!pass || !conf || pass !== conf) {
+      setError('비밀번호와 확인 비밀번호가 일치하지 않습니다.')
       return
     }
     if (!gender) {
@@ -178,24 +179,7 @@ export default function RegisterPage() {
     }
     try {
       setLoading(true)
-      await postJson('aligo-register', {
-        email,
-        phone: normalizedPhone,
-        password,
-        name,
-        nickname,
-        gender,
-        interest,
-        verificationToken: verifyToken,
-      })
-
-      const { error: signInErr } = await supabase.auth.signInWithPassword({ phone: normalizedPhone, password })
-      if (signInErr) {
-        setNotice('가입이 완료되었습니다. 로그인 화면으로 이동합니다.')
-        setTimeout(() => navigate('/login'), 1000)
-        return
-      }
-      setNotice('가입 및 로그인되었습니다.')
+      setNotice('전화번호 인증이 완료되었습니다.')
       setTimeout(() => navigate('/'), 800)
     } catch (e: any) {
       setError(e?.message || '가입 처리 중 오류가 발생했습니다.')
@@ -420,7 +404,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="my-2 h-px w-full bg-border" />
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || passwordMismatch}>
               {loading ? '처리 중...' : '계정 만들기'}
             </Button>
           </form>

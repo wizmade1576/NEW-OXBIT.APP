@@ -313,7 +313,6 @@ export default function BreakingPage() {
           url: n.url,
           id: n.id,
           important: !!(n as any).is_important,
-          pinned: !!n.pinned,
         }
       }
 

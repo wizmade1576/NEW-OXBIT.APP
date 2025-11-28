@@ -10,16 +10,12 @@ import {
   Pie,
   Cell,
   Legend,
-  BarChart,
-  Bar,
-  CartesianGrid,
 } from "recharts"
 
 const emptyWeeklyData: { date: string; visitors: number }[] = []
 const emptyDailyUnique: { date: string; uniqueVisitors: number }[] = []
 const emptyTopPaths: { path: string; hits: number }[] = []
 const emptyDeviceData: { name: string; value: number }[] = []
-const emptyCountryData: { name: string; value: number }[] = []
 
 const COLORS = ["#34d399", "#60a5fa", "#f97316", "#ef4444", "#c084fc"]
 const formatDate = (d: Date) => d.toISOString().slice(0, 10)
@@ -56,7 +52,6 @@ export default function AnalyticsPage() {
   const [dailyUnique, setDailyUnique] = React.useState(emptyDailyUnique)
   const [topPaths, setTopPaths] = React.useState(emptyTopPaths)
   const [deviceData, setDeviceData] = React.useState(emptyDeviceData)
-  const [countryData, setCountryData] = React.useState(emptyCountryData)
   const [realtimeVisitors, setRealtimeVisitors] = React.useState(0)
   const [todayVisitors, setTodayVisitors] = React.useState<number | null>(null)
   const [isPolling, setIsPolling] = React.useState(true)
@@ -91,13 +86,11 @@ export default function AnalyticsPage() {
         const uniques = Array.isArray(json.dailyUniqueVisitors) ? json.dailyUniqueVisitors : []
         const paths = Array.isArray(json.topPaths) ? json.topPaths : []
         const devices = Array.isArray(json.deviceShare) ? json.deviceShare : []
-        const countries = Array.isArray(json.countryShare) ? json.countryShare : []
 
         setWeeklyData(weekly.length ? weekly : source === "supabase" ? [] : emptyWeeklyData)
         setDailyUnique(uniques.length ? uniques : source === "supabase" ? [] : emptyDailyUnique)
         setTopPaths(paths.length ? paths : source === "supabase" ? [] : emptyTopPaths)
         setDeviceData(devices.length ? devices : source === "supabase" ? [] : emptyDeviceData)
-        setCountryData(countries.length ? countries : source === "supabase" ? [] : emptyCountryData)
         if (typeof json.realtimeVisitors === "number") {
           setRealtimeVisitors(Math.max(0, json.realtimeVisitors))
         }
@@ -239,7 +232,7 @@ export default function AnalyticsPage() {
                   innerRadius={40}
                   outerRadius={80}
                   paddingAngle={4}
-                  label={({ cx, cy, midAngle, outerRadius, name, value }) => {
+                  label={({ cx, cy, midAngle = 0, outerRadius = 0, name, value }) => {
                     const RAD = Math.PI / 180
                     const radius = outerRadius + 18 // push label slightly outward
                     const x = cx + radius * Math.cos(-midAngle * RAD)
@@ -259,7 +252,7 @@ export default function AnalyticsPage() {
                   }}
                   labelLine={false}
                 >
-                  {deviceData.map((entry, idx) => (
+                  {deviceData.map((_, idx) => (
                     <Cell key={`device-${idx}`} fill={COLORS[idx % COLORS.length]} />
                   ))}
                 </Pie>

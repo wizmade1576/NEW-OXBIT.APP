@@ -27,6 +27,7 @@ if (!ALIGO_USER_ID || !ALIGO_API_KEY || !ALIGO_SENDER) {
 
 const app = express()
 app.use(cors())
+app.use(express.urlencoded({ extended: true }))
 app.use(express.json({ limit: '1mb' }))
 app.use(morgan('combined'))
 
@@ -34,19 +35,23 @@ function json(res, status, body) {
   return res.status(status).json(body)
 }
 
-app.post('/send-otp', async (req, res) => {
+async function handleSend(req, res) {
   try {
     if (PROXY_TOKEN && req.headers['x-proxy-token'] !== PROXY_TOKEN) {
       return json(res, 401, { error: 'unauthorized' })
     }
-    const { phone, msg } = req.body || {}
-    if (!phone || !msg) return json(res, 400, { error: 'invalid_input' })
+    const { phone, hp, msg } = req.body || {}
+    const target = (hp || phone || '').toString().trim()
+    if (!target || !msg) {
+      console.error('[proxy] invalid_input', { body: req.body })
+      return json(res, 400, { error: 'invalid_input' })
+    }
 
     const body = new URLSearchParams({
       user_id: ALIGO_USER_ID,
       key: ALIGO_API_KEY,
       sender: ALIGO_SENDER,
-      receiver: phone,
+      receiver: target,
       msg: msg,
     })
 
@@ -74,7 +79,11 @@ app.post('/send-otp', async (req, res) => {
     console.error('[proxy] internal error', err)
     return json(res, 500, { error: 'proxy_internal_error' })
   }
-})
+}
+
+// 경로: /send-otp, /send-sms
+app.post('/send-otp', handleSend)
+app.post('/send-sms', handleSend)
 
 app.get('/health', (_req, res) => res.json({ ok: true }))
 

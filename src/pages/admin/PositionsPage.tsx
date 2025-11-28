@@ -145,15 +145,15 @@ export default function PositionsPage() {
   }, [onlyOn, search])
 
   React.useEffect(() => {
-    fetchPositions()
+    void fetchPositions()
     const supabase = getSupabase()
     if (!supabase) return
     const channel = supabase.channel('admin_positions')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'positions' }, () => {
-        fetchPositions()
+        void fetchPositions()
       })
       .subscribe()
-    return () => channel?.unsubscribe?.()
+    return () => { try { void channel?.unsubscribe?.() } catch {} }
   }, [fetchPositions])
 
   React.useEffect(() => {
@@ -297,13 +297,6 @@ export default function PositionsPage() {
     setAvatarPreview(pos.profile_url || null)
     setProfileInputMode(pos.profile_url?.startsWith('data:') ? 'file' : 'url')
     setChartSymbol(normalizeTvSymbol(pos.symbol))
-  }
-
-  const formatDisplayNumber = (value: string) => {
-    if (!value) return ''
-    const n = Number(value)
-    if (!Number.isFinite(n)) return ''
-    return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   }
 
   const handleSubmit = async () => {
