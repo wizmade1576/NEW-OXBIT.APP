@@ -58,7 +58,7 @@ const fmtNum = (v?: number) => {
 }
 const fmtKRW = (v?: number) => {
   if (!Number.isFinite(v as number)) return "--"
-  return "KRW " + Math.round(v as number).toLocaleString("ko-KR")
+  return "₩" + Math.round(v as number).toLocaleString("ko-KR")
 }
 
 const PositionCard = React.memo(function PositionCardInner({
@@ -82,8 +82,9 @@ const PositionCard = React.memo(function PositionCardInner({
   onDelete,
 }: PositionCardProps) {
   const up = (pnlUsd || 0) >= 0
-  const showCardSpark = false // 기본: 카드 내 스파크라인 표시 안 함
+  const showCardSpark = false
   const cardTone = isRisk ? "bg-[#2a0f15] border-red-500/60" : "bg-[#12131f] border border-neutral-800"
+
   return (
     <Card className={cardTone} onMouseEnter={() => onHover?.(id)} onMouseLeave={() => onLeave?.()}>
       <CardHeader className="grid grid-cols-[auto_auto] items-start gap-3 w-full">
@@ -109,15 +110,14 @@ const PositionCard = React.memo(function PositionCardInner({
           {leverage ? <span className="text-emerald-400 font-semibold">{`x${leverage}`}</span> : null}
           <div className="text-xs text-muted-foreground">{online ? "ON" : "OFF"}</div>
         </div>
-
-
       </CardHeader>
+
       <CardContent className="grid grid-cols-3 gap-3 text-sm text-white">
         {[
-          { label: "Entry", value: fmtNum(entry) },
-          { label: "Mark", value: fmtNum(mark) },
+          { label: "진입가",value: fmtNum(entry) },
+          { label: "현재가", value: fmtNum(mark) },
           {
-            label: "Liq",
+            label: "청산가",
             value: fmtNum(liq),
             className: "text-amber-400",
           },
@@ -128,9 +128,10 @@ const PositionCard = React.memo(function PositionCardInner({
           </div>
         ))}
       </CardContent>
+
       <CardContent className="grid grid-cols-3 gap-3 text-sm text-white">
         <div>
-          <div className="text-xs text-muted-foreground">Qty</div>
+          <div className="text-xs text-muted-foreground">수량</div>
           <div className="font-semibold">{qty ?? "--"}</div>
         </div>
         <div>
@@ -142,11 +143,13 @@ const PositionCard = React.memo(function PositionCardInner({
           <div className={`font-semibold ${up ? "text-emerald-300" : "text-rose-300"}`}>{fmtKRW(pnlKrw)}</div>
         </div>
       </CardContent>
+
       {showCardSpark && spark && spark.length > 1 ? (
         <CardContent>
           <SparkLine data={spark} up={up} />
         </CardContent>
       ) : null}
+
       {onDelete ? (
         <CardContent>
           <button onClick={onDelete} className="text-xs text-red-400 underline">
@@ -162,6 +165,7 @@ export default function PositionsPage() {
   const [list, setList] = React.useState<Position[]>([])
   const [query, setQuery] = React.useState("")
   const [onlyOnline, setOnlyOnline] = React.useState(false)
+
   const symbols = React.useMemo(() => Array.from(new Set(list.map((p) => p.symbol))), [list])
   const availableSymbols = React.useMemo(
     () =>
@@ -182,11 +186,13 @@ export default function PositionsPage() {
       ),
     [symbols]
   )
+
   const [symbol, setSymbol] = React.useState<string>(() => symbols[0] || "BTCUSDT")
   const [showEntries, setShowEntries] = React.useState(true)
   const [hoveredId, setHoveredId] = React.useState<string | undefined>(undefined)
   const [timeframe, setTimeframe] = React.useState<"1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "4h" | "1d" | "1w" | "1M">("1h")
   const [loading, setLoading] = React.useState(false)
+
   const [adminForm, setAdminForm] = React.useState({
     symbol: "BTCUSDT",
     side: "Long" as "Long" | "Short",
@@ -204,7 +210,7 @@ export default function PositionsPage() {
   const [adminError, setAdminError] = React.useState<string | null>(null)
   const [adminLoading, setAdminLoading] = React.useState(false)
 
-  // 변경: Supabase fetch 주기 완화 및 중복 setState 방지
+  // Supabase fetch 빈도 조절 및 중복 setState 방지
   const lastFetchRef = React.useRef(0)
   const lastSigRef = React.useRef<string>("")
   const realtimeDebounceRef = React.useRef<NodeJS.Timeout | null>(null)
@@ -217,6 +223,7 @@ export default function PositionsPage() {
     },
     []
   )
+
   const handleAdminAppend = React.useCallback(
     (field: keyof Pick<typeof adminForm, "entry" | "mark" | "liq" | "pnlUsd" | "pnlKrw" | "qty">, symbol: "." | ",") => {
       setAdminForm((prev) => {
@@ -227,12 +234,13 @@ export default function PositionsPage() {
     },
     []
   )
+
   const showAdminPanel = import.meta.env.VITE_SHOW_ADMIN_POSITIONS === "true"
 
   const fetchPositions = React.useCallback(
     async (opts?: { force?: boolean }) => {
       const now = Date.now()
-      if (!opts?.force && now - lastFetchRef.current < 20000) return // 변경: 20s 이상 간격 유지
+      if (!opts?.force && now - lastFetchRef.current < 20000) return
       lastFetchRef.current = now
 
       const supabase = getSupabase()
@@ -257,7 +265,7 @@ export default function PositionsPage() {
 
   const handleDelete = React.useCallback(
     async (id: string) => {
-      if (!window.confirm("정말 삭제하시겠습니까?")) return
+      if (!window.confirm("이 포지션을 삭제할까요?")) return
       const supabase = getSupabase()
       if (!supabase) return
       await supabase.from("positions").delete().eq("id", id)
@@ -266,12 +274,9 @@ export default function PositionsPage() {
     [fetchPositions]
   )
 
-  const handleAdminChange = React.useCallback(
-    (field: keyof typeof adminForm, value: string) => {
-      setAdminForm((prev) => ({ ...prev, [field]: value }))
-    },
-    []
-  )
+  const handleAdminChange = React.useCallback((field: keyof typeof adminForm, value: string) => {
+    setAdminForm((prev) => ({ ...prev, [field]: value }))
+  }, [])
 
   const parseAdminNumber = React.useCallback((value: string) => {
     if (!value) return 0
@@ -284,7 +289,7 @@ export default function PositionsPage() {
     setAdminNotice(null)
     const supabase = getSupabase()
     if (!supabase) {
-      setAdminError("Supabase 설정을 확인해 주세요.")
+      setAdminError("Supabase 설정을 확인해주세요.")
       return
     }
     setAdminLoading(true)
@@ -304,14 +309,15 @@ export default function PositionsPage() {
         streamer_name: adminForm.streamerName,
       })
       if (error) throw error
-      setAdminNotice("입력값이 저장되었습니다.")
+      setAdminNotice("포지션이 저장되었습니다.")
       await fetchPositions({ force: true })
     } catch (error: any) {
-      setAdminError(error?.message || "알 수 없는 오류가 발생했습니다.")
+      setAdminError(error?.message || "포지션 저장 중 오류가 발생했습니다.")
     } finally {
       setAdminLoading(false)
     }
   }, [adminForm, fetchPositions, parseAdminNumber])
+
   React.useEffect(() => {
     fetchPositions({ force: true })
     const supabase = getSupabase()
@@ -319,7 +325,7 @@ export default function PositionsPage() {
     const channel = supabase
       .channel("public:positions-user")
       .on("postgres_changes", { event: "*", schema: "public", table: "positions" }, () => {
-        // 변경: 실시간 이벤트는 디바운스 후 한번만 fetch
+        // 실시간 변경 발생 시 fetch (디바운스)
         if (realtimeDebounceRef.current) return
         realtimeDebounceRef.current = setTimeout(() => {
           realtimeDebounceRef.current = null
@@ -327,6 +333,7 @@ export default function PositionsPage() {
         }, 3000)
       })
       .subscribe()
+
     return () => {
       channel.unsubscribe()
       if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current)
@@ -335,7 +342,7 @@ export default function PositionsPage() {
 
   React.useEffect(() => {
     const interval = setInterval(() => {
-      fetchPositions() // 변경: 폴링 주기 20s
+      fetchPositions()
     }, 20000)
     return () => clearInterval(interval)
   }, [fetchPositions])
@@ -347,7 +354,10 @@ export default function PositionsPage() {
           ...p,
           mark: p.mark,
           pnl: computePnl(p),
-          spark: p.spark?.slice(-59).concat([(p.spark?.[p.spark?.length - 1] || p.entry) * (1 + (Math.random() - 0.5) * 0.002)]),
+          spark: p.spark?.slice(-59).concat([
+            (p.spark?.[p.spark?.length - 1] || p.entry) *
+              (1 + (Math.random() - 0.5) * 0.002),
+          ]),
         }))
       )
     }, 5000)
@@ -359,7 +369,11 @@ export default function PositionsPage() {
     if (onlyOnline) arr = arr.filter((p) => p.streamer.online)
     if (query.trim()) {
       const q = query.trim().toLowerCase()
-      arr = arr.filter((p) => p.symbol.toLowerCase().includes(q) || p.streamer.name.toLowerCase().includes(q))
+      arr = arr.filter(
+        (p) =>
+          p.symbol.toLowerCase().includes(q) ||
+          p.streamer.name.toLowerCase().includes(q)
+      )
     }
     return arr
   }, [list, query, onlyOnline])
@@ -391,13 +405,15 @@ export default function PositionsPage() {
           changed = true
           return { ...p, mark: price, pnl: computePnl({ ...p, mark: price }) }
         })
-        return changed ? next : prev // 변경: 동일 값이면 setState 스킵
+        return changed ? next : prev
       })
     },
     [symbol]
   )
+
   return (
     <section className="space-y-4">
+      {/* 상단 차트 */}
       <Card className="bg-[#141414] border-neutral-800" style={{ overflowAnchor: "none" }}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between gap-3 flex-wrap">
@@ -418,7 +434,12 @@ export default function PositionsPage() {
                 ))}
               </select>
               <label className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-                <input type="checkbox" checked={showEntries} onChange={(e) => setShowEntries(e.target.checked)} /> 진입선
+                <input
+                  type="checkbox"
+                  checked={showEntries}
+                  onChange={(e) => setShowEntries(e.target.checked)}
+                />{" "}
+                진입선
               </label>
               <select
                 value={timeframe}
@@ -440,26 +461,37 @@ export default function PositionsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <PriceChartLW symbol={symbol} timeframe={timeframe} entries={memoEntries} hoveredId={hoveredId} onPrice={handlePrice} />
+          <PriceChartLW
+            symbol={symbol}
+            timeframe={timeframe}
+            entries={memoEntries}
+            hoveredId={hoveredId}
+            onPrice={handlePrice}
+          />
         </CardContent>
       </Card>
 
+      {/* 관리자 입력 패널 */}
       {showAdminPanel ? (
         <Card className="bg-[#141414] border-neutral-800" style={{ overflowAnchor: "none" }}>
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
                 <CardTitle>관리자 포지션 입력</CardTitle>
-                <CardDescription>수동으로 관리값을 입력해 반영하세요.</CardDescription>
+                <CardDescription>필요한 값을 입력해 저장하세요.</CardDescription>
               </div>
               <div className="flex items-center gap-2 flex-wrap text-xs sm:text-sm">
-                <span className="text-muted-foreground">입력값은 Supabase positions 테이블에 저장됩니다.</span>
+                <span className="text-muted-foreground">
+                  입력값은 Supabase positions 테이블에 저장됩니다.
+                </span>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {adminError ? <div className="text-sm text-red-400">{adminError}</div> : null}
             {adminNotice ? <div className="text-sm text-emerald-400">{adminNotice}</div> : null}
+
+            {/* 1행: 진입가 / 현재가 / 청산가 */}
             <div className="grid gap-3 md:grid-cols-3">
               <label className="text-xs text-muted-foreground space-y-1">
                 진입가
@@ -472,14 +504,23 @@ export default function PositionsPage() {
                   className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
                 />
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <button type="button" onClick={() => handleAdminAppend("entry", ".")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("entry", ".")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     .
                   </button>
-                  <button type="button" onClick={() => handleAdminAppend("entry", ",")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("entry", ",")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     ,
                   </button>
                 </div>
               </label>
+
               <label className="text-xs text-muted-foreground space-y-1">
                 현재가
                 <input
@@ -491,14 +532,23 @@ export default function PositionsPage() {
                   className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
                 />
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <button type="button" onClick={() => handleAdminAppend("mark", ".")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("mark", ".")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     .
                   </button>
-                  <button type="button" onClick={() => handleAdminAppend("mark", ",")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("mark", ",")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     ,
                   </button>
                 </div>
               </label>
+
               <label className="text-xs text-muted-foreground space-y-1">
                 청산가
                 <input
@@ -510,15 +560,25 @@ export default function PositionsPage() {
                   className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
                 />
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <button type="button" onClick={() => handleAdminAppend("liq", ".")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("liq", ".")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     .
                   </button>
-                  <button type="button" onClick={() => handleAdminAppend("liq", ",")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("liq", ",")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     ,
                   </button>
                 </div>
               </label>
             </div>
+
+            {/* 2행: P&L / 수량 */}
             <div className="grid gap-3 md:grid-cols-3">
               <label className="text-xs text-muted-foreground space-y-1">
                 P&L (USD)
@@ -531,14 +591,23 @@ export default function PositionsPage() {
                   className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
                 />
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <button type="button" onClick={() => handleAdminAppend("pnlUsd", ".")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("pnlUsd", ".")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     .
                   </button>
-                  <button type="button" onClick={() => handleAdminAppend("pnlUsd", ",")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("pnlUsd", ",")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     ,
                   </button>
                 </div>
               </label>
+
               <label className="text-xs text-muted-foreground space-y-1">
                 P&L (KRW)
                 <input
@@ -550,14 +619,23 @@ export default function PositionsPage() {
                   className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
                 />
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <button type="button" onClick={() => handleAdminAppend("pnlKrw", ".")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("pnlKrw", ".")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     .
                   </button>
-                  <button type="button" onClick={() => handleAdminAppend("pnlKrw", ",")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("pnlKrw", ",")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     ,
                   </button>
                 </div>
               </label>
+
               <label className="text-xs text-muted-foreground space-y-1">
                 수량
                 <input
@@ -569,15 +647,25 @@ export default function PositionsPage() {
                   className="h-10 w-full rounded-md border border-neutral-700 bg-[#101116] px-3 text-sm text-white"
                 />
                 <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <button type="button" onClick={() => handleAdminAppend("qty", ".")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("qty", ".")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     .
                   </button>
-                  <button type="button" onClick={() => handleAdminAppend("qty", ",")} className="rounded border border-neutral-700 px-2 py-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAdminAppend("qty", ",")}
+                    className="rounded border border-neutral-700 px-2 py-1"
+                  >
                     ,
                   </button>
                 </div>
               </label>
             </div>
+
+            {/* 3행: 심볼 / 포지션 / 상태 */}
             <div className="grid gap-3 md:grid-cols-3">
               <label className="text-xs text-muted-foreground space-y-1">
                 심볼
@@ -593,8 +681,9 @@ export default function PositionsPage() {
                   ))}
                 </select>
               </label>
+
               <label className="text-xs text-muted-foreground space-y-1">
-                방향
+                포지션
                 <select
                   value={adminForm.side}
                   onChange={(e) => handleAdminChange("side", e.target.value as "Long" | "Short")}
@@ -604,6 +693,7 @@ export default function PositionsPage() {
                   <option value="Short">Short</option>
                 </select>
               </label>
+
               <label className="text-xs text-muted-foreground space-y-1">
                 상태
                 <select
@@ -616,6 +706,7 @@ export default function PositionsPage() {
                 </select>
               </label>
             </div>
+
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="button"
@@ -647,19 +738,28 @@ export default function PositionsPage() {
         </Card>
       ) : null}
 
+      {/* 검색 / 필터 */}
       <div className="flex items-center gap-1 sm:gap-2 flex-nowrap sm:flex-wrap overflow-hidden">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="검색(예: BTC, BJ이름)"
+          placeholder="검색 (예: BTC, BJ이름)"
           className="flex-[1_1_50%] min-w-0 px-2 py-1.5 sm:px-3 sm:py-2 rounded border border-neutral-700 bg-[#1a1a1a] text-xs sm:text-sm"
         />
         <label className="inline-flex items-center gap-2 text-xs sm:text-sm text-muted-foreground shrink-0 whitespace-nowrap">
-          <input type="checkbox" checked={onlyOnline} onChange={(e) => setOnlyOnline(e.target.checked)} /> ON만 보기
+          <input
+            type="checkbox"
+            checked={onlyOnline}
+            onChange={(e) => setOnlyOnline(e.target.checked)}
+          />{" "}
+          ON만 보기
         </label>
-        <div className="text-xs text-muted-foreground">{loading ? "불러오는 중..." : `${list.length}개`}</div>
+        <div className="text-xs text-muted-foreground">
+          {loading ? "불러오는 중..." : `${list.length}건`}
+        </div>
       </div>
 
+      {/* 포지션 카드 리스트 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3" style={{ overflowAnchor: "none" }}>
         {displayed.map((p) => {
           const KRW_RATE = 1350
@@ -667,6 +767,7 @@ export default function PositionsPage() {
           const pnlKrw = (pnlUsd || 0) * KRW_RATE
           const liqGap = Math.abs((p.mark ?? 0) - (p.liq ?? 0))
           const isRisk = Number.isFinite(liqGap) && liqGap <= 200
+
           const cardProps: PositionCardProps = {
             id: p.id,
             bjName: p.streamer.name,
@@ -688,12 +789,14 @@ export default function PositionsPage() {
             onLeave: () => setHoveredId(undefined),
             onDelete: showAdminPanel ? () => handleDelete(p.id) : undefined,
           }
+
           return <PositionCard key={p.id} {...cardProps} />
         })}
       </div>
     </section>
   )
 }
+
 function mapSupabaseToPosition(row: any): Position {
   return {
     id: String(row.id),
@@ -720,7 +823,16 @@ function computePnl(p: Position) {
   const side = p.side === "Long" ? 1 : -1
   return (p.mark - p.entry) * side * (p.size || 0)
 }
-const SparkLine = React.memo(function SparkLine({ data, up, height = 36 }: { data: number[]; up: boolean; height?: number }) {
+
+const SparkLine = React.memo(function SparkLine({
+  data,
+  up,
+  height = 36,
+}: {
+  data: number[]
+  up: boolean
+  height?: number
+}) {
   if (!data || data.length === 0) return <div style={{ height }} className="w-full bg-neutral-800 rounded" />
   const w = 120
   const h = height
@@ -735,6 +847,7 @@ const SparkLine = React.memo(function SparkLine({ data, up, height = 36 }: { dat
     })
     .join(" ")
   const stroke = up ? "#34d399" : "#f87171"
+
   return (
     <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
       <polyline fill="none" stroke={stroke} strokeWidth="2" points={points} />
@@ -759,14 +872,51 @@ function PriceChartLW({
   const chartRef = React.useRef<any>(null)
   const seriesRef = React.useRef<any>(null)
   const entriesSeriesRef = React.useRef<any>(null)
-  const [data, setData] = React.useState<{ time: number; open: number; high: number; low: number; close: number }[]>([])
+  const [data, setData] = React.useState<
+    { time: number; open: number; high: number; low: number; close: number }[]
+  >([])
+  const [overlayLabels, setOverlayLabels] = React.useState<
+    { id: string; title: string; y: number; side: "Long" | "Short" }[]
+  >([])
 
+  const updateOverlayLabels = React.useCallback(() => {
+    if (!seriesRef.current) return
+    const raw: { id: string; title: string; y: number; side: "Long" | "Short" }[] = []
+    entries.forEach((e) => {
+      const extra = e.leverage ? `x${e.leverage}` : ""
+      const title = `${e.label}-${e.side}${extra ? ` (${extra})` : ""}`
+      const y =
+        typeof seriesRef.current.priceToCoordinate === "function"
+          ? seriesRef.current.priceToCoordinate(e.price)
+          : null
+      if (typeof y === "number" && Number.isFinite(y)) raw.push({ id: e.id, title, y, side: e.side })
+    })
+
+    const sorted = raw.sort((a, b) => a.y - b.y)
+    const adjusted: typeof raw = []
+    const spacing = 16
+    const containerH = ref.current?.clientHeight ?? Number.POSITIVE_INFINITY
+    let lastY = -Infinity
+    sorted.forEach((item) => {
+      let y = Math.max(item.y, lastY + spacing)
+      if (Number.isFinite(containerH)) {
+        y = Math.min(y, containerH - 10)
+      }
+      adjusted.push({ ...item, y })
+      lastY = y
+    })
+    setOverlayLabels(adjusted)
+  }, [entries])
+
+  // 초기 데이터 로드
   React.useEffect(() => {
     const abort = new AbortController()
     const run = async () => {
       try {
         const sym = symbol.toUpperCase()
-        const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${encodeURIComponent(sym)}&interval=${encodeURIComponent(timeframe)}&limit=200`
+        const url = `https://fapi.binance.com/fapi/v1/klines?symbol=${encodeURIComponent(
+          sym
+        )}&interval=${encodeURIComponent(timeframe)}&limit=200`
         const r = await fetch(url, { signal: abort.signal })
         if (!r.ok) return
         const j: any[] = await r.json()
@@ -780,12 +930,15 @@ function PriceChartLW({
             }))
           : []
         if (arr.length) setData(arr)
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
     run()
     return () => abort.abort()
   }, [symbol, timeframe])
 
+  // 실시간 WebSocket
   React.useEffect(() => {
     let ws: WebSocket | null = null
     const ch = symbol.toLowerCase()
@@ -800,7 +953,14 @@ function PriceChartLW({
           const low = Number(k?.l)
           const close = Number(k?.c)
           const t = Number(k?.t)
-          if (!Number.isFinite(open) || !Number.isFinite(high) || !Number.isFinite(low) || !Number.isFinite(close) || !Number.isFinite(t)) return
+          if (
+            !Number.isFinite(open) ||
+            !Number.isFinite(high) ||
+            !Number.isFinite(low) ||
+            !Number.isFinite(close) ||
+            !Number.isFinite(t)
+          )
+            return
           if (onPrice) onPrice(close)
           const ts = Math.floor(t / 1000)
           setData((prev) => {
@@ -809,23 +969,31 @@ function PriceChartLW({
             if (last.time === ts) return [...prev.slice(0, -1), { time: ts, open, high, low, close }]
             return [...prev.slice(-999), { time: ts, open, high, low, close }]
           })
-        } catch {}
+        } catch {
+          // ignore
+        }
       }
-    } catch {}
+    } catch {
+      // ignore
+    }
     return () => {
       try {
         ws?.close()
-      } catch {}
+      } catch {
+        // ignore
+      }
     }
   }, [symbol, timeframe, onPrice])
 
+  // Lightweight Charts 로드 및 차트 생성
   React.useEffect(() => {
     let destroyed = false
     const load = async () => {
       if ((window as any).LightweightCharts) return (window as any).LightweightCharts
       await new Promise<void>((resolve) => {
         const s = document.createElement("script")
-        s.src = "https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"
+        s.src =
+          "https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"
         s.async = true
         s.onload = () => resolve()
         s.onerror = () => resolve()
@@ -841,13 +1009,18 @@ function PriceChartLW({
           layout: { background: { color: "#0f0f0f" }, textColor: "#c9d1d9" },
           grid: { vertLines: { color: "#202020" }, horzLines: { color: "#202020" } },
           rightPriceScale: { borderColor: "#2a2a2a", visible: true },
-          leftPriceScale: { borderColor: "#2a2a2a", visible: true, autoScale: true },
+          leftPriceScale: { borderColor: "#2a2a2a", visible: false, autoScale: true },
           timeScale: {
             borderColor: "#2a2a2a",
             timeVisible: true,
             secondsVisible: false,
             tickMarkFormatter: (time: any) => {
-              const t = typeof time === "number" ? time * 1000 : time?.timestamp ? time.timestamp * 1000 : Date.now()
+              const t =
+                typeof time === "number"
+                  ? time * 1000
+                  : time?.timestamp
+                  ? time.timestamp * 1000
+                  : Date.now()
               const d = new Date(t)
               const hh = String(d.getHours()).padStart(2, "0")
               const mm = String(d.getMinutes()).padStart(2, "0")
@@ -857,6 +1030,7 @@ function PriceChartLW({
           crosshair: { mode: 0 },
           localization: { locale: "ko-KR" },
         })
+
         seriesRef.current = chartRef.current.addCandlestickSeries({
           priceScaleId: "right",
           upColor: "#22c55e",
@@ -866,6 +1040,7 @@ function PriceChartLW({
           wickUpColor: "#22c55e",
           wickDownColor: "#ef4444",
         })
+
         entriesSeriesRef.current = chartRef.current.addLineSeries({
           priceScaleId: "left",
           color: "transparent",
@@ -873,8 +1048,10 @@ function PriceChartLW({
           lastValueVisible: false,
           priceLineVisible: false,
           crosshairMarkerVisible: false,
+          priceFormat: { type: "custom", formatter: () => "" },
         })
       }
+
       const resize = () => {
         if (!ref.current || !chartRef.current) return
         const w = Math.max(0, ref.current.clientWidth || 0)
@@ -886,21 +1063,27 @@ function PriceChartLW({
           } else {
             ;(chartRef.current as any).applyOptions({ width: w, height: h })
           }
-        } catch {}
+        } catch {
+          // ignore
+        }
       }
+
       resize()
       let ro: any
       try {
         ro = new (window as any).ResizeObserver(() => resize())
         if (ref.current) ro.observe(ref.current)
-      } catch {}
+      } catch {
+        // ignore
+      }
+
       if (data && data.length && seriesRef.current) {
         seriesRef.current.setData(data)
-        // Keep the left scale in sync by feeding close values into a transparent series
         entriesSeriesRef.current?.setData(
           data.map((candle) => ({ time: candle.time, value: candle.close }))
         )
       }
+
       const cur: any = chartRef.current as any
       if (cur && cur._entryLines) {
         cur._entryLines.forEach((pl: any) => {
@@ -909,41 +1092,44 @@ function PriceChartLW({
         })
         cur._entryLines = []
       }
+
       const lines: any[] = []
       entries.forEach((e) => {
         const extra = e.leverage ? `x${e.leverage}` : ""
         const title = `${e.label}-${e.side}${extra ? ` (${extra})` : ""}`
-        const leftLine = entriesSeriesRef.current?.createPriceLine({
-          price: e.price,
-          color: e.side === "Long" ? "#34d399" : "#f87171",
-          lineStyle: 2,
-          lineWidth: hoveredId === e.id ? 3 : 1,
-          axisLabelVisible: true,
-          axisLabelFormatter: () => "",
-          title,
-        })
         const rightLine = seriesRef.current?.createPriceLine({
           price: e.price,
           color: e.side === "Long" ? "#34d399" : "#f87171",
           lineStyle: 2,
           lineWidth: hoveredId === e.id ? 3 : 1,
-          axisLabelVisible: true, // 우측 가격만 표기
+          axisLabelVisible: true,
           title: "",
         })
-        if (leftLine || rightLine) lines.push({ left: leftLine, right: rightLine })
+        if (rightLine) lines.push({ right: rightLine, title, side: e.side, price: e.price, id: e.id })
       })
       if (cur) cur._entryLines = lines
+      updateOverlayLabels()
+
       return () => {
         try {
           ;(ro as any)?.disconnect?.()
-        } catch {}
+        } catch {
+          // ignore
+        }
       }
     })
     return () => {
       destroyed = true
     }
-  }, [symbol, entries, hoveredId, data])
+  }, [symbol, entries, hoveredId, data, updateOverlayLabels])
 
+  // 엔트리 라벨 위치 재계산
+  React.useEffect(() => {
+    if (!seriesRef.current || !data.length) return
+    updateOverlayLabels()
+  }, [entries, data, hoveredId, updateOverlayLabels])
+
+  // 데이터 변경 시 차트 반영
   React.useEffect(() => {
     const LW: any = (window as any).LightweightCharts
     if (!LW || !seriesRef.current) return
@@ -951,10 +1137,29 @@ function PriceChartLW({
     seriesRef.current.setData(data)
   }, [data])
 
-  return <div ref={ref} className="h-[260px] md:h-[360px] w-full max-w-full min-w-0 overflow-hidden bg-[#0f0f0f]" />
+  return (
+    <div className="relative h-[260px] md:h-[360px] w-full max-w-full min-w-0 overflow-hidden bg-[#0f0f0f]">
+      <div ref={ref} className="h-full w-full" />
+      <div className="pointer-events-none absolute inset-0">
+        {overlayLabels.map((l) => (
+          <div
+            key={l.id}
+            className={`absolute left-1 z-10 ${
+              l.side === "Long" ? "bg-[#34d399] text-black" : "bg-[#f87171] text-white"
+            }`}
+            style={{
+              top: Math.max(0, l.y - 8),
+              fontSize: "13px",
+              fontWeight: 400,
+              padding: "1px 4px",
+              borderRadius: "2px",
+              lineHeight: "1",
+            }}
+          >
+            {l.title}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
-
-
-
-
-
