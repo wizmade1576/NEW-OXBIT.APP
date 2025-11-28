@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 export default function PositionsLayout() {
   const tabs = [
     { to: '/positions/live', label: '실시간포지션' },
+    { to: '/positions/long-short', label: '롱&숏' },
     { to: '/positions/whales', label: '고래추적' },
     { to: '/positions/fear-greed', label: '공포/탐욕' },
   ]
@@ -33,4 +34,3 @@ export default function PositionsLayout() {
     </section>
   )
 }
-

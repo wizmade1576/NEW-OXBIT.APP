@@ -204,14 +204,14 @@ export default function KimchiPage() {
           <CardContent className="p-3 sm:p-6 pt-0">
             <div className="block sm:hidden space-y-1">
               <div className={`text-2xl font-semibold ${pctClass(btc?.premium)}`}>{fmtPct(btc?.premium)}</div>
-              <div className="text-xs text-muted-foreground">BTC 스프레드 {fmtKRW(btc?.spread)}</div>
+              <div className="text-xs text-muted-foreground">BTC 시세차익 {fmtKRW(btc?.spread)}</div>
               <div className="text-xs text-neutral-300">국내 {fmtKRW(btc?.domestic)}</div>
               <div className="text-xs text-neutral-300">해외 {fmtKRW(btc?.foreignKrw)}</div>
             </div>
             <div className="hidden sm:block">
               <div className={`text-3xl font-semibold ${pctClass(btc?.premium)}`}>{fmtPct(btc?.premium)}</div>
               <div className="mt-2 text-sm text-muted-foreground">
-                BTC 스프레드 {fmtKRW(btc?.spread)} (국내 {fmtKRW(btc?.domestic)} · 해외 {fmtKRW(btc?.foreignKrw)})
+                BTC 시세차익 {fmtKRW(btc?.spread)} (국내 {fmtKRW(btc?.domestic)} · 해외 {fmtKRW(btc?.foreignKrw)})
               </div>
             </div>
           </CardContent>
@@ -225,14 +225,14 @@ export default function KimchiPage() {
           <CardContent className="p-3 sm:p-6 pt-0">
             <div className="block sm:hidden space-y-1">
               <div className={`text-2xl font-semibold ${pctClass(eth?.premium)}`}>{fmtPct(eth?.premium)}</div>
-              <div className="text-xs text-muted-foreground">ETH 스프레드 {fmtKRW(eth?.spread)}</div>
+              <div className="text-xs text-muted-foreground">ETH 시세차익 {fmtKRW(eth?.spread)}</div>
               <div className="text-xs text-neutral-300">국내 {fmtKRW(eth?.domestic)}</div>
               <div className="text-xs text-neutral-300">해외 {fmtKRW(eth?.foreignKrw)}</div>
             </div>
             <div className="hidden sm:block">
               <div className={`text-3xl font-semibold ${pctClass(eth?.premium)}`}>{fmtPct(eth?.premium)}</div>
               <div className="mt-2 text-sm text-muted-foreground">
-                스프레드 {fmtKRW(eth?.spread)} (국내 {fmtKRW(eth?.domestic)} · 해외 {fmtKRW(eth?.foreignKrw)})
+                시세차익 {fmtKRW(eth?.spread)} (국내 {fmtKRW(eth?.domestic)} · 해외 {fmtKRW(eth?.foreignKrw)})
               </div>
             </div>
           </CardContent>
@@ -280,7 +280,7 @@ export default function KimchiPage() {
               <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="심볼 검색" className="px-3 py-1.5 rounded border border-neutral-700 bg-[#1a1a1a] text-sm" />
               <select value={sort} onChange={(e) => setSort(e.target.value as any)} className="px-2 py-1 rounded border border-neutral-700 bg-[#1a1a1a] text-sm min-w-[90px]">
                 <option value="premium">프리미엄%</option>
-                <option value="spread">스프레드</option>
+                <option value="spread">시세차익</option>
                 <option value="domestic">국내가격</option>
                 <option value="foreign">해외가격</option>
               </select>
@@ -323,7 +323,7 @@ export default function KimchiPage() {
                   </div>
                 </div>
                 <div className="flex justify-between items-center mt-2">
-                  <span className="text-[11px] text-neutral-400">스프레드</span>
+                  <span className="text-[11px] text-neutral-400">시세차익</span>
                   <span className={`text-[13px] font-medium ${Number(r.spread) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                     {fmtKRW(r.spread)}
                   </span>
@@ -345,7 +345,7 @@ export default function KimchiPage() {
                   <th className="px-3 py-2 text-right font-medium">국내 가격(KRW)</th>
                   <th className="px-3 py-2 text-right font-medium">해외 가격(KRW)</th>
                   <th className="px-3 py-2 text-right font-medium">프리미엄</th>
-                  <th className="px-3 py-2 text-right font-medium">스프레드</th>
+                  <th className="px-3 py-2 text-right font-medium">시세차익</th>
                   <th className="px-3 py-2 text-right font-medium">거래소</th>
                 </tr>
               </thead>
@@ -409,7 +409,7 @@ export default function KimchiPage() {
                 <label className="text-neutral-400 text-xs">정렬 기준</label>
                 <select value={sort} onChange={(e) => setSort(e.target.value as any)} className="w-full px-3 py-2 rounded border border-neutral-700 bg-[#151821]">
                   <option value="premium">프리미엄(%)</option>
-                  <option value="spread">스프레드(KRW)</option>
+                  <option value="spread">시세차익(KRW)</option>
                   <option value="domestic">국내가격</option>
                   <option value="foreign">해외가격</option>
                 </select>

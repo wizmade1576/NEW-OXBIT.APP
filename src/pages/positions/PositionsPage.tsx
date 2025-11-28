@@ -835,7 +835,8 @@ function PriceChartLW({
           height: 240,
           layout: { background: { color: "#0f0f0f" }, textColor: "#c9d1d9" },
           grid: { vertLines: { color: "#202020" }, horzLines: { color: "#202020" } },
-          rightPriceScale: { borderColor: "#2a2a2a" },
+          rightPriceScale: { borderColor: "#2a2a2a", visible: false },
+          leftPriceScale: { borderColor: "#2a2a2a", visible: true, autoScale: true },
           timeScale: {
             borderColor: "#2a2a2a",
             timeVisible: true,
@@ -852,6 +853,7 @@ function PriceChartLW({
           localization: { locale: "ko-KR" },
         })
         seriesRef.current = chartRef.current.addCandlestickSeries({
+          priceScaleId: "left",
           upColor: "#22c55e",
           downColor: "#ef4444",
           borderUpColor: "#16a34a",
@@ -889,7 +891,7 @@ function PriceChartLW({
       }
       const lines: any[] = []
       entries.forEach((e) => {
-        const extra = `${e.leverage ? `x${e.leverage}` : ""}${e.size ? ` 수량 ${e.size}` : ""}`.trim()
+        const extra = e.leverage ? `x${e.leverage}` : ""
         const title = `${e.label}-${e.side}${extra ? ` (${extra})` : ""}`
         const pl = seriesRef.current?.createPriceLine({
           price: e.price,

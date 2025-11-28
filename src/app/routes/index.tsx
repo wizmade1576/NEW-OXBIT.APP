@@ -21,6 +21,7 @@ import PositionsLayout from '../../pages/positions/Layout'
 import PositionsPage from '../../pages/positions/PositionsPage'
 import WhalesPage from '../../pages/positions/WhalesPage'
 import FearGreedPage from '../../pages/positions/FearGreedPage'
+import LongShortPage from '../../pages/positions/LongShortPage'
 
 
 import PaperTradingPage from '../../pages/paper/PaperTradingPage'
@@ -77,8 +78,9 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <PositionsPage /> },
           { path: 'live', element: <PositionsPage /> },
-          { path: 'whales', element: <WhalesPage /> },
           { path: 'fear-greed', element: <FearGreedPage /> },
+          { path: 'long-short', element: <LongShortPage /> },
+          { path: 'whales', element: <WhalesPage /> },
         ],
       },
 

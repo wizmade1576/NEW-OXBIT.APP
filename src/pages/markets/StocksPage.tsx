@@ -10,6 +10,7 @@ export default function StocksPage() {
       if (exch === 'CAPITALCOM') return 'Capital.com'
       if (exch === 'CURRENCYCOM') return 'Currency.com'
       if (exch === 'OANDA') return 'OANDA'
+      if (exch === 'FOREXCOM') return 'FOREXCOM'
       if (exch === 'TVC') return 'TVC'
       if (exch === 'ICEUS') return 'ICE'
       if (exch === 'AMEX') return 'AMEX'
@@ -20,8 +21,8 @@ export default function StocksPage() {
     try {
       const p = sym.toUpperCase()
       if (p.includes('USDX') || p.includes('DXY') || p.includes('DX1!')) return 'AMEX'
-      if (p.includes('NAS100')) return 'US100 Cash CFD'
-      if (p.includes('SPX500')) return 'S&P 500 Index'
+      if (p.includes('US100') || p.includes('NAS100')) return '유에스 100 캐쉬 CFD'
+      if (p.includes('SPX') || p.includes('US500')) return 'S&P 500 인덱스'
       return sym
     } catch { return sym }
   }
@@ -30,7 +31,7 @@ export default function StocksPage() {
 
   const containerRef = React.useRef<HTMLDivElement | null>(null)
   const [loaded, setLoaded] = React.useState(false)
-  const [symbol, setSymbol] = React.useState<string>('OANDA:NAS100USD')
+  const [symbol, setSymbol] = React.useState<string>('FOREXCOM:NAS100')
   const [interval, setIntervalState] = React.useState<string>('15')
   const [theme, setTheme] = React.useState<'dark' | 'light'>('dark')
 
@@ -113,8 +114,8 @@ export default function StocksPage() {
   }, [isStocksPage, loaded, symbol, interval, theme])
 
   const [tiles, setTiles] = React.useState<Tile[]>([
-    { id: 'nasdaq', label: 'NASDAQ 100', symbol: 'OANDA:NAS100USD', value: '25,000', change: '+0.10%', up: true },
-    { id: 'spx', label: 'S&P 500 Index', symbol: 'OANDA:SPX500USD', value: '6,740', change: '+0.16%', up: true },
+    { id: 'nasdaq', label: '유에스 100 캐쉬 CFD', symbol: 'FOREXCOM:NAS100', value: '25,000', change: '+0.10%', up: true },
+    { id: 'spx', label: 'S&P 500 인덱스', symbol: 'FOREXCOM:SPXUSD', value: '6,740', change: '+0.16%', up: true },
     { id: 'dxy', label: '달러 인덱스', symbol: 'AMEX:UUP', value: '106.12', change: '-0.08%', up: false },
     { id: 'btcd', label: 'BTC Dominance', symbol: 'CRYPTOCAP:BTC.D', value: '60.11%', change: '+0.10%', up: true },
     { id: 'btc', label: 'BTC 가격', symbol: 'BINANCE:BTCUSDT', value: '102,990', change: '-0.30%', up: false },
