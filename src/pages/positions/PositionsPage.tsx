@@ -103,7 +103,7 @@ const PositionCard = React.memo(function PositionCardInner({
         <div className="flex flex-col items-end leading-tight whitespace-nowrap justify-start self-start justify-self-end gap-1">
           {isRisk ? (
             <span className="inline-flex items-center rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-semibold text-red-200">
-              LIQUIDATION RISK
+              청산주의
             </span>
           ) : null}
           <span className={side === "Long" ? "text-emerald-400" : "text-rose-400"}>{side}</span>
