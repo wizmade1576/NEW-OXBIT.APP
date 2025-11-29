@@ -87,9 +87,9 @@ export default function StocksPage() {
           }
           const verifyAndFallback = (desired: string) => {
             const isUsdIndex = /DXY|USDX|DX1!|UUP/i.test(desired)
-            const candidates = isUsdIndex
-              ? ['CAPITALCOM:USDX', 'CURRENCYCOM:USDX', 'TVC:DXY', 'ICEUS:DX1!', 'AMEX:UUP']
-              : [desired]
+              const candidates = isUsdIndex
+                ? ['TVC:DXY']
+                : [desired]
             let i = 0
             const tryNext = () => {
               if (i >= candidates.length) return
@@ -114,10 +114,10 @@ export default function StocksPage() {
   }, [isStocksPage, loaded, symbol, interval, theme])
 
   const [tiles, setTiles] = React.useState<Tile[]>([
-    { id: 'nasdaq', label: '유에스 100 캐쉬 CFD', symbol: 'FOREXCOM:NAS100', value: '25,000', change: '+0.10%', up: true },
+    { id: 'nasdaq', label: '나스닥 100', symbol: 'FOREXCOM:NAS100', value: '25,000', change: '+0.10%', up: true },
     { id: 'spx', label: 'S&P 500 인덱스', symbol: 'FOREXCOM:SPXUSD', value: '6,740', change: '+0.16%', up: true },
-    { id: 'dxy', label: '달러 인덱스', symbol: 'AMEX:UUP', value: '106.12', change: '-0.08%', up: false },
-    { id: 'btcd', label: 'BTC Dominance', symbol: 'CRYPTOCAP:BTC.D', value: '60.11%', change: '+0.10%', up: true },
+    { id: 'dxy', label: '달러 인덱스', symbol: 'AMEX:UUP', value: '106.12', change: '-0.08%', up: true },
+    { id: 'btcd', label: 'BTC 도미넌스', symbol: 'CRYPTOCAP:BTC.D', value: '60.11%', change: '+0.10%', up: true },
     { id: 'btc', label: 'BTC 가격', symbol: 'BINANCE:BTCUSDT', value: '102,990', change: '-0.30%', up: false },
   ])
 
@@ -284,7 +284,7 @@ export default function StocksPage() {
     if (!isStocksPage) return  // ★ 추가
 
     if (!selectedItem) return
-    const mapped = selectedItem.id === 'dxy' ? 'CAPITALCOM:USDX' : selectedItem.symbol
+      const mapped = selectedItem.id === 'dxy' ? 'TVC:DXY' : selectedItem.symbol
     if (mapped) setSymbol(mapped)
   }, [isStocksPage, selectedItem])
 
@@ -316,10 +316,10 @@ export default function StocksPage() {
           const val = (!t.value || t.value === 'NaN') ? '--' : t.value
           const chg = (!t.change || /NaN/.test(t.change)) ? '--' : t.change
           const chgClass = (!t.change || /NaN/.test(t.change)) ? 'text-gray-400 text-sm' : (t.up ? 'text-emerald-400 text-sm' : 'text-red-400 text-sm')
-          const mappedSymbol = t.id==='dxy' ? 'CAPITALCOM:USDX' : t.symbol
+          const mappedSymbol = t.id==='dxy' ? 'TVC:DXY' : t.symbol
           return (
             <button key={t.id} onClick={() => setSymbol(mappedSymbol)} className={`text-left rounded-lg border border-neutral-800 bg-[#121212] p-3 hover:bg-[#1e1e1e] transition-colors ${symbol===mappedSymbol ? 'ring-1 ring-emerald-400' : ''}`}>
-              <div className="text-xs text-gray-400">{t.id==='dxy' ? 'USD Index' : t.label}</div>
+              <div className="text-xs text-gray-400">{t.id==='dxy' ? '달러 인덱스' : t.label}</div>
               <div className="mt-1 flex items-end justify-between">
                 <div className="text-lg font-semibold text-white">{val}</div>
                 <div className={chgClass}>{chg}</div>

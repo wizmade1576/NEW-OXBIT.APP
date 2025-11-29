@@ -77,7 +77,7 @@ function Bar({ row }: { row: LongShortRow }) {
       <div className="w-full h-10 bg-neutral-900 rounded-full overflow-hidden border border-neutral-700 flex">
         <div
           className="flex flex-col items-center justify-center text-white font-semibold text-sm"
-          style={{ width: longWidth, backgroundColor: "#1eb69d", transition: "width 0.4s ease" }}
+          style={{ width: longWidth, backgroundColor: "#2196f3", transition: "width 0.4s ease" }}
           title={`Long ${longPercent}%`}
         >
           <span>롱 {longPercent}%</span>
@@ -85,7 +85,7 @@ function Bar({ row }: { row: LongShortRow }) {
         </div>
         <div
           className="flex flex-col items-center justify-center text-white font-semibold text-sm ml-auto"
-          style={{ width: shortWidth, backgroundColor: "#e45f6e", transition: "width 0.4s ease" }}
+          style={{ width: shortWidth, backgroundColor: "#ef5350", transition: "width 0.4s ease" }}
           title={`Short ${shortPercent}%`}
         >
           <span>숏 {shortPercent}%</span>
