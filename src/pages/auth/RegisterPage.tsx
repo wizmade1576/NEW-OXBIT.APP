@@ -11,6 +11,17 @@ function normalizePhone(input: string): string {
   return input.replace(/-/g, '').trim()
 }
 
+function formatPhoneForAuth(raw: string): string {
+  let normalized = normalizePhone(raw)
+  if (!normalized) return ""
+  if (normalized.startsWith("0")) {
+    normalized = "+82" + normalized.slice(1)
+  } else if (!normalized.startsWith("+")) {
+    normalized = "+82" + normalized
+  }
+  return normalized
+}
+
 export default function RegisterPage() {
   const navigate = useNavigate()
   const [email, setEmail] = React.useState('')
@@ -184,14 +195,45 @@ export default function RegisterPage() {
       setError('전화번호 인증을 완료해 주세요.')
       return
     }
+    const authPhone = formatPhoneForAuth(verifiedPhone)
     const supabase = getSupabase()
     if (!supabase) {
-      setError('Supabase 환경 변수를 확인해 주세요 (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).')
+      setError('Supabase 설정을 확인해 주세요. (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).')
       return
     }
     try {
       setLoading(true)
-      setNotice('전화번호 인증이 완료되었습니다.')
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password: pass,
+        options: {
+          data: {
+            name,
+            nickname,
+            phone: authPhone,
+            gender,
+            interest,
+          },
+        },
+      })
+      if (signUpError) throw signUpError
+      if (data?.session) {
+        await supabase.auth.updateUser({ phone: authPhone })
+      }
+      const userId = data?.user?.id
+      if (userId) {
+        await supabase.from('user_profile').upsert({
+          id: userId,
+          email,
+          name: name || null,
+          nickname: nickname || null,
+          phone: authPhone,
+          gender: gender || null,
+          interest: interest || null,
+          created_at: new Date().toISOString(),
+        })
+      }
+      setNotice('회원가입이 정상적으로 신청되었습니다. 이메일을 확인해 주세요.')
       setTimeout(() => navigate('/'), 800)
     } catch (e: any) {
       setError(e?.message || '가입 처리 중 오류가 발생했습니다.')

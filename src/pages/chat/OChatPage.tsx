@@ -255,7 +255,7 @@ export default function OChatPage() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="메시지를 입력하세요"
+            placeholder="채팅방 공사중 입니다."
             className="flex-1 rounded-md bg-[#1b1b1b] border border-neutral-700 px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
           />
           <button
