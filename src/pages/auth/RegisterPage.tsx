@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import Button from '../../components/ui/Button'
 import getSupabase from '../../lib/supabase/client'
 
-const PROXY_URL = (import.meta as any).env?.VITE_PROXY_URL || 'http://58.227.42.203:3001'
+const PROXY_URL = (import.meta as any).env?.VITE_PROXY_URL || 'https://otp.oxbit.app'
 const PROXY_TOKEN = (import.meta as any).env?.VITE_PROXY_TOKEN || 'oxbit-secret'
 
 function normalizePhone(input: string): string {
