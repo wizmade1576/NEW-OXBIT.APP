@@ -26,7 +26,13 @@ if (!ALIGO_USER_ID || !ALIGO_API_KEY || !ALIGO_SENDER) {
 }
 
 const app = express()
-app.use(cors())
+app.use(
+  cors({
+    origin: ['https://oxbit.app', 'https://www.oxbit.app'],
+    methods: ['POST', 'OPTIONS'],
+    allowedHeaders: ['authorization', 'x-client-info', 'apikey', 'content-type', 'x-proxy-token'],
+  }),
+)
 app.use(express.urlencoded({ extended: true }))
 app.use(express.json({ limit: '1mb' }))
 app.use(morgan('combined'))
@@ -82,6 +88,8 @@ async function handleSend(req, res) {
 }
 
 // 경로: /send-otp, /send-sms
+app.options('/send-otp', (_req, res) => res.sendStatus(204))
+app.options('/send-sms', (_req, res) => res.sendStatus(204))
 app.post('/send-otp', handleSend)
 app.post('/send-sms', handleSend)
 
