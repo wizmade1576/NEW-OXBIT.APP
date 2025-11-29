@@ -3,6 +3,8 @@ import getSupabase from '../../lib/supabase/client'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../../components/ui/Card'
 import { Button } from '../../components/ui/Button'
 
+const ADMIN_USERS_ENDPOINT = (import.meta as any).env?.VITE_ADMIN_USERS_ENDPOINT || ''
+
 type UserProfile = {
   id: string
   email: string
@@ -72,24 +74,40 @@ export default function UsersPage() {
   const limit = 10
 
   const fetchUsers = React.useCallback(async () => {
+    if (!ADMIN_USERS_ENDPOINT) return
     const supabase = getSupabase()
     if (!supabase) return
     try {
-      let query = supabase
-        .from('user_profile')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range((page - 1) * limit, page * limit - 1)
-
-      if (search.trim()) {
-        const q = `%${search.trim()}%`
-        query = query.ilike('name', q).or(`nickname.ilike.${q}`).or(`phone.ilike.${q}`)
+      const { data: sessionData } = await supabase.auth.getSession()
+      const accessToken = sessionData?.session?.access_token
+      if (!accessToken) {
+        setUsers([])
+        setHasMore(false)
+        return
       }
 
-      const { data, error, count } = await query
-      if (error) throw error
-      setUsers((prev) => (page === 1 ? (data || []) : [...prev, ...(data || [])]))
-      setHasMore(Boolean(count && page * limit < count))
+      const params = new URLSearchParams()
+      if (search.trim()) params.append('search', search.trim())
+      params.append('page', String(page))
+      params.append('limit', String(limit))
+
+      const res = await fetch(`${ADMIN_USERS_ENDPOINT}?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => res.statusText)
+        throw new Error(errorText || '서버 요청에 실패했습니다.')
+      }
+
+      const payload = await res.json().catch(() => null)
+      const data = payload?.data ?? []
+      const count = payload?.count ?? null
+      setUsers((prev) => (page === 1 ? data : [...prev, ...data]))
+      const total = typeof count === 'number' ? count : data.length
+      setHasMore(Boolean(total && page * limit < total))
     } catch (error) {
       console.error(error)
     }
