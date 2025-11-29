@@ -1,6 +1,24 @@
 {
   "rewrites": [
-    { "source": "/breaking/:path*", "destination": "/breaking" },
-    { "source": "/(.*)", "destination": "/" }
+    {
+      "source": "/breaking/:path*",
+      "destination": "/breaking"
+    },
+    {
+      "source": "/send-otp",
+      "destination": "http://58.227.42.203:3001/send-otp"
+    },
+    {
+      "source": "/send-sms",
+      "destination": "http://58.227.42.203:3001/send-sms"
+    },
+    {
+      "source": "/health",
+      "destination": "http://58.227.42.203:3001/health"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
   ]
 }
