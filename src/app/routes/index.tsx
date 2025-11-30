@@ -88,7 +88,7 @@ export const router = createBrowserRouter([
       // 커뮤니티
 
       { path: 'breaking', element: <BreakingPage /> },
-      { path: 'breaking/:key', element: <BreakingDetailPage /> },
+      { path: 'breaking/:id', element: <BreakingDetailPage /> },
 
       { path: 'profile', element: <ProfilePage /> },
       { path: 'login', element: <LoginPage /> },
