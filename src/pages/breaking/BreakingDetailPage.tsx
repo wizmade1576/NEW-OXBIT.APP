@@ -47,12 +47,11 @@ type ItemState = {
 }
 
 export default function BreakingDetailPage() {
-  // 🔥 param 이름을 key → id 로 변경 (요청된 부분)
   const { id } = useParams<{ id: string }>()
   const location = useLocation()
+
   const state = (location.state || {}) as Partial<ItemState>
 
-  // 🔥 state 존재하면 우선 사용, 없으면 서버 fetch (요청된 부분)
   const [item, setItem] = React.useState<ItemState | null>(state?.title ? (state as ItemState) : null)
 
   const [loading, setLoading] = React.useState(false)
@@ -62,30 +61,36 @@ export default function BreakingDetailPage() {
   const [likeCount, setLikeCount] = React.useState(0)
   const [comments, setComments] = React.useState<BreakingComment[]>([])
 
-  // 🔥 URL 접근 시에도 정상적으로 admin 글 불러오기
+  /* --------------------------------------------
+     🔥 공유 링크 또는 직접 URL 접근 시 서버에서 재조회
+  -------------------------------------------- */
   React.useEffect(() => {
     const load = async () => {
-      if (item || !id) return
+      if (!id) return
 
       setLoading(true)
+      setError(null)
+
       try {
         const r = await fetchBreakingById(id)
-        if (r) {
-          const d = new Date(r.publish_at || r.created_at)
-          const hh = String(d.getHours()).padStart(2, '0')
-          const mm = String(d.getMinutes()).padStart(2, '0')
 
-          setItem({
-            title: r.title,
-            body: r.body || r.title,
-            tag: r.tag || '관리자',
-            url: r.source_link || undefined,
-            time: `${hh}:${mm}`,
-            important: !!r.is_important,
-          })
-        } else {
-          setError('데이터를 찾을 수 없습니다')
+        if (!r) {
+          setError('데이터를 찾을 수 없습니다.')
+          return
         }
+
+        const d = new Date(r.publish_at || r.created_at)
+        const hh = String(d.getHours()).padStart(2, '0')
+        const mm = String(d.getMinutes()).padStart(2, '0')
+
+        setItem({
+          title: r.title,
+          body: r.body || r.title,
+          tag: r.tag || '관리자',
+          url: r.source_link || undefined,
+          time: `${hh}:${mm}`,
+          important: !!r.is_important,
+        })
       } catch (e: any) {
         setError(e?.message || '정보를 불러오지 못했습니다')
       } finally {
@@ -94,13 +99,21 @@ export default function BreakingDetailPage() {
     }
 
     load()
-  }, [id, item])
+  }, [id])
 
-  // 좋아요/댓글 로딩 (admin 글만)
+  /* --------------------------------------------
+     좋아요 / 댓글 (admin 글만)
+  -------------------------------------------- */
   React.useEffect(() => {
     const run = async () => {
       if (!id) return
-      const [c, h, cmts] = await Promise.all([countLikes(id), hasLiked(id), fetchComments(id)])
+
+      const [c, h, cmts] = await Promise.all([
+        countLikes(id),
+        hasLiked(id),
+        fetchComments(id)
+      ])
+
       setLikeCount(c)
       setLiked(h)
       setComments(cmts)
