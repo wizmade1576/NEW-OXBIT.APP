@@ -84,7 +84,7 @@ export function shareViaTelegram(payload: BreakingSharePayload) {
 }
 
 /* -------------------------------------------------------
-   🔥 공유 URL + 텍스트 생성 (핵심 수정 부분)
+   🔥 공유 URL + 텍스트 생성 (요청한 부분만 정확히 수정)
 ------------------------------------------------------- */
 export function buildBreakingSharePayload(item: {
   title: string
@@ -97,21 +97,19 @@ export function buildBreakingSharePayload(item: {
       ? 'https://oxbit.app'
       : window.location.origin
 
-  // ID 기반 짧은 URL
+  // 🔥 1) url은 무조건 id 기반 (key 절대 사용 ❌)
   const url = item.id
     ? `${base.replace(/\/$/, '')}/breaking/${item.id}`
     : `${base.replace(/\/$/, '')}/breaking`
 
-  // 🔥 제목만 (OXBIT.APP 제거)
+  // 🔥 2) text 안에 URL 넣지 않음 → 카톡 미리보기 1개만
   const title = item.title
-
-  // 🔥 text 안에 URL 넣지 말기 → 카톡에서 URL 1개만 파싱됨
-  const text = title
+  const text = item.title
 
   return {
     title,
     description: item.body ?? '',
-    url,   // URL은 딱 1번만
-    text,  // 제목만 → 링크 중복 미리보기 방지
+    url,   // URL은 한 번만
+    text,  // 제목만 (URL 포함 금지)
   }
 }

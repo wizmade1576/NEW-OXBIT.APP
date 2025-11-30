@@ -3,6 +3,7 @@ import RootLayout from '../layouts/RootLayout'
 
 import BreakingPage from '../../pages/breaking/BreakingPage'
 import BreakingDetailPage from '../../pages/breaking/BreakingDetailPage'
+import ProfilePage from '../../pages/profile/ProfilePage'
 
 import SearchPage from '../../pages/search/SearchPage'
 import NotFoundPage from '../../pages/NotFoundPage'
@@ -89,6 +90,7 @@ export const router = createBrowserRouter([
       { path: 'breaking', element: <BreakingPage /> },
       { path: 'breaking/:key', element: <BreakingDetailPage /> },
 
+      { path: 'profile', element: <ProfilePage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <RegisterPage /> },
       { path: 'forgot', element: <ForgotPasswordPage /> },

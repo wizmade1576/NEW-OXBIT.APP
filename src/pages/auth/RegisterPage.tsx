@@ -254,7 +254,7 @@ export default function RegisterPage() {
     // 4) 성공 → 안내 후 로그인 페이지 이동
     // ===========================
     setNotice("회원가입이 완료되었습니다. 이메일을 확인해주세요.");
-    navigate('/breaking', { state: { welcomeMessage: '회원가입을 축하합니다! 속보 페이지에서 최신 정보를 확인해보세요.' } })
+    navigate('/profile', { state: { welcomeMessage: '회원가입을 축하합니다! 프로필 정보를 확인하거나 정보를 수정해보세요.' } })
 
   } catch (err: any) {
     console.error("회원가입 처리 오류:", err);
