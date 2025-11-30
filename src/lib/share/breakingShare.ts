@@ -90,31 +90,28 @@ export function buildBreakingSharePayload(item: {
   title: string
   body?: string
   url?: string
-  id?: string | number
+  id?: number | string
 }) {
-  const base = typeof window === 'undefined'
-    ? 'https://oxbit.app'
-    : window.location.origin
+  const base =
+    typeof window === 'undefined'
+      ? 'https://oxbit.app'
+      : window.location.origin
 
-  // 🔥 UUID가 너무 길어서 → 앞 8자리만 사용
-  let shortId = ''
-  if (item.id) {
-    const idStr = String(item.id)
-    // admin-123 → 숫자만 추출 or uuid → 앞 8자만
-    const raw = idStr.replace(/[^a-zA-Z0-9-]/g, '')
-    shortId = raw.includes('-') ? raw.split('-')[0] : raw
-  }
+  // ID 기반 짧은 URL
+  const url = item.id
+    ? `${base.replace(/\/$/, '')}/breaking/${item.id}`
+    : `${base.replace(/\/$/, '')}/breaking`
 
-  // 최종 공유 URL
-  const shareUrl = `${base}/breaking/${shortId}`
+  // 🔥 제목만 (OXBIT.APP 제거)
+  const title = item.title
 
-  // 카카오톡 + 텔레그램 공통 제목
-  const titleLine = `${item.title} - OXBIT.APP`
+  // 🔥 text 안에 URL 넣지 말기 → 카톡에서 URL 1개만 파싱됨
+  const text = title
 
   return {
-    title: titleLine,
-    description: item.body,
-    url: shareUrl,
-    text: `${titleLine}\n${shareUrl}`, // 🔥 링크 중복 제거 (단 1번만 표시)
-  } satisfies BreakingSharePayload
+    title,
+    description: item.body ?? '',
+    url,   // URL은 딱 1번만
+    text,  // 제목만 → 링크 중복 미리보기 방지
+  }
 }

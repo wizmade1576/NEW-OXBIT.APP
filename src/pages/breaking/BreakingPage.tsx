@@ -275,6 +275,7 @@ export default function BreakingPage() {
   const pageSize = 20
   const [hasMore, setHasMore] = React.useState(true)
   const location = useLocation()
+  const [welcomeMessage, setWelcomeMessage] = React.useState<string | null>(null)
 
   // url /breaking/:id → /breaking?key=
   React.useEffect(() => {
@@ -283,6 +284,11 @@ export default function BreakingPage() {
     const params = new URLSearchParams(location.search)
     params.set('key', key)
     window.history.replaceState(null, '', `/breaking?${params.toString()}`)
+    const welcome = (location.state as any)?.welcomeMessage
+    if (welcome) {
+      setWelcomeMessage(welcome)
+      window.history.replaceState(null, '', `/breaking?${params.toString()}`)
+    }
   }, [location.pathname, location.search])
 
   const load = React.useCallback(
@@ -397,63 +403,81 @@ export default function BreakingPage() {
 
   const isEmpty = !loading && !error && items.length === 0
 
-  return (
+   return (
     <div className="max-w-[900px] mx-auto px-1 sm:px-0">
       <section className="space-y-6 sm:space-y-8">
 
         {/* HEADER */}
-        <div className="flex items-end justify-between">
-          <div>
-            <h2 className="text-lg sm:text-xl font-semibold">속보</h2>
-            <p className="text-muted-foreground text-xs sm:text-sm">
-              현재 시각 기준 속보 : {nowText}
-            </p>
-          </div>
+        <div className="flex flex-col gap-3">
 
-          <Button
-            variant="outline"
-            disabled={loading}
-            onClick={handleRefresh}
-            className="!text-[10px] !px-2 !py-0.5 !h-[26px] sm:!text-sm sm:!px-3 sm:!py-1"
-          >
-            {loading ? '불러오는 중...' : '새로고침'}
-          </Button>
-        </div>
+          {welcomeMessage ? (
+            <div className="rounded-md border border-emerald-400 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-200">
+              {welcomeMessage}
+            </div>
+          ) : null}
 
-        {error && <div className="text-sm text-red-400">{error}</div>}
-        {isEmpty && <div className="text-sm text-muted-foreground">표시할 속보가 없습니다.</div>}
+          <div className="flex items-end justify-between">
+            <div>
+              <h2 className="text-lg sm:text-xl font-semibold">속보</h2>
+              <p className="text-muted-foreground text-xs sm:text-sm">
+                현재 시각 기준 속보 : {nowText}
+              </p>
+            </div>
 
-        {/* LIST */}
-        <div className="space-y-0">
-          {items.map((it, idx) => (
-            <TimelineItem
-              key={it.key}
-              item={it}
-              prevKey={idx > 0 ? items[idx - 1]?.key : undefined}
-              nextKey={idx < items.length - 1 ? items[idx + 1]?.key : undefined}
-            />
-          ))}
-        </div>
-
-        {/* 더보기 */}
-        {hasMore && (
-          <div className="mt-2 flex justify-center">
             <Button
               variant="outline"
               disabled={loading}
-              onClick={() => {
-                const next = page + 1
-                setPage(next)
-                void load(next, true)
-              }}
-              className="!text-sm !px-4 !py-1.5"
+              onClick={handleRefresh}
+              className="!text-[10px] !px-2 !py-0.5 !h-[26px] sm:!text-sm sm:!px-3 sm:!py-1"
             >
-              {loading ? '불러오는 중...' : '더보기'}
+              {loading ? "불러오는 중..." : "새로고침"}
             </Button>
           </div>
-        )}
+
+          {/* 에러 표시 */}
+          {error && (
+            <div className="text-sm text-red-400">{error}</div>
+          )}
+
+          {isEmpty && (
+            <div className="text-sm text-muted-foreground">
+              표시할 속보가 없습니다.
+            </div>
+          )}
+
+          {/* LIST */}
+          <div className="space-y-0">
+            {items.map((it, idx) => (
+              <TimelineItem
+                key={it.key}
+                item={it}
+                prevKey={idx > 0 ? items[idx - 1]?.key : undefined}
+                nextKey={idx < items.length - 1 ? items[idx + 1]?.key : undefined}
+              />
+            ))}
+          </div>
+
+          {/* 더보기 */}
+          {hasMore && (
+            <div className="mt-2 flex justify-center">
+              <Button
+                variant="outline"
+                disabled={loading}
+                onClick={() => {
+                  const next = page + 1;
+                  setPage(next);
+                  void load(next, true);
+                }}
+                className="!text-sm !px-4 !py-1.5"
+              >
+                {loading ? "불러오는 중..." : "더보기"}
+              </Button>
+            </div>
+          )}
+
+        </div> {/* flex-col wrap 끝 */}
 
       </section>
     </div>
-  )
-}
+  );
+} // ← ★ 이게 빠져 있었음! 반드시 필요!!
