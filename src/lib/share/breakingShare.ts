@@ -31,6 +31,7 @@ export interface BreakingSharePayload {
   title: string
   description?: string
   url: string
+  text: string
   imageUrl?: string
 }
 
@@ -55,22 +56,22 @@ export async function shareViaKakao(payload: BreakingSharePayload) {
         webUrl: payload.url,
       },
     },
-    buttons: [
-      {
-        title: '자세히 보기',
-        link: {
-          mobileWebUrl: payload.url,
-          webUrl: payload.url,
+      buttons: [
+        {
+          title: '자세히 보기',
+          link: {
+            mobileWebUrl: payload.url,
+            webUrl: payload.url,
+          },
         },
-      },
-    ],
-  })
-}
+      ],
+    })
+  }
 
-export function shareViaTelegram(payload: BreakingSharePayload) {
-  const textParts = [payload.title]
-  if (payload.description) textParts.push(payload.description)
-  textParts.push(payload.url)
+  export function shareViaTelegram(payload: BreakingSharePayload) {
+    const textParts = [payload.title]
+    if (payload.description) textParts.push(payload.description)
+    textParts.push(payload.url)
   const text = textParts.filter(Boolean).join('\n')
   const params = new URLSearchParams({
     url: payload.url,
@@ -80,12 +81,21 @@ export function shareViaTelegram(payload: BreakingSharePayload) {
   window.open(shareUrl, '_blank', 'noopener')
 }
 
-export function buildBreakingSharePayload(item: { title: string; body?: string; url?: string; key?: string }) {
-  const fallbackUrl = `${window.location.origin}/breaking${item.key ? `/${encodeURIComponent(item.key)}` : ''}`
-  const url = item.url || fallbackUrl
+export function buildBreakingSharePayload(item: {
+  title: string
+  body?: string
+  url?: string
+  id?: number
+}) {
+  const base = typeof window === 'undefined' ? 'https://oxbit.app' : `${window.location.origin}`
+  const numericPath = item.id ? `${base.replace(/\/$/, '')}/breaking/${item.id}` : `${base.replace(/\/$/, '')}/breaking`
+  const url = item.url || numericPath
+  const titleLine = `${item.title} - OXBIT.APP`
+  const text = `${titleLine}\n${url}`
   return {
-    title: item.title,
+    title: titleLine,
     description: item.body,
     url,
+    text,
   } satisfies BreakingSharePayload
 }

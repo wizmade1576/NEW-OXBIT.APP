@@ -1,7 +1,6 @@
 ﻿import * as React from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import Button from '../../components/ui/Button'
-import ShareButtons from '../../components/breaking/ShareButtons'
 import { fetchAllTopics } from '../../lib/news/aggregate'
 import {
   fetchBreaking,
@@ -98,23 +97,26 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
   }, [item.id])
 
   const sharePayload = React.useMemo(
-    () => buildBreakingSharePayload({ title: item.title, body: item.body, url: item.url, key: item.key }),
-    [item.title, item.body, item.url, item.key]
+    () => buildBreakingSharePayload({ title: item.title, body: item.body, id: item.id ?? undefined }),
+    [item.title, item.body, item.id]
   )
 
   const share = async () => {
     if (!sharePayload) return
     try {
       if (navigator.share) {
-        await navigator.share({ title: sharePayload.title, url: sharePayload.url })
+        await navigator.share({
+          title: sharePayload.title,
+          text: sharePayload.text,
+          url: sharePayload.url,
+        })
       } else if (navigator.clipboard) {
         await navigator.clipboard.writeText(sharePayload.url)
-        alert('링크가 복사되었습니다.')
+        alert('링크가 복사됐습니다.')
       }
     } catch {}
   }
-
-  const toggleLike = async () => {
+const toggleLike = async () => {
     if (item.id) {
       try {
         if (liked) {
@@ -226,8 +228,6 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
           >
             <ShareIcon className="h-3.5 w-3.5 sm:h-5 sm:w-5" />
           </button>
-
-          <ShareButtons payload={sharePayload} size="xs" className="ml-auto" />
 
           {/* 원문 보기 */}
           {item.url && (
@@ -454,3 +454,7 @@ export default function BreakingPage() {
     </div>
   )
 }
+
+
+
+
