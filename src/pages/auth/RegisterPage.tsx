@@ -224,31 +224,43 @@ export default function RegisterPage() {
     }
 
     const user = signupData.user;
-    if (!user) {
-      setError("회원가입은 되었지만 사용자 정보가 없습니다.");
-      return;
-    }
+if (!user) {
+  setError("회원가입은 되었지만 사용자 정보가 없습니다.");
+  return;
+}
 
-    // ===========================
-    // 2) user_profile upsert
-    // ===========================
-    const { error: profileErr } = await supabase.from("user_profile").upsert(
-      {
-        id: user.id,
-        name,
-        nickname: nickname || null,
-        phone: authPhone,
-        gender,
-        interest,
-        role: "user",
-        created_at: new Date().toISOString(),
-      },
-      { onConflict: "id" }
-    );
+// ===========================
+// 2) 🔥 Supabase Auth에 전화번호 저장
+// ===========================
+try {
+  const { error: updateErr } = await supabase.auth.updateUser({
+    phone: authPhone,  // "+82..." 형식
+  });
 
-    if (profileErr) {
-      console.error("user_profile upsert 오류:", profileErr);
-    }
+  if (updateErr) {
+    console.error("Auth 전화번호 저장 오류:", updateErr);
+  }
+} catch (e) {
+  console.error("Auth 전화번호 업데이트 중 오류:", e);
+}
+
+// ===========================
+// 3) user_profile upsert
+// ===========================
+const { error: profileErr } = await supabase.from("user_profile").upsert(
+{
+  id: user.id,
+  name,
+  nickname: nickname || null,
+  phone: authPhone,
+  gender,
+  interest,
+  role: "user",
+  created_at: new Date().toISOString(),
+},
+{ onConflict: "id" }
+);
+
 
     // ===========================
     // 4) 성공 → 안내 후 로그인 페이지 이동
