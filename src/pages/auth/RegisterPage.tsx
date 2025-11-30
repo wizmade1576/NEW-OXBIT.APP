@@ -161,86 +161,123 @@ export default function RegisterPage() {
   }, [mapOtpError, phone, otpCode, sentCode])
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault()
-    setError(null)
-    setNotice(null)
-    const pass = password.trim()
-    const conf = confirm.trim()
-    if (!email || !email.includes('@')) {
-      setError('이메일을 올바르게 입력해 주세요.')
-      return
-    }
-    if (pass.length < 8 || !/[A-Za-z]/.test(pass) || !/[0-9]/.test(pass)) {
-      setError('비밀번호는 영문/숫자 조합 8자 이상이어야 합니다.')
-      return
-    }
-    if (!pass || !conf || pass !== conf) {
-      setError('비밀번호와 비밀번호 확인이 일치하지 않습니다.')
-      return
-    }
-    if (!gender) {
-      setError('성별을 선택해 주세요.')
-      return
-    }
-    if (!interest) {
-      setError('관심분야를 선택해 주세요.')
-      return
-    }
-    const normalizedPhone = normalizePhone(phone)
-    if (!normalizedPhone) {
-      setError('전화번호를 입력해 주세요.')
-      return
-    }
-    if (!phoneVerified || normalizedPhone !== verifiedPhone || !verifyToken) {
-      setError('전화번호 인증을 완료해 주세요.')
-      return
-    }
-    const authPhone = formatPhoneForAuth(verifiedPhone)
-    const supabase = getSupabase()
-    if (!supabase) {
-      setError('Supabase 설정을 확인해 주세요. (VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY).')
-      return
-    }
-    try {
-      setLoading(true)
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password: pass,
-        options: {
-          data: {
-            name,
-            nickname,
-            phone: authPhone,
-            gender,
-            interest,
-          },
-        },
-      })
-      if (signUpError) throw signUpError
-      if (data?.session) {
-        await supabase.auth.updateUser({ phone: authPhone })
-      }
-      const userId = data?.user?.id
-      if (userId) {
-        await supabase.from('user_profile').upsert({
-          id: userId,
-          email,
-          name: name || null,
-          nickname: nickname || null,
-          phone: authPhone,
-          gender: gender || null,
-          interest: interest || null,
-          created_at: new Date().toISOString(),
-        })
-      }
-      setNotice('회원가입이 정상적으로 신청되었습니다. 이메일을 확인해 주세요.')
-      setTimeout(() => navigate('/'), 800)
-    } catch (e: any) {
-      setError(e?.message || '가입 처리 중 오류가 발생했습니다.')
-    } finally {
-      setLoading(false)
-    }
+  e.preventDefault();
+  setError(null);
+  setNotice(null);
+
+  // ===== 기본 입력 검증 =====
+  const pass = password.trim();
+  const conf = confirm.trim();
+
+  if (!email || !email.includes("@")) {
+    setError("이메일을 올바르게 입력해 주세요.");
+    return;
   }
+  if (pass.length < 8 || !/[A-Za-z]/.test(pass) || !/[0-9]/.test(pass)) {
+    setError("비밀번호는 영문/숫자 조합 8자 이상이어야 합니다.");
+    return;
+  }
+  if (pass !== conf) {
+    setError("비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+    return;
+  }
+  if (!gender) {
+    setError("성별을 선택해 주세요.");
+    return;
+  }
+  if (!interest) {
+    setError("관심분야를 선택해 주세요.");
+    return;
+  }
+
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone) {
+    setError("전화번호를 입력해 주세요.");
+    return;
+  }
+  if (!phoneVerified || normalizedPhone !== verifiedPhone || !verifyToken) {
+    setError("전화번호 인증을 완료해 주세요.");
+    return;
+  }
+
+  const authPhone = formatPhoneForAuth(verifiedPhone);
+  const supabase = getSupabase();
+  if (!supabase) {
+    setError("Supabase 설정 오류 (환경변수 확인 필요)");
+    return;
+  }
+
+  setLoading(true);
+
+  try {
+    // ===========================
+    // 1) Supabase 회원가입
+    // ===========================
+    const { data: signupData, error: signupError } = await supabase.auth.signUp({
+      email,
+      password: pass,
+    });
+
+    if (signupError) {
+      setError(signupError.message);
+      return;
+    }
+
+    const user = signupData.user;
+    if (!user) {
+      setError("회원가입은 되었지만 사용자 정보가 없습니다.");
+      return;
+    }
+
+    // ===========================
+    // 2) 전화번호 updateUser
+    // ===========================
+    const { error: phoneErr } = await supabase.auth.updateUser({
+      phone: authPhone,
+    });
+
+    if (phoneErr) {
+      console.error("updateUser phone 오류:", phoneErr);
+      setError("전화번호 저장 중 오류가 발생했습니다.");
+      return;
+    }
+
+    // ===========================
+    // 3) user_profile upsert
+    // ===========================
+    const { error: profileErr } = await supabase.from("user_profile").upsert(
+      {
+        id: user.id,
+        name,
+        nickname: nickname || null,
+        phone: authPhone,
+        gender,
+        interest,
+        created_at: new Date().toISOString(),
+      },
+      { onConflict: "id" }
+    );
+
+    if (profileErr) {
+      console.error("user_profile upsert 오류:", profileErr);
+      setError("프로필 저장 중 오류가 발생했습니다.");
+      return;
+    }
+
+    // ===========================
+    // 4) 성공 → 안내 후 로그인 페이지 이동
+    // ===========================
+    setNotice("회원가입이 완료되었습니다. 이메일을 확인해주세요.");
+    setTimeout(() => navigate("/login"), 800);
+
+  } catch (err: any) {
+    console.error("회원가입 처리 오류:", err);
+    setError("알 수 없는 오류가 발생했습니다.");
+  } finally {
+    setLoading(false);
+  }
+}
+
 
   return (
     <section className="mx-auto max-w-md space-y-6">

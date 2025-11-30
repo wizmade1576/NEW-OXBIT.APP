@@ -22,7 +22,6 @@ import PositionsPage from '../../pages/positions/PositionsPage'
 import WhalesPage from '../../pages/positions/WhalesPage'
 import FearGreedPage from '../../pages/positions/FearGreedPage'
 import LongShortPage from '../../pages/positions/LongShortPage'
-import OChatPage from '../../pages/chat/OChatPage'
 
 
 import PaperTradingPage from '../../pages/paper/PaperTradingPage'
@@ -95,7 +94,6 @@ export const router = createBrowserRouter([
       { path: 'forgot', element: <ForgotPasswordPage /> },
 
       { path: 'paper', element: <PaperTradingPage /> },
-      { path: 'chat', element: <OChatPage /> },
 
       // 관리자
       {

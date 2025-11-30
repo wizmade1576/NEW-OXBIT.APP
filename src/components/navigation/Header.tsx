@@ -1,4 +1,4 @@
-﻿import { NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import ThemeToggle from '../ui/ThemeToggle'
 import * as React from 'react'
 import getSupabase from '../../lib/supabase/client'
@@ -24,6 +24,7 @@ function HamburgerIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 export default function Header() {
+  const MORE_ENABLED = false
   const [moreOpen, setMoreOpen] = React.useState(false)
   const moreRef = React.useRef<HTMLDivElement | null>(null)
   const [menuOpen, setMenuOpen] = React.useState(false)
@@ -36,12 +37,12 @@ export default function Header() {
   React.useEffect(() => {
     const onDoc = (e: MouseEvent) => {
       const t = e.target as Node
-      if (moreOpen && moreRef.current && !moreRef.current.contains(t)) setMoreOpen(false)
+      if (MORE_ENABLED && moreOpen && moreRef.current && !moreRef.current.contains(t)) setMoreOpen(false)
       if (menuOpen && menuRef.current && !menuRef.current.contains(t)) setMenuOpen(false)
     }
     document.addEventListener('mousedown', onDoc)
     return () => document.removeEventListener('mousedown', onDoc)
-  }, [moreOpen, menuOpen])
+  }, [menuOpen, moreOpen, MORE_ENABLED])
 
   React.useEffect(() => {
     let mounted = true
@@ -64,7 +65,7 @@ export default function Header() {
   React.useEffect(() => {
     const id = window.setInterval(() => {
       setConcurrentUsers((prev) => {
-        const delta = Math.floor((Math.random() - 0.5) * 40) // -20 ~ +19
+        const delta = Math.floor((Math.random() - 0.5) * 40)
         const next = prev + delta
         return Math.max(1200, Math.min(2800, next))
       })
@@ -83,10 +84,11 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-6">
-        {/* Brand always links to Breaking page */}
+        
         <NavLink to="/breaking" className="font-semibold tracking-tight" aria-label="OXBIT.APP">
           {BRAND}
         </NavLink>
+
         <nav className="hidden md:flex items-center gap-4 text-sm overflow-x-hidden sm:overflow-visible">
           <NavLink to="/breaking" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>
             속보
@@ -100,60 +102,26 @@ export default function Header() {
           <NavLink to="/positions" className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}>
             포지션
           </NavLink>
+
           <button
             type="button"
-            onClick={() => alert('현재 모의투자 리뉴얼 공사중입니다. 빠른 시일 내에 찾아 뵙겠습니다.')}
+            onClick={() => alert('해당 기능은 준비 중입니다. 추후 업데이트 예정입니다.')}
             className="text-muted-foreground hover:text-foreground"
           >
             모의투자
           </button>
-          <div ref={moreRef} className="relative">
-            <button
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded={moreOpen}
-              className="text-muted-foreground hover:text-foreground"
-              onClick={() => setMoreOpen((v) => !v)}
-            >
-              더보기
-            </button>
-            <div className={(moreOpen ? 'block ' : 'hidden ') + 'absolute left-0 top-full w-56 rounded-md border border-border bg-popover p-2 shadow-lg'}>
-              <NavLink
-                to="/more/notices"
-                onClick={() => setMoreOpen(false)}
-                className={({ isActive }) => (isActive ? 'flex items-center gap-3 rounded px-3 py-2 text-primary' : 'flex items-center gap-3 rounded px-3 py-2 text-foreground hover:bg-accent')}
-              >
-                <span>공지</span>
-                <span className="whitespace-nowrap">공지사항</span>
-              </NavLink>
-              <NavLink
-                to="/more/guide"
-                onClick={() => setMoreOpen(false)}
-                className={({ isActive }) => (isActive ? 'flex items-center gap-3 rounded px-3 py-2 text-primary' : 'flex items-center gap-3 rounded px-3 py-2 text-foreground hover:bg-accent')}
-              >
-                <span>가이드</span>
-                <span className="whitespace-nowrap">이용 가이드</span>
-              </NavLink>
-              {isAdmin ? (
-                <NavLink
-                  to="/admin"
-                  onClick={() => setMoreOpen(false)}
-                  className={({ isActive }) => (isActive ? 'flex items-center gap-3 rounded px-3 py-2 text-primary' : 'flex items-center gap-3 rounded px-3 py-2 text-foreground hover:bg-accent')}
-                >
-                  <span>관리</span>
-                  <span className="whitespace-nowrap">관리자</span>
-                </NavLink>
-              ) : null}
-            </div>
-          </div>
         </nav>
+
+        {/* 우측 컨트롤 */}
         <div className="ml-auto flex items-center gap-2">
-          {/* Desktop controls */}
+
+          {/* 데스크탑 */}
           <div className="hidden md:flex items-center gap-2">
             <div className="text-xs text-muted-foreground flex items-center gap-1 whitespace-nowrap pr-2">
               <span className="font-medium text-foreground/80">동시접속자</span>
               <span className="font-semibold text-primary">{concurrentUsers.toLocaleString('ko-KR')}</span>
             </div>
+
             <NavLink
               to="/search"
               aria-label="검색"
@@ -166,27 +134,32 @@ export default function Header() {
             >
               <SearchIcon />
             </NavLink>
+
             <ThemeToggle />
+
             {user?.email ? (
               <div className="relative group">
                 <button className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-sm font-medium text-foreground hover:bg-accent">
                   {user.email}
                 </button>
+
                 <div className="absolute right-0 mt-1 hidden group-hover:block rounded-md border border-border bg-popover p-2 shadow-lg">
                   <NavLink
                     to="/profile"
                     className={({ isActive }) => (isActive ? 'block rounded px-3 py-1.5 text-primary' : 'block rounded px-3 py-1.5 hover:bg-accent')}
                   >
-                    프로필
+                    내 프로필
                   </NavLink>
+
                   {isAdmin ? (
                     <NavLink
                       to="/admin"
                       className={({ isActive }) => (isActive ? 'block rounded px-3 py-1.5 text-primary' : 'block rounded px-3 py-1.5 hover:bg-accent')}
                     >
-                      관리자
+                      관리자 페이지
                     </NavLink>
                   ) : null}
+
                   <button onClick={logout} className="block w-full text-left rounded px-3 py-1.5 hover:bg-accent">
                     로그아웃
                   </button>
@@ -205,12 +178,14 @@ export default function Header() {
               </NavLink>
             )}
           </div>
-          {/* Mobile quick icons */}
+
+          {/* 모바일 quick 메뉴 */}
           <div className="flex md:hidden items-center gap-2">
             <div className="text-[11px] text-muted-foreground flex items-center gap-1 whitespace-nowrap pr-1">
-              <span className="font-medium text-foreground/80">동시접속자</span>
+              <span className="font-medium text-foreground/80">동시접속</span>
               <span className="font-semibold text-primary">{concurrentUsers.toLocaleString('ko-KR')}</span>
             </div>
+
             <NavLink
               to="/search"
               aria-label="검색"
@@ -223,10 +198,11 @@ export default function Header() {
             >
               <SearchIcon />
             </NavLink>
+
             <ThemeToggle />
           </div>
 
-          {/* Mobile hamburger */}
+          {/* 모바일 햄버거 */}
           <button
             type="button"
             className="inline-flex md:hidden h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-foreground hover:bg-accent"
@@ -237,22 +213,25 @@ export default function Header() {
           >
             <HamburgerIcon />
           </button>
-          {/* Mobile menu panel */}
+
+          {/* 모바일 메뉴 패널 */}
           <div
             ref={menuRef}
             className={(menuOpen ? 'block ' : 'hidden ') + 'md:hidden absolute right-4 top-14 w-64 rounded-md border border-border bg-popover p-2 shadow-lg z-50'}
           >
             <div className="px-2 py-1.5 text-xs text-muted-foreground">메뉴</div>
+
             <button
               type="button"
               onClick={() => {
                 setMenuOpen(false)
-                alert('현재 모의투자 리뉴얼 공사중입니다. 빠른 시일 내에 찾아 뵙겠습니다.')
+                alert('해당 기능은 준비 중입니다. 추후 업데이트 예정입니다.')
               }}
               className="block rounded px-3 py-2 hover:bg-accent text-foreground"
             >
-              모의투자
+              공지사항
             </button>
+
             <NavLink
               to="/breaking"
               onClick={() => setMenuOpen(false)}
@@ -260,6 +239,7 @@ export default function Header() {
             >
               속보
             </NavLink>
+
             <NavLink
               to="/news"
               onClick={() => setMenuOpen(false)}
@@ -267,6 +247,7 @@ export default function Header() {
             >
               뉴스
             </NavLink>
+
             <NavLink
               to="/markets"
               onClick={() => setMenuOpen(false)}
@@ -274,6 +255,7 @@ export default function Header() {
             >
               마켓
             </NavLink>
+
             <NavLink
               to="/positions"
               onClick={() => setMenuOpen(false)}
@@ -281,28 +263,40 @@ export default function Header() {
             >
               포지션
             </NavLink>
+
             <div className="my-1 h-px bg-border" />
+
             <div className="px-2 py-1.5 text-xs text-muted-foreground">계정</div>
+
             {user?.email ? (
               <>
                 <div className="px-3 py-2 text-sm text-muted-foreground truncate">{user.email}</div>
+
                 <NavLink
                   to="/profile"
                   onClick={() => setMenuOpen(false)}
                   className={({ isActive }) => (isActive ? 'block rounded px-3 py-2 text-primary' : 'block rounded px-3 py-2 hover:bg-accent')}
                 >
-                  프로필
+                  내 프로필
                 </NavLink>
+
                 {isAdmin ? (
                   <NavLink
                     to="/admin"
                     onClick={() => setMenuOpen(false)}
                     className={({ isActive }) => (isActive ? 'block rounded px-3 py-2 text-primary' : 'block rounded px-3 py-2 hover:bg-accent')}
                   >
-                    관리자
+                    관리자 페이지
                   </NavLink>
                 ) : null}
-                <button onClick={() => { setMenuOpen(false); logout() }} className="block w-full text-left rounded px-3 py-2 hover:bg-accent">
+
+                <button
+                  onClick={() => {
+                    setMenuOpen(false)
+                    logout()
+                  }}
+                  className="block w-full text-left rounded px-3 py-2 hover:bg-accent"
+                >
                   로그아웃
                 </button>
               </>
