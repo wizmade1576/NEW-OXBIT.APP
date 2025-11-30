@@ -147,14 +147,6 @@ export default function LoginPage() {
           </div>
 
           <div className="my-4 h-px w-full bg-border" />
-          <div className="grid grid-cols-2 gap-3">
-            <Button type="button" variant="outline" onClick={() => oauthLogin('google')}>
-              <span className="mr-2">G</span> Google
-            </Button>
-            <Button type="button" variant="outline" onClick={() => oauthLogin('kakao')}>
-              <span className="mr-2">K</span> KakaoTalk
-            </Button>
-          </div>
         </CardContent>
       </Card>
     </section>

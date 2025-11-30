@@ -45,6 +45,7 @@ export async function shareViaKakao(payload: BreakingSharePayload) {
   if (!kakao.isInitialized()) {
     kakao.init(KAKAO_JS_KEY)
   }
+
   kakao.Link.sendDefault({
     objectType: 'feed',
     content: {
@@ -56,22 +57,23 @@ export async function shareViaKakao(payload: BreakingSharePayload) {
         webUrl: payload.url,
       },
     },
-      buttons: [
-        {
-          title: '자세히 보기',
-          link: {
-            mobileWebUrl: payload.url,
-            webUrl: payload.url,
-          },
+    buttons: [
+      {
+        title: '자세히 보기',
+        link: {
+          mobileWebUrl: payload.url,
+          webUrl: payload.url,
         },
-      ],
-    })
-  }
+      },
+    ],
+  })
+}
 
-  export function shareViaTelegram(payload: BreakingSharePayload) {
-    const textParts = [payload.title]
-    if (payload.description) textParts.push(payload.description)
-    textParts.push(payload.url)
+export function shareViaTelegram(payload: BreakingSharePayload) {
+  const textParts = [payload.title]
+  if (payload.description) textParts.push(payload.description)
+  textParts.push(payload.url)
+
   const text = textParts.filter(Boolean).join('\n')
   const params = new URLSearchParams({
     url: payload.url,
@@ -81,21 +83,38 @@ export async function shareViaKakao(payload: BreakingSharePayload) {
   window.open(shareUrl, '_blank', 'noopener')
 }
 
+/* -------------------------------------------------------
+   🔥 공유 URL + 텍스트 생성 (핵심 수정 부분)
+------------------------------------------------------- */
 export function buildBreakingSharePayload(item: {
   title: string
   body?: string
   url?: string
-  id?: number
+  id?: string | number
 }) {
-  const base = typeof window === 'undefined' ? 'https://oxbit.app' : `${window.location.origin}`
-  const numericPath = item.id ? `${base.replace(/\/$/, '')}/breaking/${item.id}` : `${base.replace(/\/$/, '')}/breaking`
-  const url = item.url || numericPath
+  const base = typeof window === 'undefined'
+    ? 'https://oxbit.app'
+    : window.location.origin
+
+  // 🔥 UUID가 너무 길어서 → 앞 8자리만 사용
+  let shortId = ''
+  if (item.id) {
+    const idStr = String(item.id)
+    // admin-123 → 숫자만 추출 or uuid → 앞 8자만
+    const raw = idStr.replace(/[^a-zA-Z0-9-]/g, '')
+    shortId = raw.includes('-') ? raw.split('-')[0] : raw
+  }
+
+  // 최종 공유 URL
+  const shareUrl = `${base}/breaking/${shortId}`
+
+  // 카카오톡 + 텔레그램 공통 제목
   const titleLine = `${item.title} - OXBIT.APP`
-  const text = `${titleLine}\n${url}`
+
   return {
     title: titleLine,
     description: item.body,
-    url,
-    text,
+    url: shareUrl,
+    text: `${titleLine}\n${shareUrl}`, // 🔥 링크 중복 제거 (단 1번만 표시)
   } satisfies BreakingSharePayload
 }

@@ -46,6 +46,7 @@ export default function RegisterPage() {
   const [error, setError] = React.useState<string | null>(null)
   const [notice, setNotice] = React.useState<string | null>(null)
   const [verifyToken, setVerifyToken] = React.useState<string | null>(null)
+  const [successModalOpen, setSuccessModalOpen] = React.useState(false)
 
   const passwordError = React.useMemo(() => {
     const pass = password.trim()
@@ -230,20 +231,7 @@ export default function RegisterPage() {
     }
 
     // ===========================
-    // 2) 전화번호 updateUser
-    // ===========================
-    const { error: phoneErr } = await supabase.auth.updateUser({
-      phone: authPhone,
-    });
-
-    if (phoneErr) {
-      console.error("updateUser phone 오류:", phoneErr);
-      setError("전화번호 저장 중 오류가 발생했습니다.");
-      return;
-    }
-
-    // ===========================
-    // 3) user_profile upsert
+    // 2) user_profile upsert
     // ===========================
     const { error: profileErr } = await supabase.from("user_profile").upsert(
       {
@@ -268,7 +256,7 @@ export default function RegisterPage() {
     // 4) 성공 → 안내 후 로그인 페이지 이동
     // ===========================
     setNotice("회원가입이 완료되었습니다. 이메일을 확인해주세요.");
-    setTimeout(() => navigate("/login"), 800);
+    setSuccessModalOpen(true);
 
   } catch (err: any) {
     console.error("회원가입 처리 오류:", err);
@@ -278,6 +266,15 @@ export default function RegisterPage() {
   }
 }
 
+  const handleSuccessContinue = () => {
+    setSuccessModalOpen(false)
+    navigate('/breaking')
+  }
+
+  const handleSuccessExit = () => {
+    setSuccessModalOpen(false)
+    navigate('/login')
+  }
 
   return (
     <section className="mx-auto max-w-md space-y-6">
@@ -536,6 +533,25 @@ export default function RegisterPage() {
                   ...
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {successModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setSuccessModalOpen(false)} />
+          <div className="relative z-10 w-[90%] max-w-sm rounded-xl border border-border bg-panel p-6 text-center shadow-2xl">
+            <h3 className="text-xl font-semibold">회원가입을 축하합니다!</h3>
+            <p className="mt-3 text-sm text-muted-foreground">
+              이제 속보 페이지에서 정보를 확인하거나 로그인 화면으로 이동해보세요.
+            </p>
+            <div className="mt-6 flex flex-col gap-2">
+              <Button variant="default" onClick={handleSuccessContinue}>
+                계속 이용하기
+              </Button>
+              <Button variant="ghost" onClick={handleSuccessExit}>
+                로그인하러 가기
+              </Button>
             </div>
           </div>
         </div>

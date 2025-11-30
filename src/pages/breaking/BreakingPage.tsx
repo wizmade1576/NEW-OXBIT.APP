@@ -96,6 +96,7 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
     }
   }, [item.id])
 
+  // 🔥 수정 1: 공유 URL이 item.id 기반으로 생성되도록 유지
   const sharePayload = React.useMemo(
     () => buildBreakingSharePayload({ title: item.title, body: item.body, id: item.id ?? undefined }),
     [item.title, item.body, item.id]
@@ -116,7 +117,8 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
       }
     } catch {}
   }
-const toggleLike = async () => {
+
+  const toggleLike = async () => {
     if (item.id) {
       try {
         if (liked) {
@@ -161,8 +163,9 @@ const toggleLike = async () => {
 
       {/* 내용 */}
       <div className="pb-4 sm:pb-6">
+        {/* 🔥 수정 2: key가 아니라 id로 링크 이동 */}
         <Link
-          to={`/breaking/${item.key}`}
+          to={`/breaking/${item.id}`}
           state={{ ...item, prevKey, nextKey }}
           onClick={() => sessionStorage.setItem('breaking:scrollY', String(window.scrollY))}
           className="block"
@@ -198,7 +201,7 @@ const toggleLike = async () => {
 
           {/* 댓글 */}
           <Link
-            to={`/breaking/${item.key}`}
+            to={`/breaking/${item.id}`}
             state={{ ...item, prevKey, nextKey }}
             className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-accent/60 text-muted-foreground hover:text-foreground"
           >
@@ -247,7 +250,7 @@ const toggleLike = async () => {
             onClick={() => setExpanded((v) => !v)}
             className="ml-auto rounded-md border border-border px-1.5 py-0.5 text-[11px] sm:text-xs h-[26px] hover:bg-accent"
           >
-            {expanded ? '닫기' : '모아보기'}
+            {expanded ? '닫기' : '펼치기'}
           </button>
         </div>
 
@@ -454,7 +457,3 @@ export default function BreakingPage() {
     </div>
   )
 }
-
-
-
-
