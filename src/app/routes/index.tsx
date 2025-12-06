@@ -24,7 +24,6 @@ import WhalesPage from '../../pages/positions/WhalesPage'
 import FearGreedPage from '../../pages/positions/FearGreedPage'
 import LongShortPage from '../../pages/positions/LongShortPage'
 
-
 import PaperTradingPage from '../../pages/paper/PaperTradingPage'
 import MoreLayout from '../../pages/more/MoreLayout'
 import NoticesPage from '../../pages/notices/NoticesPage'
@@ -34,13 +33,14 @@ import LoginPage from '@/pages/auth/LoginPage'
 import RegisterPage from '@/pages/auth/RegisterPage'
 import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage'
 
-
 import RequireAdmin from '../../components/auth/RequireAdmin'
 import AdminLayout from '../../pages/admin/Layout'
 import AdminDashboardPage from '../../pages/admin/DashboardPage'
 import AdminBreakingPage from '../../pages/admin/BreakingPage'
 import AdminAdsPage from '../../pages/admin/AdsPage'
-import AdminUsersPage from '../../pages/admin/UsersPage'
+// ❗ 기존 AdminUsersPage 대신 UserManagePage 사용
+import UserManagePage from '../../pages/admin/UserManagePage'
+
 import AdminPositionsPage from '../../pages/admin/PositionsPage'
 import AdminAnalyticsPage from '../../pages/admin/AnalyticsPage'
 
@@ -58,12 +58,12 @@ export const router = createBrowserRouter([
         children: [{ index: true, element: <NewsPage /> }],
       },
 
-      // 마켓 ★ 수정 완료: /markets → 자동 /markets/stocks 이동
+      // 마켓
       {
         path: 'markets',
         element: <MarketsLayout />,
         children: [
-          { index: true, element: <Navigate to="stocks" replace /> },  // ← 수정된 부분
+          { index: true, element: <Navigate to="stocks" replace /> },
           { path: 'crypto', element: <CryptoPage /> },
           { path: 'stocks', element: <StocksPage /> },
           { path: 'futures', element: <FuturesPage /> },
@@ -86,7 +86,6 @@ export const router = createBrowserRouter([
       },
 
       // 커뮤니티
-
       { path: 'breaking', element: <BreakingPage /> },
       { path: 'breaking/:id', element: <BreakingDetailPage /> },
 
@@ -108,7 +107,8 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <AdminDashboardPage /> },
           { path: 'analytics', element: <AdminAnalyticsPage /> },
-          { path: 'users', element: <AdminUsersPage /> },
+          // 🔥 회원관리: UserManagePage로 변경됨
+          { path: 'users', element: <UserManagePage /> },
           { path: 'positions', element: <AdminPositionsPage /> },
           { path: 'breaking', element: <AdminBreakingPage /> },
           { path: 'ads', element: <AdminAdsPage /> },
