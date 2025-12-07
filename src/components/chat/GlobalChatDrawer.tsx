@@ -201,53 +201,59 @@ export default function GlobalChatDrawerNew({ open, onClose }: Props) {
         </div>
 
         {/* ✅ 입력 */}
-        <form
-          onSubmit={send}
-          className="px-4 py-3 border-t border-border"
-          style={{
-            paddingBottom: 'calc(env(safe-area-inset-bottom) + 8px)',
-          }}
-        >
-          <div className="flex gap-2 items-center">
-            <input
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              disabled={!isLogin || sending}
-              className="
-                flex-1 min-w-0
-                bg-[#0b0f15]
-                border border-border
-                rounded-2xl
-                px-3 py-2
-                text-white
-              "
-              placeholder={isLogin ? '메시지 입력' : '로그인이 필요합니다.'}
-            />
+       <form onSubmit={send} className="px-3 py-2 border-t border-white/10">
+  <div className="flex items-center gap-2">
+    <input
+      value={text}
+      onChange={(e) => setText(e.target.value)}
+      disabled={!isLogin || sending}
+      placeholder={isLogin ? '메시지 입력...' : '로그인 필요'}
+      className="
+        flex-1
+        min-w-0
+        rounded-xl
+        bg-[#0b0f15]
+        border
+        border-white/10
+        px-3
+        py-2
+        text-sm
+        text-white
+        placeholder:text-gray-400
+        focus:outline-none
+        focus:border-blue-400
+      "
+    />
 
-            <button
-              disabled={!isLogin || sending}
-              className="
-                shrink-0
-                min-w-[64px]
-                whitespace-nowrap
-                px-4 py-2
-                bg-blue-500
-                rounded-full
-                text-black
-                font-bold
-                flex items-center justify-center
-              "
-            >
-              전송
-            </button>
-          </div>
+    <button
+      type="submit"
+      disabled={!isLogin || sending}
+      className="
+        shrink-0
+        px-3
+        py-2
+        rounded-xl
+        bg-blue-500
+        text-[13px]
+        font-semibold
+        text-black
+        hover:bg-blue-400
+        active:scale-95
+        disabled:opacity-40
+        disabled:cursor-not-allowed
+      "
+    >
+      전송
+    </button>
+  </div>
 
-          {error && (
-            <p className="mt-2 text-xs text-red-400 text-center">
-              {error}
-            </p>
-          )}
-        </form>
+  {error && (
+    <p className="mt-2 text-xs text-red-400 text-center">
+      {error}
+    </p>
+  )}
+</form>
+
       </div>
     </>
   )
