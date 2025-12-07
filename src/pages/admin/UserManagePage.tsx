@@ -16,20 +16,49 @@ type UserProfileRow = {
 export default function UserManagePage() {
   const [rows, setRows] = React.useState<UserProfileRow[]>([])
   const [loading, setLoading] = React.useState(false)
+  const [loadError, setLoadError] = React.useState<string | null>(null)
+
+  const resolveAdminEndpoint = () => {
+    const configuredEndpoint = import.meta.env.VITE_ADMIN_USERS_ENDPOINT
+    if (configuredEndpoint && !configuredEndpoint.includes('<')) return configuredEndpoint
+    const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+    if (!supabaseUrl) return null
+    const hostname = supabaseUrl.replace(/https?:\/\//, '').split('.')[0]
+    if (!hostname) return null
+    return `https://${hostname}.functions.supabase.co/admin-users`
+  }
 
   const loadUsers = React.useCallback(async () => {
     setLoading(true)
+    setLoadError(null)
     try {
       const supabase = getSupabase()
-      const { data, error } = await supabase
-        .from('user_profile')
-        .select('id, name, nickname, phone, gender, interest, role, created_at, updated_at')
-        .order('created_at', { ascending: false })
+      if (!supabase) throw new Error('Supabase client unavailable')
+      const sessionResponse = await supabase.auth.getSession()
+      const session = sessionResponse.data?.session
+      const accessToken = session?.access_token
+      if (!accessToken) throw new Error('Authentication required')
 
-      if (error) throw error
-      setRows(data ?? [])
-    } catch (err) {
+      const baseUrl = resolveAdminEndpoint()
+      if (!baseUrl) throw new Error('Admin endpoint not configured')
+
+      const res = await fetch(`${baseUrl}?limit=200`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      })
+
+      if (!res.ok) {
+        const body = await res.text()
+        throw new Error(body || 'Failed to fetch admin users')
+      }
+
+      const payload = await res.json()
+      if (!payload?.ok) throw new Error(payload?.error || 'Failed to load user profiles')
+      setRows(payload.data ?? [])
+    } catch (err: any) {
       console.error('Failed to load user profiles:', err)
+      setLoadError(String(err.message || err))
     } finally {
       setLoading(false)
     }
@@ -48,16 +77,11 @@ export default function UserManagePage() {
       <div className="overflow-x-auto rounded-2xl border border-border bg-[#0b0f15]">
         <table className="w-full min-w-[950px] text-sm">
           <thead className="text-xs uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 text-left">순서</th>   {/* 🔥 순서 추가 */}
-              <th className="px-4 py-3 text-left">이름</th>
-              <th className="px-4 py-3 text-left">닉네임</th>
-              <th className="px-4 py-3 text-left">전화번호</th>
-              <th className="px-4 py-3 text-left">성별</th>
-              <th className="px-4 py-3 text-left">관심사</th>
-              <th className="px-4 py-3 text-left">권한</th>
-              <th className="px-4 py-3 text-left">가입일</th>
-            </tr>
+            <tr>{['순서', '이름', '닉네임', '전화번호', '성별', '관심사', '권한', '가입일'].map((label) => (
+              <th key={label} className="px-4 py-3 text-left">
+                {label}
+              </th>
+            ))}</tr>
           </thead>
 
           <tbody>
@@ -68,24 +92,35 @@ export default function UserManagePage() {
                 </td>
               </tr>
             ) : (
-              rows.map((row, idx) => (
-                <tr key={row.id} className="border-t border-border hover:bg-white/5">
-                  <td className="px-4 py-3">{idx + 1}</td> {/* 🔥 순번 출력 */}
-                  <td className="px-4 py-3">{row.name ?? '미등록'}</td>
-                  <td className="px-4 py-3">{row.nickname ?? '미등록'}</td>
-                  <td className="px-4 py-3">{row.phone ?? '미등록'}</td>
-                  <td className="px-4 py-3">{row.gender ?? '미입력'}</td>
-                  <td className="px-4 py-3">{row.interest ?? '미입력'}</td>
-                  <td className="px-4 py-3">{row.role ?? 'user'}</td>
-                  <td className="px-4 py-3">
-                    {row.created_at ? new Date(row.created_at).toLocaleString('ko-KR') : '-'}
-                  </td>
-                </tr>
-              ))
+              rows.map((row, idx) => {
+                const cells = [
+                  idx + 1,
+                  row.name ?? '미등록',
+                  row.nickname ?? '미등록',
+                  row.phone ?? '미등록',
+                  row.gender ?? '미입력',
+                  row.interest ?? '미입력',
+                  row.role ?? 'user',
+                  row.created_at ? new Date(row.created_at).toLocaleString('ko-KR') : '-',
+                ]
+                return (
+                  <tr key={row.id} className="border-t border-border hover:bg-white/5">{cells.map((cell, cellIdx) => (
+                    <td key={cellIdx} className="px-4 py-3">
+                      {cell}
+                    </td>
+                  ))}</tr>
+                )
+              })
             )}
           </tbody>
         </table>
       </div>
+
+      {loadError && (
+        <div className="rounded-2xl border border-border bg-[#0b0f15] px-4 py-3 text-sm text-red-300">
+          {loadError}
+        </div>
+      )}
 
       {loading && (
         <p className="text-sm text-muted-foreground">불러오는 중...</p>

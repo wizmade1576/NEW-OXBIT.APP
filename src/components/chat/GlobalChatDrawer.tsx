@@ -12,25 +12,16 @@ type ChatMessage = {
 }
 
 const MESSAGE_LIMIT = 200
-const RANDOM_ADJECTIVES = ['빛나는', '푸른', '은하수', '찬란한', '행복한', '별빛', '달빛', '무지개']
-const RANDOM_NOUNS = ['여우', '호랑이', '토끼', '용', '상어', '비둘기', '고래', '나비']
-const nicknameCache: Record<string, string> = {}
-
-function generateRandomNickname() {
-  const adjective = RANDOM_ADJECTIVES[Math.floor(Math.random() * RANDOM_ADJECTIVES.length)]
-  const noun = RANDOM_NOUNS[Math.floor(Math.random() * RANDOM_NOUNS.length)]
-  const suffix = Math.floor(Math.random() * 900) + 100
-  return `${adjective}${noun}${suffix}`
-}
 
 function deriveNickname(user: User | null) {
   if (!user) return '익명'
   const metadata = user.user_metadata as Record<string, unknown> | undefined
-  if (metadata?.nickname) return String(metadata.nickname)
-  if (!nicknameCache[user.id]) {
-    nicknameCache[user.id] = generateRandomNickname()
-  }
-  return nicknameCache[user.id]
+  return (
+    (metadata?.nickname as string | undefined) ??
+    (metadata?.name as string | undefined) ??
+    user.email?.split('@')[0] ??
+    '익명'
+  )
 }
 
 type GlobalChatDrawerProps = {
@@ -45,7 +36,6 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
   const [inputValue, setInputValue] = React.useState('')
   const [sending, setSending] = React.useState(false)
   const [loading, setLoading] = React.useState(false)
-  const [profileNicknames, setProfileNicknames] = React.useState<Record<string, string>>({})
 
   const isAuthenticated = Boolean(user?.id)
   const nickname = React.useMemo(() => deriveNickname(user), [user])
@@ -63,7 +53,6 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
       setLoading(false)
       return
     }
-
     const supabase = getSupabase()
     if (!supabase) return
 
@@ -112,60 +101,11 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
   }, [isAuthenticated, appendMessage])
 
   React.useEffect(() => {
-    const ids = Array.from(
-      new Set(messages.map((msg) => msg.user_id).filter((id): id is string => Boolean(id))),
-    ).filter((id) => !profileNicknames[id])
-
-    if (ids.length === 0 || !isAuthenticated) return
-    const supabase = getSupabase()
-    if (!supabase) return
-
-    let active = true
-    supabase
-      .from('user_profile')
-      .select('id, nickname')
-      .in('id', ids)
-      .then(({ data }) => {
-        if (!active || !data) return
-        setProfileNicknames((prev) => {
-          const next = { ...prev }
-          for (const record of data) {
-            if (record.id && record.nickname) {
-              next[record.id] = record.nickname
-            }
-          }
-          return next
-        })
-      })
-      .catch((err) => console.error('Failed to load profile nicknames', err))
-
-    return () => {
-      active = false
-    }
-  }, [messages, profileNicknames, isAuthenticated])
-
-  React.useEffect(() => {
     if (!open) return
     const container = listRef.current
     if (!container) return
     container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
   }, [messages, open])
-
-  const getDisplayName = React.useCallback(
-    (msg: ChatMessage) => {
-      const byProfile = msg.user_id ? profileNicknames[msg.user_id] : undefined
-      if (byProfile) return byProfile
-      if (msg.nickname && !msg.nickname.includes('@')) return msg.nickname
-      if (msg.user_id) {
-        if (!nicknameCache[msg.user_id]) {
-          nicknameCache[msg.user_id] = generateRandomNickname()
-        }
-        return nicknameCache[msg.user_id]
-      }
-      return '익명'
-    },
-    [profileNicknames],
-  )
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -190,12 +130,8 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
         .select('id, user_id, nickname, message, created_at')
         .single()
 
-      if (error) {
-        throw error
-      }
-      if (data) {
-        appendMessage(data)
-      }
+      if (error) throw error
+      if (data) appendMessage(data)
       setInputValue('')
     } catch (err) {
       console.error('Failed to send chat message', err)
@@ -206,7 +142,7 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
 
   const innerClasses = [
     'w-[min(95vw,360px)]',
-    'max-h-[480px]',
+    'max-h-[400px]',
     'transition-all',
     'duration-300',
     'shadow-2xl',
@@ -245,15 +181,23 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
         </div>
 
         <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2 text-sm text-white">
-            {loading ? (
-              <p className="text-center text-muted-foreground">불러오는 중...</p>
-            ) : messages.length === 0 ? (
-              <p className="text-center text-muted-foreground">채팅 기록이 없습니다.</p>
-            ) : (
-              messages.map((msg) => (
+          {loading ? (
+            <p className="text-center text-muted-foreground">불러오는 중...</p>
+          ) : messages.length === 0 ? (
+            <p className="text-center text-muted-foreground">채팅 기록이 없습니다.</p>
+          ) : (
+            messages.map((msg) => (
               <div key={msg.id} className="flex flex-col space-y-1 rounded-2xl border border-border/70 bg-white/5 px-3 py-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-medium text-white">{getDisplayName(msg)}</span>
+                  <span className="font-medium text-white">
+                    {(() => {
+                      const target = msg.nickname ?? '익명'
+                      if (target.includes('@')) {
+                        return target.split('@')[0]
+                      }
+                      return target
+                    })()}
+                  </span>
                   <span>
                     {msg.created_at
                       ? new Date(msg.created_at).toLocaleTimeString('ko-KR', {

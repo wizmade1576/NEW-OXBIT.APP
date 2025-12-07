@@ -216,6 +216,11 @@ export default function RegisterPage() {
     const { data: signupData, error: signupError } = await supabase.auth.signUp({
       email,
       password: pass,
+      options: {
+        data: {
+          nickname: nickname || null,
+        },
+      },
     });
 
     if (signupError) {

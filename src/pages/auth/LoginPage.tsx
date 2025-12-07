@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '../..
 import Button from '../../components/ui/Button'
 import getSupabase from '../../lib/supabase/client'
 import { useAuthStore } from '@/store/useAuthStore'
+import type { User } from '@supabase/supabase-js'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -12,6 +13,15 @@ export default function LoginPage() {
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const debug = (import.meta.env.DEV || (import.meta as any).env.VITE_DEBUG_AUTH === 'true') as boolean
+
+  async function ensureNickname(user: User) {
+    const metadata = user.user_metadata as Record<string, unknown> | undefined
+    if (metadata?.nickname) return
+    const nicknameFromEmail = user.email?.split('@')[0] ?? '익명'
+    const supabase = getSupabase()
+    if (!supabase) return
+    await supabase.auth.updateUser({ data: { nickname: nicknameFromEmail } })
+  }
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -62,6 +72,7 @@ export default function LoginPage() {
         return
       }
       if (data.session.user) {
+        await ensureNickname(data.session.user)
         useAuthStore.getState().setUser(data.session.user)
       }
       if (debug) console.debug('[auth] signIn success, navigating')
