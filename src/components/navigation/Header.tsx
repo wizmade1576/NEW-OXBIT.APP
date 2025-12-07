@@ -3,6 +3,7 @@ import ThemeToggle from '../ui/ThemeToggle'
 import * as React from 'react'
 import getSupabase from '../../lib/supabase/client'
 import { useAuthStore } from '@/store/useAuthStore'
+import GlobalChatDrawer from '../chat/GlobalChatDrawer'
 
 function SearchIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -30,6 +31,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = React.useState(false)
   const menuRef = React.useRef<HTMLDivElement | null>(null)
   const [concurrentUsers, setConcurrentUsers] = React.useState(1654)
+  const [chatOpen, setChatOpen] = React.useState(false)
 
   const user = useAuthStore((s) => s.user)
   const [isAdmin, setIsAdmin] = React.useState(false)
@@ -82,7 +84,8 @@ export default function Header() {
   }
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <>
+      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center gap-6">
         
         <NavLink to="/breaking" className="font-semibold tracking-tight" aria-label="OXBIT.APP">
@@ -136,6 +139,14 @@ export default function Header() {
             </NavLink>
 
             <ThemeToggle />
+            <button
+              type="button"
+              onClick={() => setChatOpen((prev) => !prev)}
+              aria-label={chatOpen ? 'Close global chat' : 'Open global chat'}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-foreground hover:bg-accent"
+            >
+              💬
+            </button>
 
             {user?.email ? (
               <div className="relative group">
@@ -199,7 +210,14 @@ export default function Header() {
               <SearchIcon />
             </NavLink>
 
-            <ThemeToggle />
+            <button
+              type="button"
+              onClick={() => setChatOpen((prev) => !prev)}
+              aria-label={chatOpen ? 'Close global chat' : 'Open global chat'}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-foreground hover:bg-accent"
+            >
+              💬
+            </button>
           </div>
 
           {/* 모바일 햄버거 */}
@@ -266,6 +284,11 @@ export default function Header() {
 
             <div className="my-1 h-px bg-border" />
 
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">설정</div>
+            <div className="flex items-center gap-2 px-3 py-2">
+              <ThemeToggle />
+            </div>
+
             <div className="px-2 py-1.5 text-xs text-muted-foreground">계정</div>
 
             {user?.email ? (
@@ -313,5 +336,7 @@ export default function Header() {
         </div>
       </div>
     </header>
+    <GlobalChatDrawer open={chatOpen} onClose={() => setChatOpen(false)} />
+  </>
   )
 }
