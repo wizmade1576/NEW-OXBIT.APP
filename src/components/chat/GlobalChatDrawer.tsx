@@ -140,11 +140,11 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
     }
   }
 
-  // ✅ ✅ 모바일 높이 + 여백 최적화 완료
+  // ✅ 모바일 + iPhone 16 + PC 대응 높이/폭
   const innerClasses = [
     'w-full',
     'sm:w-[360px]',
-    'max-h-[50dvh]',   // ✅ 모바일에서 높이 더 줄임
+    'max-h-[50dvh]',
     'sm:h-[480px]',
     'transition-all',
     'duration-300',
@@ -170,10 +170,8 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
         right-4
         left-4
         sm:left-auto
-
-        bottom-[64px]   /* ✅ 하단 탭이랑 간격 줄임 */
+        bottom-[64px]
         sm:bottom-4
-
         z-50
         pointer-events-none
       "
@@ -194,19 +192,28 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
           </button>
         </div>
 
-        <div ref={listRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2 text-sm text-white">
+        {/* 메시지 리스트 */}
+        <div
+          ref={listRef}
+          className="flex-1 overflow-y-auto px-4 py-3 space-y-2 text-sm text-white"
+        >
           {loading ? (
             <p className="text-center text-muted-foreground">불러오는 중...</p>
           ) : messages.length === 0 ? (
             <p className="text-center text-muted-foreground">채팅 기록이 없습니다.</p>
           ) : (
             messages.map((msg) => (
-              <div key={msg.id} className="flex flex-col space-y-1 rounded-2xl border border-border/70 bg-white/5 px-3 py-2">
+              <div
+                key={msg.id}
+                className="flex flex-col space-y-1 rounded-2xl border border-border/70 bg-white/5 px-3 py-2"
+              >
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span className="font-medium text-white">
-                    {(msg.nickname ?? '익명').includes('@')
-                      ? (msg.nickname ?? '익명').split('@')[0]
-                      : msg.nickname ?? '익명'}
+                    {(() => {
+                      const raw = msg.nickname?.trim()
+                      if (raw && raw.length > 0) return raw
+                      return '익명'
+                    })()}
                   </span>
                   <span>
                     {msg.created_at
@@ -223,23 +230,64 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="shrink-0 border-t border-border px-4 pb-4 pt-3">
-          <div className="flex gap-2">
+        {/* ✅ iPhone 16 가로 safe-area + 전송 버튼 잘림 해결 */}
+        <form
+          onSubmit={handleSubmit}
+          className="shrink-0 border-t border-border px-4 pb-4 pt-3"
+          style={{
+            paddingRight: 'env(safe-area-inset-right)',
+          }}
+        >
+          <div className="flex gap-2 items-center min-w-0">
             <input
               value={inputValue}
               onChange={(event) => setInputValue(event.target.value)}
               placeholder={isAuthenticated ? '메시지를 입력하세요.' : '로그인 후 채팅 가능'}
               disabled={!isAuthenticated || sending}
-              className="flex-1 rounded-2xl border border-border bg-[#0b0f15] px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="
+                flex-1
+                min-w-0
+                rounded-2xl
+                border
+                border-border
+                bg-[#0b0f15]
+                px-3
+                py-2
+                text-sm
+                text-white
+                placeholder:text-muted-foreground
+                focus:border-primary
+                focus:outline-none
+                focus:ring-1
+                focus:ring-primary
+              "
             />
             <button
               type="submit"
               disabled={!isAuthenticated || sending}
-              className="inline-flex items-center justify-center rounded-full bg-primary px-4 py-2 text-sm font-semibold text-background transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+              className="
+                shrink-0
+                inline-flex
+                items-center
+                justify-center
+                rounded-full
+                bg-primary
+                px-4
+                py-2
+                mr-2
+                text-sm
+                font-semibold
+                text-background
+                transition
+                hover:bg-primary/90
+                disabled:cursor-not-allowed
+                disabled:opacity-60
+              "
             >
               전송
             </button>
           </div>
+
           {!isAuthenticated && (
             <p className="mt-2 text-center text-xs text-muted-foreground">
               채팅 작성은 로그인 후 이용 가능한 서비스입니다.
