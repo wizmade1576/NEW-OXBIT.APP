@@ -66,6 +66,7 @@ const createEmptyForm = (): FormState => ({
 export default function UsersPage() {
   const [users, setUsers] = React.useState<UserProfile[]>([])
   const [search, setSearch] = React.useState('')
+  const [searchQuery, setSearchQuery] = React.useState('')
   const [page, setPage] = React.useState(1)
   const [hasMore, setHasMore] = React.useState(true)
   const [modal, setModal] = React.useState<UserProfile | null>(null)
@@ -87,7 +88,7 @@ export default function UsersPage() {
       }
 
       const params = new URLSearchParams()
-      if (search.trim()) params.append('search', search.trim())
+      if (searchQuery.trim()) params.append('search', searchQuery.trim())
       params.append('page', String(page))
       params.append('limit', String(limit))
 
@@ -111,7 +112,7 @@ export default function UsersPage() {
     } catch (error) {
       console.error(error)
     }
-  }, [page, search])
+  }, [page, searchQuery])
 
   React.useEffect(() => {
     fetchUsers()
@@ -219,20 +220,26 @@ export default function UsersPage() {
             <CardTitle>회원관리</CardTitle>
             <CardDescription>user_profile 테이블 조회 / 수정 / 삭제</CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <form
+            className="flex items-center gap-2"
+            onSubmit={(event) => {
+              event.preventDefault()
+              setPage(1)
+              setSearchQuery(search.trim())
+            }}
+          >
             <input
               className="px-3 py-1.5 rounded border border-neutral-700 bg-[#0f0f0f] text-sm"
               placeholder="이름 / 닉네임 / 전화"
               value={search}
               onChange={(e) => {
-                setPage(1)
                 setSearch(e.target.value)
               }}
             />
-            <Button size="sm" variant="secondary" onClick={() => { setPage(1); fetchUsers() }}>
+            <Button size="sm" variant="secondary" type="submit">
               검색
             </Button>
-          </div>
+          </form>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="overflow-x-auto rounded-lg border border-border bg-[#0f0f0f]">

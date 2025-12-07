@@ -140,9 +140,12 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
     }
   }
 
+  // ✅ ✅ 모바일 높이 + 여백 최적화 완료
   const innerClasses = [
-    'w-[min(95vw,360px)]',
-    'max-h-[400px]',
+    'w-full',
+    'sm:w-[360px]',
+    'max-h-[50dvh]',   // ✅ 모바일에서 높이 더 줄임
+    'sm:h-[480px]',
     'transition-all',
     'duration-300',
     'shadow-2xl',
@@ -153,6 +156,7 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
     'bg-[#05070d]/90',
     'flex',
     'flex-col',
+    'overflow-hidden',
   ]
 
   const stateClasses = open
@@ -160,15 +164,25 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
     : ['translate-y-10', 'opacity-0', 'pointer-events-none']
 
   return (
-    <div className="fixed bottom-10 right-4 z-50 pointer-events-none">
-      <div
-        className={[...innerClasses, ...stateClasses].join(' ')}
-        style={{
-          height: 'min(400px, 80vh)',
-          paddingBottom: 'env(safe-area-inset-bottom, 0.5rem)',
-        }}
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+    <div
+      className="
+        fixed
+        right-4
+        left-4
+        sm:left-auto
+
+        bottom-[64px]   /* ✅ 하단 탭이랑 간격 줄임 */
+        sm:bottom-4
+
+        z-50
+        pointer-events-none
+      "
+      style={{
+        paddingBottom: 'env(safe-area-inset-bottom)',
+      }}
+    >
+      <div className={[...innerClasses, ...stateClasses].join(' ')}>
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-3 border-b border-border">
           <p className="text-sm font-semibold text-white">OXBIT 채팅</p>
           <button
             type="button"
@@ -190,13 +204,9 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
               <div key={msg.id} className="flex flex-col space-y-1 rounded-2xl border border-border/70 bg-white/5 px-3 py-2">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span className="font-medium text-white">
-                    {(() => {
-                      const target = msg.nickname ?? '익명'
-                      if (target.includes('@')) {
-                        return target.split('@')[0]
-                      }
-                      return target
-                    })()}
+                    {(msg.nickname ?? '익명').includes('@')
+                      ? (msg.nickname ?? '익명').split('@')[0]
+                      : msg.nickname ?? '익명'}
                   </span>
                   <span>
                     {msg.created_at
@@ -213,7 +223,7 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="border-t border-border px-4 pb-4 pt-3">
+        <form onSubmit={handleSubmit} className="shrink-0 border-t border-border px-4 pb-4 pt-3">
           <div className="flex gap-2">
             <input
               value={inputValue}
@@ -221,7 +231,6 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
               placeholder={isAuthenticated ? '메시지를 입력하세요.' : '로그인 후 채팅 가능'}
               disabled={!isAuthenticated || sending}
               className="flex-1 rounded-2xl border border-border bg-[#0b0f15] px-3 py-2 text-sm text-white placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              aria-label="채팅 메시지 입력"
             />
             <button
               type="submit"
@@ -232,7 +241,9 @@ export default function GlobalChatDrawer({ open, onClose }: GlobalChatDrawerProp
             </button>
           </div>
           {!isAuthenticated && (
-            <p className="mt-2 text-center text-xs text-muted-foreground">채팅 작성은 로그인 후 이용 가능한 서비스입니다.</p>
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              채팅 작성은 로그인 후 이용 가능한 서비스입니다.
+            </p>
           )}
         </form>
       </div>
