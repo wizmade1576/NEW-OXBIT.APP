@@ -358,3 +358,6 @@ s3_secret_key = "env(S3_SECRET_KEY)"
 
 [functions.news-proxy]
 verify_jwt = false
+
+[functions.sync-calendar]
+verify_jwt = false
