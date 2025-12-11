@@ -25,6 +25,10 @@ import FearGreedPage from '../../pages/positions/FearGreedPage'
 import LongShortPage from '../../pages/positions/LongShortPage'
 
 import PaperTradingPage from '../../pages/paper/PaperTradingPage'
+import PaperReset from '../../pages/paper/PaperReset'
+import PaperTrade from '../../pages/paper/PaperTrade'
+import WalletPage from '../../pages/paper/WalletPage'
+
 import MoreLayout from '../../pages/more/MoreLayout'
 import NoticesPage from '../../pages/notices/NoticesPage'
 import GuidePage from '../../pages/guide/GuidePage'
@@ -38,11 +42,10 @@ import AdminLayout from '../../pages/admin/Layout'
 import AdminDashboardPage from '../../pages/admin/DashboardPage'
 import AdminBreakingPage from '../../pages/admin/BreakingPage'
 import AdminAdsPage from '../../pages/admin/AdsPage'
-// ❗ 기존 AdminUsersPage 대신 UserManagePage 사용
 import UserManagePage from '../../pages/admin/UserManagePage'
-
 import AdminPositionsPage from '../../pages/admin/PositionsPage'
 import AdminAnalyticsPage from '../../pages/admin/AnalyticsPage'
+
 
 export const router = createBrowserRouter([
   {
@@ -51,14 +54,12 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <BreakingPage /> },
 
-      // 뉴스
       {
         path: 'news',
         element: <NewsLayout />,
         children: [{ index: true, element: <NewsPage /> }],
       },
 
-      // 마켓
       {
         path: 'markets',
         element: <MarketsLayout />,
@@ -72,7 +73,6 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // 포지션
       {
         path: 'positions',
         element: <PositionsLayout />,
@@ -85,7 +85,6 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // 커뮤니티
       { path: 'breaking', element: <BreakingPage /> },
       { path: 'breaking/:id', element: <BreakingDetailPage /> },
 
@@ -94,9 +93,16 @@ export const router = createBrowserRouter([
       { path: 'signup', element: <RegisterPage /> },
       { path: 'forgot', element: <ForgotPasswordPage /> },
 
-      { path: 'paper', element: <PaperTradingPage /> },
+      {
+        path: 'paper',
+        children: [
+          { index: true, element: <PaperTradingPage /> },
+          { path: 'trade', element: <PaperTrade /> },
+          { path: 'wallet', element: <WalletPage /> },
+          { path: 'reset', element: <PaperReset /> },
+        ],
+      },
 
-      // 관리자
       {
         path: 'admin',
         element: (
@@ -107,7 +113,6 @@ export const router = createBrowserRouter([
         children: [
           { index: true, element: <AdminDashboardPage /> },
           { path: 'analytics', element: <AdminAnalyticsPage /> },
-          // 🔥 회원관리: UserManagePage로 변경됨
           { path: 'users', element: <UserManagePage /> },
           { path: 'positions', element: <AdminPositionsPage /> },
           { path: 'breaking', element: <AdminBreakingPage /> },
@@ -115,7 +120,6 @@ export const router = createBrowserRouter([
         ],
       },
 
-      // 기타
       {
         path: 'more',
         element: <MoreLayout />,
@@ -128,6 +132,7 @@ export const router = createBrowserRouter([
 
       { path: 'search', element: <SearchPage /> },
       { path: '*', element: <NotFoundPage /> },
+
     ],
   },
 ])

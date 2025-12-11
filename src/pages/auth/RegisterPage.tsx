@@ -6,6 +6,7 @@ import getSupabase from '../../lib/supabase/client'
 
 const PROXY_URL = (import.meta as any).env?.VITE_PROXY_URL || 'https://otp.oxbit.app'
 const PROXY_TOKEN = (import.meta as any).env?.VITE_PROXY_TOKEN || 'oxbit-secret'
+const INITIAL_WALLET_BALANCE = 10_000_000
 
 function normalizePhone(input: string): string {
   return input.replace(/-/g, '').trim()
@@ -249,22 +250,45 @@ try {
   console.error("Auth 전화번호 업데이트 중 오류:", e);
 }
 
-// ===========================
-// 3) user_profile upsert
-// ===========================
-const { error: profileErr } = await supabase.from("user_profile").upsert(
-{
-  id: user.id,
-  name,
-  nickname: nickname || null,
-  phone: authPhone,
-  gender,
-  interest,
-  role: "user",
-  created_at: new Date().toISOString(),
-},
-{ onConflict: "id" }
-);
+    // ===========================
+    // 3) user_profile upsert
+    // ===========================
+    const { error: profileErr } = await supabase.from("user_profile").upsert(
+      {
+        id: user.id,
+        name: name || null,
+        nickname: nickname || null,
+        phone: authPhone,
+        gender: gender || null,
+        interest: interest || null,
+        role: "user",
+        created_at: new Date().toISOString(),
+      },
+      { onConflict: "id" },
+    )
+
+    if (profileErr) {
+      console.error("profile upsert failed", profileErr)
+      setError(profileErr.message || "user_profile upsert failed")
+      return
+    }
+
+    const { error: walletErr } = await supabase
+      .from('paper_wallets')
+      .upsert(
+        {
+          user_id: user.id,
+          krw_balance: INITIAL_WALLET_BALANCE,
+          is_liquidated: false,
+        },
+        { onConflict: 'user_id' },
+      )
+
+    if (walletErr) {
+      console.error('wallet upsert failed', walletErr)
+      setError('지갑 초기화에 실패했습니다.')
+      return
+    }
 
 
     // ===========================

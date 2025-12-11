@@ -106,13 +106,12 @@ export default function Header() {
             포지션
           </NavLink>
 
-          <button
-            type="button"
-            onClick={() => alert('해당 기능은 준비 중입니다. 추후 업데이트 예정입니다.')}
-            className="text-muted-foreground hover:text-foreground"
+          <NavLink
+            to="/paper"
+            className={({ isActive }) => (isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground')}
           >
             모의투자
-          </button>
+          </NavLink>
         </nav>
 
         {/* 우측 컨트롤 */}
@@ -239,16 +238,15 @@ export default function Header() {
           >
             <div className="px-2 py-1.5 text-xs text-muted-foreground">메뉴</div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setMenuOpen(false)
-                alert('해당 기능은 준비 중입니다. 추후 업데이트 예정입니다.')
-              }}
-              className="block rounded px-3 py-2 hover:bg-accent text-foreground"
+            <NavLink
+              to="/paper"
+              onClick={() => setMenuOpen(false)}
+              className={({ isActive }) =>
+                isActive ? 'block rounded px-3 py-2 text-primary' : 'block rounded px-3 py-2 hover:bg-accent'
+              }
             >
-              공지사항
-            </button>
+              모의투자
+            </NavLink>
 
             <NavLink
               to="/breaking"
