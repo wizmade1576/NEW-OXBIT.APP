@@ -1,79 +1,62 @@
 // src/components/trading/TradingChart.tsx
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 
 type Props = {
   symbol: 'BTCUSDT' | 'ETHUSDT'
-  price: number // props 시그니처 유지
-}
-
-declare global {
-  interface Window {
-    TradingView?: any
-  }
 }
 
 export default function TradingChart({ symbol }: Props) {
-  const containerIdRef = useRef(
-    `tv_chart_${Math.random().toString(36).slice(2)}`
-  )
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
-  useEffect(() => {
-    const containerId = containerIdRef.current
-
-    const createWidget = () => {
-      if (!window.TradingView) return
-
-      // 기존 위젯 정리
-      const el = document.getElementById(containerId)
-      if (el) el.innerHTML = ''
-
-      // ✅ 여기서 "선물" 심볼로 맞춘다 (Binance USDT Perpetual)
-      const tvSymbol =
-        symbol === 'BTCUSDT'
-          ? 'BINANCE:BTCUSDT.P'
-          : 'BINANCE:ETHUSDT.P'
-
-      new window.TradingView.widget({
-        width: '100%',
-        height: 400,
-        symbol: tvSymbol,
-        interval: '1',          // 1분봉
-        timezone: 'Etc/UTC',
-        theme: 'dark',
-        style: '1',
-        locale: 'en',
-        hide_top_toolbar: false,
-        hide_legend: false,
-        container_id: containerId,
-        withdateranges: true,
-        enable_publishing: false,
-      })
-    }
-
-    if (!window.TradingView) {
-      const script = document.createElement('script')
-      script.id = 'tradingview-widget-script'
-      script.src = 'https://s3.tradingview.com/tv.js'
-      script.type = 'text/javascript'
-      script.async = true
-      script.onload = createWidget
-      document.head.appendChild(script)
-    } else {
-      createWidget()
-    }
-
-    return () => {
-      const el = document.getElementById(containerId)
-      if (el) el.innerHTML = ''
-    }
+  const tvSymbol = useMemo(() => {
+    return symbol === 'BTCUSDT' ? 'BINANCE:BTCUSDT.P' : 'BINANCE:ETHUSDT.P'
   }, [symbol])
 
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    // 심볼 바뀔 때마다 깨끗하게 다시 렌더
+    el.innerHTML = ''
+
+    const script = document.createElement('script')
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
+    script.async = true
+
+    // ✅ 여기 옵션이 “진짜로” 먹는다 (문서에 hide_side_toolbar 존재) :contentReference[oaicite:1]{index=1}
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol: tvSymbol,
+      interval: '15',
+      timezone: 'Asia/Seoul',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+
+      // ✅ 핵심: 왼쪽 드로잉 툴바 숨김
+      hide_side_toolbar: true,
+
+      // 상단 툴바 유지 (원하면 true로 숨길 수 있음)
+      withdateranges: true,
+      allow_symbol_change: false,
+      save_image: false,
+
+      // 배경/패널 톤
+      backgroundColor: '#000000',
+      gridColor: 'rgba(255, 255, 255, 0.06)',
+    })
+
+    el.appendChild(script)
+
+    return () => {
+      // 언마운트 시 정리
+      if (el) el.innerHTML = ''
+    }
+  }, [tvSymbol])
+
   return (
-    <div className="w-full h-full">
-      <div
-        id={containerIdRef.current}
-        className="w-full h-[400px] rounded-md border border-slate-800 bg-slate-950"
-      />
+    <div className="relative h-full w-full overflow-hidden bg-black">
+      <div ref={containerRef} className="absolute inset-0 h-full w-full" />
     </div>
   )
 }

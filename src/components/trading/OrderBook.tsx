@@ -6,93 +6,103 @@ type OrderBookProps = {
   bids: OrderBookEntry[]
   price: number
   loading?: boolean
-  // 🔹 호가 클릭 시 선택된 가격을 부모(예: PaperTrade / OrderForm)로 넘겨주는 콜백
   onSelectPrice?: (price: number) => void
 }
 
 const formatPrice = (value: number) =>
-  value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
+  value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
 
 const formatSize = (value: number) =>
-  value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 6,
-  })
+  value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })
 
 export default function OrderBook({ asks, bids, price, loading, onSelectPrice }: OrderBookProps) {
-  const maxQty =
-    Math.max(...asks.map(([, qty]) => qty), ...bids.map(([, qty]) => qty), 0) || 1
+  // 누적 depth (OKX 스타일)
+  const askCum = (() => {
+    let sum = 0
+    return asks.map(([, q]) => (sum += q))
+  })()
+  const bidCum = (() => {
+    let sum = 0
+    return bids.map(([, q]) => (sum += q))
+  })()
 
-  const renderRow = (entry: OrderBookEntry, type: 'ask' | 'bid', index: number) => {
-    const [priceValue, size] = entry
-    const width = Math.min(100, Math.max(0, (size / maxQty) * 100))
+  const maxCum = Math.max(askCum.at(-1) ?? 0, bidCum.at(-1) ?? 0, 1)
+
+  const Row = (entry: OrderBookEntry, type: 'ask' | 'bid', index: number) => {
+    const [p, size] = entry
+    const cum = type === 'ask' ? askCum[index] : bidCum[index]
+    const width = Math.min(100, Math.max(0, (cum / maxCum) * 100))
 
     return (
-      <div
+      <button
         key={`${type}-${index}`}
-        // 🔹 클릭 가능 + hover 스타일
-        className="flex items-center justify-between rounded-xl px-2 py-1 text-xs font-mono text-slate-300 cursor-pointer hover:bg-slate-900/60"
-        onClick={() => onSelectPrice?.(priceValue)}
+        type="button"
+        onClick={() => onSelectPrice?.(p)}
+        className="group relative flex h-[18px] w-full items-center font-mono text-[13px] leading-none text-slate-200/90"
       >
-        <div className={`flex-1 ${type === 'ask' ? 'text-red-400' : 'text-emerald-400'}`}>
-          {formatPrice(priceValue)}
+        {/* depth bar */}
+        <div
+          className={
+            'absolute inset-y-0 right-0 ' +
+            (type === 'ask' ? 'bg-red-500/12' : 'bg-emerald-500/12')
+          }
+          style={{ width: `${width}%` }}
+        />
+        {/* hover */}
+        <div className="absolute inset-0 opacity-0 transition group-hover:opacity-100 bg-white/3" />
+
+        {/* price */}
+        <div className="relative z-10 w-[88px] pl-2 tabular-nums">
+          <span className={type === 'ask' ? 'text-red-400' : 'text-emerald-400'}>
+            {formatPrice(p)}
+          </span>
         </div>
-        <div className="relative mx-2 h-1 w-16 overflow-hidden rounded-full bg-slate-900">
-          <div
-            className={`absolute inset-y-0 ${
-              type === 'ask' ? 'bg-red-500/70' : 'bg-emerald-500/80'
-            }`}
-            style={{ width: `${width}%` }}
-          />
-        </div>
-        <div className="w-16 text-right text-[11px] text-slate-400">
+
+        {/* amount */}
+        <div className="relative z-10 flex-1 pr-2 text-right text-slate-300/80 tabular-nums">
           {formatSize(size)}
         </div>
-      </div>
+      </button>
     )
   }
 
   return (
-    <section className="flex h-full flex-col justify-between gap-3 rounded-3xl border border-slate-800 bg-slate-950 p-4 text-[13px]">
-      <header className="flex flex-col gap-1 text-xs uppercase tracking-[0.3em] text-slate-500">
-        <span>Order Book</span>
-        <span className="text-base text-white">
-          {price.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
-        </span>
-      </header>
-
-      {/* 매도 */}
-      <div className="space-y-1">
-        <div className="text-[11px] uppercase text-slate-500">매도</div>
-        {asks.length === 0 ? (
-          <div className="text-center text-[11px] text-slate-500">로딩 중…</div>
-        ) : (
-          asks.map((entry, index) => renderRow(entry, 'ask', index))
-        )}
-      </div>
-
-      <div className="border-t border-slate-900 pt-2 text-center text-[11px] text-slate-500">
-        현재가
-      </div>
-
-      {/* 매수 */}
-      <div className="space-y-1">
-        <div className="text-[11px] uppercase text-slate-500">매수</div>
-        {bids.length === 0 ? (
-          <div className="text-center text-[11px] text-slate-500">로딩 중…</div>
-        ) : (
-          bids.map((entry, index) => renderRow(entry, 'bid', index))
-        )}
-      </div>
-
-      {loading ? (
-        <div className="mt-2 text-center text-[11px] text-slate-500">
-          실시간 데이터 수신 중…
+    <section className="h-full min-h-0 overflow-hidden flex flex-col">
+      {/* 내부 헤더(패널 헤더와 겹치지 않게 작게) */}
+      <div className="px-1 pb-2">
+        <div className="flex items-center justify-between text-[11px] text-slate-300/90">
+          <span className="font-semibold">Order Book</span>
+          <span className="font-mono tabular-nums">
+            {price ? formatPrice(price) : '--'} <span className="text-slate-500">USDT</span>
+          </span>
         </div>
-      ) : null}
+        <div className="mt-2 h-px bg-slate-800/70" />
+        <div className="mt-2 flex items-center text-[10px] text-slate-500">
+          <div className="w-[88px] pl-2">Price</div>
+          <div className="flex-1 pr-2 text-right">Amount</div>
+        </div>
+      </div>
+
+      {/* list */}
+      <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">
+        <div className="px-1">{asks.map((e, i) => Row(e, 'ask', i))}</div>
+
+        {/* mark bar (OKX 느낌) */}
+        <div className="my-3 rounded-xl border border-slate-800/70 bg-slate-900/35 px-3 py-[6px]">
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-slate-400">Mark Price</span>
+            <span className="font-mono tabular-nums text-slate-100">
+              {price ? formatPrice(price) : '--'} <span className="text-slate-500">USDT</span>
+            </span>
+          </div>
+        </div>
+
+        <div className="px-1">{bids.map((e, i) => Row(e, 'bid', i))}</div>
+
+        {loading ? (
+          <div className="mt-3 text-center text-[11px] text-slate-500">Loading order book...</div>
+        ) : null}
+      </div>
     </section>
   )
 }

@@ -22,66 +22,84 @@ type PositionTableProps = {
   onClose: () => void
 }
 
-export default function PositionTable({ position, priceUSDT, pnlUSDT, pnlPercent, onClose }: PositionTableProps) {
+export default function PositionTable({
+  position,
+  priceUSDT,
+  pnlUSDT,
+  pnlPercent,
+  onClose,
+}: PositionTableProps) {
   if (!position) {
-    return (
-      <section className="rounded-3xl border border-slate-800 bg-slate-950 p-6 text-center text-sm text-slate-400">
-        현재 열린 포지션이 없습니다.
-      </section>
-    )
+    return <div className="px-3 py-6 text-[#9aa4ad] text-[12px]">표시할 데이터가 없습니다.</div>
   }
 
-  const directionColor = position.side === 'long' ? 'text-emerald-400' : 'text-red-400'
-  const pnlColor = pnlUSDT >= 0 ? 'text-emerald-400' : 'text-red-500'
+  const sideColor = position.side === 'long' ? 'text-[#16c784]' : 'text-[#ea3943]'
+  const pnlColor = pnlUSDT >= 0 ? 'text-[#16c784]' : 'text-[#ea3943]'
 
   return (
-    <section className="rounded-3xl border border-slate-800 bg-slate-950 p-4 text-xs text-slate-300 shadow-xl shadow-slate-900/60">
-      <header className="mb-4 flex items-center justify-between text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">
-        <span>Open Position</span>
-        <span className="text-[10px] text-slate-400">실시간 PnL</span>
-      </header>
-
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-left text-[11px]">
-          <thead>
-            <tr className="text-[10px] uppercase tracking-[0.3em] text-slate-500">
-              <th className="pb-2">Symbol</th>
-              <th className="pb-2">Side</th>
-              <th className="pb-2">Quantity</th>
-              <th className="pb-2">Entry</th>
-              <th className="pb-2">Price</th>
-              <th className="pb-2">PnL</th>
-              <th className="pb-2">ROE</th>
-              <th className="pb-2">Liquidation</th>
-              <th className="pb-2">TP / SL</th>
-              <th className="pb-2">Action</th>
+    <section className="min-h-0 w-full">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full table-fixed text-[12px]">
+          <thead className="sticky top-0 z-10 bg-black">
+            <tr className="border-b border-[#1f2329] text-[#9aa4ad]">
+              <th className="w-[140px] px-3 py-3 text-left font-semibold">Symbol</th>
+              <th className="w-[120px] px-3 py-3 text-left font-semibold">Side</th>
+              <th className="w-[120px] px-3 py-3 text-right font-semibold">Size</th>
+              <th className="px-3 py-3 text-right font-semibold">Entry</th>
+              <th className="px-3 py-3 text-right font-semibold">Mark</th>
+              <th className="w-[140px] px-3 py-3 text-right font-semibold">PnL</th>
+              <th className="w-[90px] px-3 py-3 text-right font-semibold">ROE</th>
+              <th className="px-3 py-3 text-right font-semibold">Liq</th>
+              <th className="w-[160px] px-3 py-3 text-right font-semibold">TP/SL</th>
+              <th className="w-[140px] px-3 py-3 text-right font-semibold">Action</th>
             </tr>
           </thead>
+
           <tbody>
-            <tr className="border-t border-slate-800/60 text-sm text-white">
-              <td className="py-3 font-semibold">{position.symbol}</td>
-              <td className={`py-3 font-semibold ${directionColor}`}>{position.side.toUpperCase()}</td>
-              <td className="py-3">{position.amount.toFixed(4)}</td>
-              <td className="py-3">{position.entry_price.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</td>
-              <td className="py-3">{priceUSDT.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT</td>
-              <td className={`py-3 font-semibold ${pnlColor}`}>
-                {pnlUSDT >= 0 ? '+' : ''}
-                {pnlUSDT.toLocaleString(undefined, { maximumFractionDigits: 2 })} USDT
+            <tr className="border-b border-[#1f2329] hover:bg-[#0b0e11]">
+              <td className="px-3 py-4 text-white font-semibold">{position.symbol}</td>
+
+              <td className="px-3 py-4">
+                <span className={'font-semibold ' + sideColor}>{position.side.toUpperCase()}</span>
               </td>
-              <td className="py-3 font-semibold text-slate-300">
+
+              <td className="px-3 py-4 text-right text-white">
+                {position.amount.toLocaleString(undefined, { maximumFractionDigits: 4 })}
+              </td>
+
+              <td className="px-3 py-4 text-right text-white">
+                {position.entry_price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                <span className="ml-1 text-[#9aa4ad] text-[11px]">USDT</span>
+              </td>
+
+              <td className="px-3 py-4 text-right text-white">
+                {priceUSDT.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                <span className="ml-1 text-[#9aa4ad] text-[11px]">USDT</span>
+              </td>
+
+              <td className={'px-3 py-4 text-right font-semibold ' + pnlColor}>
+                {(pnlUSDT >= 0 ? '+' : '') + pnlUSDT.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+              </td>
+
+              <td className="px-3 py-4 text-right text-white font-semibold">
                 {pnlPercent.toFixed(2)}%
               </td>
-              <td className="py-3">{position.liquidation_price.toFixed(2)} USDT</td>
-              <td className="py-3 space-y-1 text-[11px] text-slate-400">
-                <div>TP: {position.take_profit ? `${position.take_profit.toFixed(2)} USDT` : '-'}</div>
-                <div>SL: {position.stop_loss ? `${position.stop_loss.toFixed(2)} USDT` : '-'}</div>
+
+              <td className="px-3 py-4 text-right text-white">
+                {position.liquidation_price.toLocaleString(undefined, { maximumFractionDigits: 2 })}
               </td>
-              <td className="py-3">
+
+              <td className="px-3 py-4 text-right text-[#9aa4ad] text-[11px]">
+                <div>TP: {position.take_profit ? position.take_profit.toFixed(2) : '-'}</div>
+                <div className="mt-1">SL: {position.stop_loss ? position.stop_loss.toFixed(2) : '-'}</div>
+              </td>
+
+              <td className="px-3 py-4 text-right">
                 <Button
                   onClick={onClose}
-                  className="rounded-2xl border border-slate-700 bg-red-600/20 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-red-200"
+                  className="h-9 rounded-md border border-[#ea3943] bg-transparent px-3 text-[12px] font-semibold text-[#ea3943] hover:bg-[#ea3943]/10"
                 >
-                  시장가 종료
+                  종료
                 </Button>
               </td>
             </tr>
