@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import getSupabase from '../../lib/supabase/client'
 import { calcPnL, calcLiquidation, PositionSide } from '../../utils/margin'
 import TradeLayout, { WalletSummary, OrderBookEntry } from '../../components/trading/TradeLayout'
@@ -35,6 +36,10 @@ export default function PaperTrade() {
 
   const [trades, setTrades] = useState<TradeRecord[]>([])
   const [showBetaNotice, setShowBetaNotice] = useState(false)
+  const [isPageVisible, setIsPageVisible] = useState(true)
+  const location = useLocation()
+
+  const isTradeRoute = location.pathname === '/paper/trade'
 
   const tickerRef = useRef<WebSocket | null>(null)
   const depthRef = useRef<WebSocket | null>(null)
@@ -92,6 +97,18 @@ export default function PaperTrade() {
   }, [])
 
   useEffect(() => {
+    const handleVisibility = () => {
+      setIsPageVisible(document.visibilityState === 'visible')
+    }
+
+    handleVisibility()
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility)
+    }
+  }, [])
+
+  useEffect(() => {
     const loadTrades = async () => {
       const { data } = await supabase.auth.getUser()
       const userId = data?.user?.id
@@ -121,6 +138,8 @@ export default function PaperTrade() {
 
   useEffect(() => {
     if (!position) return
+    if (!isPageVisible) return
+    if (!isTradeRoute) return
 
     const liq =
       (position.side === 'long' && priceUSDT <= position.liquidation_price) ||
@@ -152,11 +171,12 @@ export default function PaperTrade() {
     }
 
     liquidate()
-  }, [priceUSDT, position, pnlUSDT])
+  }, [priceUSDT, position, pnlUSDT, isPageVisible, isTradeRoute])
 
   useEffect(() => {
     if (!position) return
     if (!priceUSDT) return
+    if (!isTradeRoute) return
 
     const hasTP = position.take_profit != null
     const hasSL = position.stop_loss != null
@@ -172,6 +192,7 @@ export default function PaperTrade() {
         (position.side === 'short' && priceUSDT >= (position.stop_loss as number)))
 
     if (!isTP && !isSL) return
+    if (!isPageVisible) return
 
     const autoClose = async () => {
       const type = isTP ? 'tp' : 'sl'
@@ -197,7 +218,7 @@ export default function PaperTrade() {
     }
 
     autoClose()
-  }, [priceUSDT, position, pnlUSDT])
+  }, [priceUSDT, position, pnlUSDT, isPageVisible, isTradeRoute])
 
   const handleClosePosition = async () => {
     if (!position) return
