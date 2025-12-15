@@ -25,7 +25,7 @@ type OrderFormProps = {
   onResetEntryPrice?: () => void
 }
 
-const MAX_AMOUNT = 2
+const MAX_AMOUNT = 10
 const fmt = (v: number, digits = 2) =>
   v.toLocaleString(undefined, { maximumFractionDigits: digits })
 
@@ -197,20 +197,20 @@ export default function OrderForm({
                 <span>PRICE</span>
                 <span className="text-slate-600">{orderType === 'market' ? 'MARKET' : 'LIMIT'}</span>
               </div>
-              <input
-                type="number"
-                min={0}
-                step={0.1}
-                disabled={orderType === 'market'}
-                value={orderType === 'market' ? String(resolvedMarkPrice || '') : entryInput}
-                onChange={e => handleEntryInput(e.target.value)}
-                className={
-                  'mt-1 w-full rounded-2xl border px-3 py-[10px] font-mono text-[14px] font-semibold tabular-nums focus:outline-none ' +
-                  (orderType === 'market'
-                    ? 'border-slate-900 bg-slate-900/40 text-slate-500'
-                    : 'border-slate-800 bg-slate-900/60 text-white focus:border-emerald-400')
-                }
-              />
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  disabled={orderType === 'market'}
+                  value={orderType === 'market' ? String(resolvedMarkPrice || '') : entryInput}
+                  onChange={e => handleEntryInput(e.target.value)}
+                  className={
+                    'mt-1 w-full rounded-2xl border px-3 py-[10px] font-mono text-[14px] font-semibold tabular-nums focus:outline-none ' +
+                    (orderType === 'market'
+                      ? 'border-slate-900 bg-slate-900/40 text-slate-500'
+                      : 'border-slate-800 bg-slate-900/60 text-white focus:border-emerald-400')
+                  }
+                />
             </div>
 
             {/* Amount */}
@@ -310,7 +310,7 @@ export default function OrderForm({
                 <input
                   type="number"
                   min={0}
-                  step={0.1}
+                  step={0.01}
                   value={takeProfit}
                   onChange={e => setTakeProfit(e.target.value)}
                   placeholder="Price"
@@ -325,7 +325,7 @@ export default function OrderForm({
                 <input
                   type="number"
                   min={0}
-                  step={0.1}
+                  step={0.01}
                   value={stopLoss}
                   onChange={e => setStopLoss(e.target.value)}
                   placeholder="Price"

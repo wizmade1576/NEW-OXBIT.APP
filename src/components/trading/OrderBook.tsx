@@ -52,7 +52,7 @@ export default function OrderBook({ asks, bids, price, loading, onSelectPrice }:
         <div className="absolute inset-0 opacity-0 transition group-hover:opacity-100 bg-white/3" />
 
         {/* price */}
-        <div className="relative z-10 w-[88px] pl-2 tabular-nums">
+        <div className="relative z-10 w-[30px] pl-2 tabular-nums">
           <span className={type === 'ask' ? 'text-red-400' : 'text-emerald-400'}>
             {formatPrice(p)}
           </span>

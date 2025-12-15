@@ -7,6 +7,7 @@ type Props = {
 
 export default function TradingChart({ symbol }: Props) {
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const mountedRef = useRef(false)
 
   const tvSymbol = useMemo(() => {
     return symbol === 'BTCUSDT' ? 'BINANCE:BTCUSDT.P' : 'BINANCE:ETHUSDT.P'
@@ -16,14 +17,15 @@ export default function TradingChart({ symbol }: Props) {
     const el = containerRef.current
     if (!el) return
 
-    // 심볼 바뀔 때마다 깨끗하게 다시 렌더
-    el.innerHTML = ''
+    // ✅ StrictMode(dev)에서 effect 2번 실행 방지 + 심볼 변경 시 정상 재렌더
+    if (mountedRef.current) {
+      el.innerHTML = ''
+    }
+    mountedRef.current = true
 
     const script = document.createElement('script')
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
     script.async = true
-
-    // ✅ 여기 옵션이 “진짜로” 먹는다 (문서에 hide_side_toolbar 존재) :contentReference[oaicite:1]{index=1}
     script.innerHTML = JSON.stringify({
       autosize: true,
       symbol: tvSymbol,
@@ -32,16 +34,10 @@ export default function TradingChart({ symbol }: Props) {
       theme: 'dark',
       style: '1',
       locale: 'en',
-
-      // ✅ 핵심: 왼쪽 드로잉 툴바 숨김
       hide_side_toolbar: true,
-
-      // 상단 툴바 유지 (원하면 true로 숨길 수 있음)
       withdateranges: true,
       allow_symbol_change: false,
       save_image: false,
-
-      // 배경/패널 톤
       backgroundColor: '#000000',
       gridColor: 'rgba(255, 255, 255, 0.06)',
     })
@@ -55,7 +51,7 @@ export default function TradingChart({ symbol }: Props) {
   }, [tvSymbol])
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-black">
+    <div className="relative h-full w-full min-h-0 overflow-hidden bg-black">
       <div ref={containerRef} className="absolute inset-0 h-full w-full" />
     </div>
   )

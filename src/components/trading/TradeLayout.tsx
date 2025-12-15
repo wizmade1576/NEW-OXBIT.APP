@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import TradingChart from './TradingChart'
 import OrderBook from './OrderBook'
 import OrderForm from './OrderForm'
@@ -67,32 +67,61 @@ function LayoutPanel({
         <div className="text-[12px] font-semibold text-white">{title}</div>
         {right ? <div className="text-[11px] text-[#9aa4ad]">{right}</div> : null}
       </div>
-
       <div className="min-h-0 flex-1">{children}</div>
     </div>
   )
 }
 
-export default function TradeLayout({
-  symbol,
-  onChangeSymbol,
-  priceUSDT,
-  wallet,
-  walletLoading = false,
-  orderBook,
-  position,
-  pnlUSDT,
-  roePercent,
-  trades,
-  onClosePosition,
-  onOpenOrder,
-  onOpenBetaNotice,
-  showBetaNotice,
-  onCloseBetaNotice,
-}: TradeLayoutProps) {
+function useIsMobile(breakpointPx = 768) {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.innerWidth < breakpointPx
+  })
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < breakpointPx)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [breakpointPx])
+
+  return isMobile
+}
+
+function fmtPrice(v: number) {
+  if (!Number.isFinite(v)) return '-'
+  return v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+function pctColorClass(pct: number) {
+  if (!Number.isFinite(pct)) return 'text-[#9aa4ad]'
+  if (pct > 0) return 'text-[#16c784]'
+  if (pct < 0) return 'text-red-400'
+  return 'text-[#9aa4ad]'
+}
+
+export default function TradeLayout(props: TradeLayoutProps) {
+  const {
+    symbol,
+    onChangeSymbol,
+    priceUSDT,
+    wallet,
+    walletLoading = false,
+    orderBook,
+    position,
+    pnlUSDT,
+    roePercent,
+    trades,
+    onClosePosition,
+    onOpenOrder,
+    onOpenBetaNotice,
+    showBetaNotice,
+    onCloseBetaNotice,
+  } = props
+
+  const isMobile = useIsMobile(768)
+
   const [entryPrice, setEntryPrice] = useState(priceUSDT)
   const [manualEntry, setManualEntry] = useState(false)
-  const [bottomTab, setBottomTab] = useState<'positions' | 'history'>('positions')
 
   useEffect(() => {
     if (!manualEntry) setEntryPrice(priceUSDT)
@@ -108,19 +137,185 @@ export default function TradeLayout({
     setEntryPrice(price)
   }
 
-  const tabs = [
+  // ✅ MOBILE
+  const [topTab, setTopTab] = useState<'chart' | 'orderbook' | 'trades'>('chart')
+  const [bottomTab, setBottomTab] = useState<'balances' | 'positions' | 'history'>('positions')
+
+  // ✅ DESKTOP
+  const desktopTabs = [
     { id: 'positions', label: 'Open positions' },
     { id: 'history', label: 'Trade history' },
   ] as const
+  const [desktopBottomTab, setDesktopBottomTab] = useState<'positions' | 'history'>('positions')
 
+  const walletNode = useMemo(() => {
+    if (wallet) {
+      return (
+        <span>
+          KRW <span className="text-white font-semibold">{wallet.krw_balance.toLocaleString()}</span>
+          <span className="mx-2 text-[#1f2329]">|</span>
+          <span className={wallet.is_liquidated ? 'text-red-400' : 'text-[#16c784]'}>
+            {wallet.is_liquidated ? 'Liquidated' : 'OK'}
+          </span>
+        </span>
+      )
+    }
+    if (walletLoading) return '지갑 정보 로딩중...'
+    return '지갑 정보를 준비 중입니다'
+  }, [wallet, walletLoading])
+
+  const symbolLabel = useMemo(() => `${symbol.replace('USDT', '')} / USDT`, [symbol])
+
+  if (isMobile) {
+    return (
+      <div className="h-[100dvh] overflow-hidden bg-[#070c11] text-white flex flex-col">
+        {/* TOP BAR */}
+        <div className="h-[58px] px-3 flex items-center justify-between border-b border-white/10 bg-[#070c11] flex-none">
+          <div className="min-w-0">
+            <button
+              type="button"
+              className="flex items-center gap-2 font-semibold truncate focus:outline-none"
+              onClick={() => onChangeSymbol(symbol === 'BTCUSDT' ? 'ETHUSDT' : 'BTCUSDT')}
+              title="심볼 변경 (임시 토글)"
+            >
+              <span className="truncate">{symbolLabel}</span>
+              <span className="text-white/60">▾</span>
+            </button>
+            <div className="mt-0.5 text-[11px] text-white/50 truncate">{walletNode}</div>
+          </div>
+
+          <div className="text-right">
+            <div className="text-[18px] font-semibold leading-none">{fmtPrice(priceUSDT)}</div>
+            <div className={`text-[11px] ${pctColorClass(pnlUSDT)}`}>
+              {pnlUSDT >= 0 ? '+' : ''}
+              {fmtPrice(pnlUSDT)} / {roePercent.toFixed(2)}%
+            </div>
+          </div>
+        </div>
+
+        {/* TOP TABS (깔끔 + hover 제거) */}
+        <div className="h-[42px] px-2 flex items-center gap-2 border-b border-white/10 bg-[#070c11] flex-none">
+          <TopTabBtn active={topTab === 'chart'} onClick={() => setTopTab('chart')}>
+            Chart
+          </TopTabBtn>
+          <TopTabBtn active={topTab === 'orderbook'} onClick={() => setTopTab('orderbook')}>
+            Order Book
+          </TopTabBtn>
+          <TopTabBtn active={topTab === 'trades'} onClick={() => setTopTab('trades')}>
+            Trades
+          </TopTabBtn>
+        </div>
+
+        {/* MAIN VIEW */}
+        <div className={topTab === 'chart' ? 'flex-none overflow-hidden' : 'flex-none overflow-visible'}>
+          {topTab === 'chart' ? (
+            <div className="h-[46vh] max-h-[50vh] overflow-hidden border-b border-white/10">
+              <TradingChart symbol={symbol} />
+            </div>
+          ) : topTab === 'orderbook' ? (
+            <div className="px-2 pt-2">
+              <div className="border border-white/10 bg-[#05070a] rounded-lg">
+                <OrderBook asks={orderBook.asks} bids={orderBook.bids} price={priceUSDT} onSelectPrice={handleSelectPrice} />
+              </div>
+            </div>
+          ) : (
+            <div className="px-2 pt-2">
+              <div className="border border-white/10 bg-[#05070a] rounded-lg p-2">
+                <OrderForm
+                  priceUSDT={priceUSDT}
+                  onOpen={onOpenOrder}
+                  entryPrice={entryPrice}
+                  manualEntry={manualEntry}
+                  markPrice={priceUSDT}
+                  onEntryPriceChange={handleEntryChange}
+                  onResetEntryPrice={() => setManualEntry(false)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* BOTTOM PANEL (남는 공간 따라오게) */}
+        <div className="flex-1 min-h-0 border-t border-white/10 bg-[#070c11] flex flex-col overflow-hidden">
+          <div className="h-[38px] px-2 flex items-center gap-3 border-b border-white/10 overflow-x-auto flex-none">
+            <BottomTabBtn active={bottomTab === 'balances'} onClick={() => setBottomTab('balances')}>
+              Balances
+            </BottomTabBtn>
+            <BottomTabBtn active={bottomTab === 'positions'} onClick={() => setBottomTab('positions')}>
+              Positions
+            </BottomTabBtn>
+            <BottomTabBtn active={bottomTab === 'history'} onClick={() => setBottomTab('history')}>
+              Trade History
+            </BottomTabBtn>
+          </div>
+
+          <div className="flex-1 min-h-0 overflow-auto px-2 py-2 pb-[env(safe-area-inset-bottom)]">
+            {bottomTab === 'balances' ? (
+              <div className="text-[12px] text-white/70">
+                <div className="text-[11px] text-white/50 mb-2">Wallet</div>
+                <div className="border border-white/10 bg-[#05070a] p-2">{walletNode}</div>
+              </div>
+            ) : bottomTab === 'positions' ? (
+              <div className="space-y-2">
+                {position ? (
+                  <PositionTable
+                    position={position}
+                    priceUSDT={priceUSDT}
+                    pnlUSDT={pnlUSDT}
+                    pnlPercent={roePercent}
+                    onClose={onClosePosition}
+                  />
+                ) : (
+                  <div className="text-[12px] text-white/60">표시할 데이터가 없습니다.</div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="text-[12px] font-semibold text-white">Trade history</div>
+                  <button
+                    type="button"
+                    onClick={onOpenBetaNotice}
+                    className="text-[11px] text-white/60 focus:outline-none"
+                  >
+                    모의투자 안내
+                  </button>
+                </div>
+                <TradeHistoryTable trades={trades} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {showBetaNotice && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80">
+            <div className="w-full max-w-sm border border-[#1f2329] bg-[#0b0e11] p-6 text-sm text-white">
+              <p className="text-sm font-semibold">모의투자 안내</p>
+              <p className="mt-3 text-[13px] leading-relaxed text-[#9aa4ad]">
+                현재 모의투자 beta test version 운영중입니다. 모바일 화면에서는 작동이 불편할 수 있습니다.
+                데스크탑을 이용하시기 바랍니다.
+              </p>
+              <div className="mt-5 flex justify-end">
+                <button
+                  type="button"
+                  onClick={onCloseBetaNotice}
+                  className="border border-[#1f2329] px-4 py-2 text-[12px] hover:border-white focus:outline-none"
+                >
+                  닫기
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ✅ DESKTOP
   return (
-    // ✅ 핵심: 100vh 대신 100dvh + overflow-hidden (아래 잘림 방지)
     <div className="h-[100dvh] overflow-hidden bg-black text-white">
-      {/* 여기 p-4는 원하면 유지/제거 가능 */}
       <div className="h-full p-4">
-        {/* ✅ min-h calc 대신: h-full로 고정 */}
         <div className="grid h-full grid-rows-[minmax(560px,50vh)_minmax(260px,38vh)] gap-3">
-          {/* 상단 3분할 */}
           <div className="min-h-0 grid grid-cols-[1.9fr_0.50fr_0.70fr] gap-0 border border-[#1f2329]">
             <LayoutPanel
               title="Chart"
@@ -128,19 +323,14 @@ export default function TradeLayout({
               className="border-0 border-r border-[#1f2329]"
             >
               <div className="h-full min-h-0">
-                <TradingChart symbol={symbol} price={priceUSDT} />
+                <TradingChart symbol={symbol} />
               </div>
             </LayoutPanel>
 
             <LayoutPanel title="Order book" className="border-0 border-r border-[#1f2329]">
               <div className={`${PANEL_PADDING} h-full min-h-0`}>
                 <div className="h-full min-h-0">
-                  <OrderBook
-                    asks={orderBook.asks}
-                    bids={orderBook.bids}
-                    price={priceUSDT}
-                    onSelectPrice={handleSelectPrice}
-                  />
+                  <OrderBook asks={orderBook.asks} bids={orderBook.bids} price={priceUSDT} onSelectPrice={handleSelectPrice} />
                 </div>
               </div>
             </LayoutPanel>
@@ -162,24 +352,23 @@ export default function TradeLayout({
             </LayoutPanel>
           </div>
 
-          {/* 하단 */}
           <div className="min-h-0 border border-[#1f2329] bg-black text-[#9aa4ad] flex flex-col overflow-hidden">
-            {/* 탭바 */}
-            <div className="flex h-12 flex-none items-center justify-between border-b border-[#1f2329] px-3 text-[13px]">
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#1f2329] px-3 text-[13px]">
+              <div className="flex flex-wrap items-center gap-4">
+                {/* ✅ [FIX 1] BTC/ETH 탭: after 밑줄 제거 → border 밑줄로 변경 */}
+                <div className="flex flex-wrap items-center gap-5">
                   {(['BTCUSDT', 'ETHUSDT'] as const).map(s => {
                     const active = symbol === s
                     return (
                       <button
                         key={s}
                         type="button"
-                        className={
-                          'relative pb-2 text-[13px] font-semibold transition ' +
-                          (active
-                            ? 'text-white after:absolute after:left-0 after:bottom-0 after:h-[2px] after:w-full after:bg-white'
-                            : 'text-[#9aa4ad] hover:text-white')
-                        }
+                        className={[
+                          'text-[13px] font-semibold transition',
+                          'py-3',
+                          'border-b-2 border-transparent',
+                          active ? 'text-white border-white' : 'text-[#9aa4ad] hover:text-white',
+                        ].join(' ')}
                         onClick={() => onChangeSymbol(s)}
                       >
                         {s.replace('USDT', '')} / USDT
@@ -188,22 +377,23 @@ export default function TradeLayout({
                   })}
                 </div>
 
-                <span className="h-4 border-l border-[#1f2329]" />
+                <span className="hidden h-4 border-l border-[#1f2329] sm:inline-flex" />
 
-                <div className="flex items-center gap-5 pl-5">
-                  {tabs.map(tab => {
-                    const active = bottomTab === tab.id
+                {/* ✅ [FIX 2] Open positions/Trade history 탭도 동일하게 변경 */}
+                <div className="flex flex-wrap items-center gap-5">
+                  {desktopTabs.map(tab => {
+                    const active = desktopBottomTab === tab.id
                     return (
                       <button
                         key={tab.id}
                         type="button"
-                        className={
-                          'relative pb-2 text-[13px] font-semibold transition ' +
-                          (active
-                            ? 'text-white after:absolute after:left-0 after:bottom-0 after:h-[2px] after:w-full after:bg-white'
-                            : 'text-[#9aa4ad] hover:text-white')
-                        }
-                        onClick={() => setBottomTab(tab.id)}
+                        className={[
+                          'text-[13px] font-semibold transition',
+                          'py-3',
+                          'border-b-2 border-transparent',
+                          active ? 'text-white border-white' : 'text-[#9aa4ad] hover:text-white',
+                        ].join(' ')}
+                        onClick={() => setDesktopBottomTab(tab.id)}
                       >
                         {tab.label}
                       </button>
@@ -212,24 +402,11 @@ export default function TradeLayout({
                 </div>
               </div>
 
-              <div className="text-[12px] whitespace-nowrap">
-                {wallet ? (
-                  <span>
-                    KRW <span className="text-white font-semibold">{wallet.krw_balance.toLocaleString()}</span>
-                    <span className="mx-2 text-[#1f2329]">|</span>
-                    <span className={wallet.is_liquidated ? 'text-red-400' : 'text-[#16c784]'}>
-                      {wallet.is_liquidated ? 'Liquidated' : 'OK'}
-                    </span>
-                  </span>
-                ) : (
-                  walletLoading ? '지갑 정보 로드중' : '지갑 정보 로드중'
-                )}
-              </div>
+              <div className="ml-auto text-[12px] whitespace-nowrap">{walletNode}</div>
             </div>
 
-            {/* ✅ 핵심: 하단 영역만 스크롤 + 안전 패딩 */}
             <div className="min-h-0 flex-1 overflow-auto p-3 pt-4 pb-6 pb-[env(safe-area-inset-bottom)]">
-              {bottomTab === 'positions' ? (
+              {desktopBottomTab === 'positions' ? (
                 <div className="space-y-3">
                   <div className="text-[12px] font-semibold uppercase tracking-[0.3em] text-white">Open positions</div>
 
@@ -287,5 +464,53 @@ export default function TradeLayout({
         </div>
       )}
     </div>
+  )
+}
+
+function TopTabBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'px-3 py-1.5 rounded-full text-[13px] font-semibold tracking-tight',
+        'focus:outline-none focus:ring-0 active:outline-none',
+        active ? 'bg-white/10 text-white' : 'text-white/60',
+      ].join(' ')}
+      style={{ WebkitTapHighlightColor: 'transparent' }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function BottomTabBtn({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'whitespace-nowrap px-2 py-1 text-xs font-semibold transition',
+        active ? 'text-white border-b-2 border-emerald-400' : 'text-white/60 hover:text-white',
+      ].join(' ')}
+    >
+      {children}
+    </button>
   )
 }
