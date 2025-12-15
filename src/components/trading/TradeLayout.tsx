@@ -121,7 +121,7 @@ export default function TradeLayout({
         {/* ✅ min-h calc 대신: h-full로 고정 */}
         <div className="grid h-full grid-rows-[minmax(560px,50vh)_minmax(260px,38vh)] gap-3">
           {/* 상단 3분할 */}
-          <div className="min-h-0 grid grid-cols-[2.0fr_0.51fr_0.61fr] gap-0 border border-[#1f2329]">
+          <div className="min-h-0 grid grid-cols-[1.9fr_0.50fr_0.65fr] gap-0 border border-[#1f2329]">
             <LayoutPanel
               title="Chart"
               right={<span className="uppercase tracking-[0.35em] text-[#9aa4ad]">PERP</span>}
