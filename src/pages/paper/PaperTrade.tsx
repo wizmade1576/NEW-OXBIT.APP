@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import getSupabase from '../../lib/supabase/client'
 import { calcPnL, calcLiquidation, PositionSide } from '../../utils/margin'
 import TradeLayout, { WalletSummary, OrderBookEntry } from '../../components/trading/TradeLayout'
+import Button from '../../components/ui/Button'
 import type { TradeRecord } from '../../components/trading/TradeHistoryTable'
 
 type WalletRecord = WalletSummary
@@ -25,6 +26,8 @@ const supabase = getSupabase()
 
 export default function PaperTrade() {
   const [userId, setUserId] = useState<string | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
+  const navigate = useNavigate()
 
   const [wallet, setWallet] = useState<WalletRecord | null>(null)
   const [position, setPosition] = useState<PositionRecord | null>(null)
@@ -42,6 +45,7 @@ export default function PaperTrade() {
   const location = useLocation()
 
   const isTradeRoute = location.pathname === '/paper/trade'
+  const showLoginModal = authChecked && !userId
 
   const tickerRef = useRef<WebSocket | null>(null)
   const depthRef = useRef<WebSocket | null>(null)
@@ -49,8 +53,12 @@ export default function PaperTrade() {
   // ✅ auth uid 1회 로드
   useEffect(() => {
     const loadAuth = async () => {
-      const { data } = await supabase.auth.getUser()
-      setUserId(data?.user?.id ?? null)
+      try {
+        const { data } = await supabase.auth.getUser()
+        setUserId(data?.user?.id ?? null)
+      } finally {
+        setAuthChecked(true)
+      }
     }
     loadAuth()
   }, [])
@@ -389,22 +397,40 @@ export default function PaperTrade() {
   }
 
   return (
-    <TradeLayout
-      symbol={symbol}
-      onChangeSymbol={handleChangeSymbol}
-      priceUSDT={priceUSDT}
-      wallet={wallet}
-      walletLoading={!wallet}
-      orderBook={orderBook}
-      position={position}
-      pnlUSDT={pnlUSDT}
-      roePercent={roePercent}
-      trades={trades}
-      onClosePosition={handleClosePosition}
-      onOpenOrder={handleOpen}
-      onOpenBetaNotice={() => setShowBetaNotice(true)}
-      showBetaNotice={showBetaNotice}
-      onCloseBetaNotice={() => setShowBetaNotice(false)}
-    />
+    <>
+      <TradeLayout
+        symbol={symbol}
+        onChangeSymbol={handleChangeSymbol}
+        priceUSDT={priceUSDT}
+        wallet={wallet}
+        walletLoading={!wallet}
+        orderBook={orderBook}
+        position={position}
+        pnlUSDT={pnlUSDT}
+        roePercent={roePercent}
+        trades={trades}
+        onClosePosition={handleClosePosition}
+        onOpenOrder={handleOpen}
+        onOpenBetaNotice={() => setShowBetaNotice(true)}
+        showBetaNotice={showBetaNotice}
+        onCloseBetaNotice={() => setShowBetaNotice(false)}
+      />
+
+      {showLoginModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 px-4 py-6">
+          <div className="w-full max-w-sm space-y-4 rounded-2xl border border-border bg-[#0b0f15] p-6 text-center text-white">
+            <p className="text-sm text-white">모의투자 페이지는 로그인 이용 후 가능합니다.</p>
+            <div className="flex flex-wrap items-center justify-center gap-3">
+              <Button onClick={() => navigate('/login')} className="px-5 py-2 text-sm">
+                로그인
+              </Button>
+              <Button variant="outline" onClick={() => navigate('/')} className="px-5 py-2 text-sm">
+                홈으로 돌아가기
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   )
 }

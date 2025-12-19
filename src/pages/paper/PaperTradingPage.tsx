@@ -70,12 +70,17 @@ export default function PaperTradingPage() {
 
   return (
     <section className="space-y-6 p-6 max-w-4xl mx-auto">
-      <div className="flex items-end justify-between">
+      <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-xl font-semibold text-white">모의투자</h2>
           <p className="text-muted-foreground text-sm">실전과 동일한 구조로 전략을 연습하세요</p>
         </div>
-        <Button onClick={() => navigate('/paper/trade')}>거래 시작</Button>
+        <Button
+          onClick={() => navigate('/paper/trade')}
+          className="rounded-full px-4 py-1.5 text-xs sm:px-5 sm:py-2 sm:text-sm"
+        >
+          거래 시작
+        </Button>
       </div>
 
       <Card className="bg-slate-900/70 border-slate-700">

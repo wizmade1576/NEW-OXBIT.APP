@@ -142,7 +142,7 @@ export default function WalletPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-slate-400">현재 잔고</p>
-            <p className="text-4xl font-semibold text-white">
+            <p className="text-2xl font-semibold text-white sm:text-4xl">
               {wallet ? `${wallet.krw_balance.toLocaleString('ko-KR')} 원` : '지갑 없음'}
             </p>
           </div>
@@ -159,6 +159,14 @@ export default function WalletPage() {
             disabled={creating}
           >
             {wallet ? '지갑 재생성' : '지갑 생성'}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => navigate('/paper/trade')}
+            disabled={!wallet}
+            className="rounded-2xl border-slate-700 px-5 py-2 text-sm text-white hover:border-white hover:text-white"
+          >
+            거래 시작
           </Button>
         </div>
         {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
