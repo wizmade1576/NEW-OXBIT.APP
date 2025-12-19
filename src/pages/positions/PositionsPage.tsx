@@ -2,6 +2,8 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "../../components/ui/Card"
 import getSupabase from "../../lib/supabase/client"
 
+const KRW_RATE = 1350
+
 type Streamer = {
   id: string
   name: string
@@ -86,7 +88,11 @@ const PositionCard = React.memo(function PositionCardInner({
   const cardTone = isRisk ? "bg-[#2a0f15] border-red-500/60" : "bg-[#12131f] border border-neutral-800"
 
   return (
-    <Card className={cardTone} onMouseEnter={() => onHover?.(id)} onMouseLeave={() => onLeave?.()}>
+    <Card
+      className={cardTone}
+      onMouseEnter={() => onHover?.(id)}
+      onMouseLeave={() => onLeave?.()}
+    >
       <CardHeader className="grid grid-cols-[auto_auto] items-start gap-3 w-full">
         <div className="flex items-center gap-3 min-w-0">
           <img
@@ -114,7 +120,7 @@ const PositionCard = React.memo(function PositionCardInner({
 
       <CardContent className="grid grid-cols-3 gap-3 text-sm text-white">
         {[
-          { label: "진입가",value: fmtNum(entry) },
+          { label: "진입가", value: fmtNum(entry) },
           { label: "현재가", value: fmtNum(mark) },
           {
             label: "청산가",
@@ -160,6 +166,146 @@ const PositionCard = React.memo(function PositionCardInner({
     </Card>
   )
 })
+
+/**
+ * 데스크탑용: 카드형을 가로로 펼친 한 줄 레이아웃
+ */
+const PositionRowDesktop = React.memo(function PositionRowDesktop({
+  id,
+  bjName,
+  bjAvatar,
+  symbol,
+  side,
+  leverage,
+  qty,
+  pnlUsd,
+  entry,
+  mark,
+  liq,
+  pnlKrw,
+  online,
+  onHover,
+  onLeave,
+  onDelete,
+}: PositionCardProps) {
+  const up = (pnlUsd || 0) >= 0
+
+  return (
+    <div
+      className="grid grid-cols-[minmax(0,2.1fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_repeat(3,minmax(0,1.1fr))_minmax(0,1.4fr)] items-center gap-4 px-4 py-3 text-sm rounded-2xl bg-[#12131f] border border-neutral-800 hover:border-neutral-600 transition-colors"
+      onMouseEnter={() => onHover?.(id)}
+      onMouseLeave={() => onLeave?.()}
+    >
+      {/* BJ */}
+      <div className="flex items-center gap-3 min-w-0">
+        <img
+          src={bjAvatar || "https://i.pravatar.cc/40"}
+          alt={bjName}
+          className="h-10 w-10 rounded-full border border-border object-cover flex-shrink-0"
+        />
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="truncate font-semibold text-white">{bjName}</span>
+          </div>
+          <div className="text-[11px] text-muted-foreground flex items-center gap-2">
+            <span>{symbol}</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${
+                online ? "bg-emerald-500/10 text-emerald-300" : "bg-neutral-700/40 text-neutral-300"
+              }`}
+            >
+              {online ? "ON" : "OFF"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 포지션 */}
+      <div className="flex flex-col gap-1">
+        
+        <div className="flex items-center gap-2">
+          <span className={side === "Long" ? "text-emerald-400 font-semibold" : "text-rose-400 font-semibold"}>
+            {side}
+          </span>
+          {leverage ? (
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                side === "Long" ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300"
+              }`}
+            >
+              x{leverage}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {/* 수량 */}
+      <div className="flex flex-col gap-1">
+        
+        <span className="font-semibold text-white">{qty ?? "--"}</span>
+      </div>
+
+      {/* P&L (달러) */}
+      <div className="flex flex-col gap-1">
+        
+        <span className={`font-semibold ${up ? "text-emerald-400" : "text-rose-400"}`}>{fmtUSD(pnlUsd)}</span>
+      </div>
+
+      {/* 진입가 */}
+      <div className="flex flex-col gap-1">
+        
+        <span className="font-semibold text-white">{fmtNum(entry)}</span>
+      </div>
+
+      {/* 현재가 */}
+      <div className="flex flex-col gap-1">
+        
+        <span className="font-semibold text-white">{fmtNum(mark)}</span>
+      </div>
+
+      {/* 청산가 */}
+      <div className="flex flex-col gap-1">
+        
+        <span className="font-semibold text-amber-400">{fmtNum(liq)}</span>
+      </div>
+
+      {/* P&L (원화) */}
+      <div className="flex flex-col gap-1 items-end">
+        
+        <div className="flex items-center gap-2">
+          {/* 숫자: 고정폭 + 우측정렬 + tabular-nums */}
+          <span
+            className={`font-semibold tabular-nums whitespace-nowrap text-right w-[150px] ${
+              up ? "text-emerald-300" : "text-rose-300"
+            }`}
+          >
+            {fmtKRW(pnlKrw)}
+          </span>
+
+          {/* pill: 고정폭 + 가운데 정렬 */}
+          <span
+            className={`whitespace-nowrap w-[60px] text-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+              up ? "bg-emerald-500/10 text-emerald-300" : "bg-rose-500/10 text-rose-300"
+            }`}
+          >
+            {up ? "수익중" : "손실중"}
+          </span>
+        </div>
+      </div>
+
+      {onDelete ? (
+        <button
+          type="button"
+          onClick={onDelete}
+          className="justify-self-end text-[11px] text-red-400 underline ml-2"
+        >
+          삭제
+        </button>
+      ) : null}
+    </div>
+  )
+})
+
 
 export default function PositionsPage() {
   const [list, setList] = React.useState<Position[]>([])
@@ -759,10 +905,13 @@ export default function PositionsPage() {
         </div>
       </div>
 
-      {/* 포지션 카드 리스트 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3" style={{ overflowAnchor: "none" }}>
+      {/* 포지션 리스트 */}
+      {/* 모바일/태블릿: 기존 카드형 */}
+      <div
+        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 lg:hidden"
+        style={{ overflowAnchor: "none" }}
+      >
         {displayed.map((p) => {
-          const KRW_RATE = 1350
           const pnlUsd = p.pnl
           const pnlKrw = (pnlUsd || 0) * KRW_RATE
           const liqGap = Math.abs((p.mark ?? 0) - (p.liq ?? 0))
@@ -792,6 +941,54 @@ export default function PositionsPage() {
 
           return <PositionCard key={p.id} {...cardProps} />
         })}
+      </div>
+
+      {/* 데스크탑: 카드형을 가로로 펼친 리스트 */}
+      <div className="hidden lg:block space-y-2" style={{ overflowAnchor: "none" }}>
+        {/* 헤더 라인 */}
+        <div className="grid grid-cols-[minmax(0,2.1fr)_minmax(0,1.3fr)_minmax(0,1.2fr)_minmax(0,1.4fr)_repeat(3,minmax(0,1.1fr))_minmax(0,1.4fr)] gap-4 px-4 py-2 text-xs text-muted-foreground">
+          <div>BJ</div>
+          <div>포지션</div>
+          <div>수량</div>
+          <div>P&L (달러)</div>
+          <div>진입가</div>
+          <div>현재가</div>
+          <div>청산가</div>
+          <div>P&L (원화)</div>
+        </div>
+
+        <div className="space-y-2">
+          {displayed.map((p) => {
+            const pnlUsd = p.pnl
+            const pnlKrw = (pnlUsd || 0) * KRW_RATE
+            const liqGap = Math.abs((p.mark ?? 0) - (p.liq ?? 0))
+            const isRisk = Number.isFinite(liqGap) && liqGap <= 200
+
+            const rowProps: PositionCardProps = {
+              id: p.id,
+              bjName: p.streamer.name,
+              bjAvatar: p.streamer.avatar,
+              symbol: p.symbol,
+              side: p.side,
+              leverage: p.leverage,
+              qty: p.size,
+              pnlUsd,
+              entry: p.entry,
+              mark: p.mark,
+              liq: p.liq,
+              pnlKrw,
+              online: p.streamer.online,
+              onlineFor: p.streamer.onlineFor,
+              spark: p.spark,
+              isRisk,
+              onHover: (id) => setHoveredId(id),
+              onLeave: () => setHoveredId(undefined),
+              onDelete: showAdminPanel ? () => handleDelete(p.id) : undefined,
+            }
+
+            return <PositionRowDesktop key={p.id} {...rowProps} />
+          })}
+        </div>
       </div>
     </section>
   )
