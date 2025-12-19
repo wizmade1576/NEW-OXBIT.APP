@@ -42,16 +42,14 @@ export const calcLiquidation = (
   const initialMargin = notional / leverage
   const maintenanceMargin = notional * calcMMR(notional)
 
-  const extra = maintenanceMargin - initialMargin
-  if (extra < 0) return 0
+  const buffer = (initialMargin - maintenanceMargin) / (amount * leverage)
+  if (!Number.isFinite(buffer) || buffer <= 0) return 0
 
   if (side === 'long') {
-    const liq = entryPrice + extra / amount
-    return liq > 0 ? liq : 0
+    return Math.max(entryPrice - buffer, 0)
   }
 
-  const liq = entryPrice - extra / amount
-  return liq > 0 ? liq : 0
+  return entryPrice + buffer
 }
 
 export const calcMaintenance = (margin: number) => margin * 0.005

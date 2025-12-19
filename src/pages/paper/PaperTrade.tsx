@@ -24,6 +24,8 @@ export type PositionRecord = {
 const supabase = getSupabase()
 
 export default function PaperTrade() {
+  const [userId, setUserId] = useState<string | null>(null)
+
   const [wallet, setWallet] = useState<WalletRecord | null>(null)
   const [position, setPosition] = useState<PositionRecord | null>(null)
   const [symbol, setSymbol] = useState<'BTCUSDT' | 'ETHUSDT'>('BTCUSDT')
@@ -44,6 +46,25 @@ export default function PaperTrade() {
   const tickerRef = useRef<WebSocket | null>(null)
   const depthRef = useRef<WebSocket | null>(null)
 
+  // ✅ auth uid 1회 로드
+  useEffect(() => {
+    const loadAuth = async () => {
+      const { data } = await supabase.auth.getUser()
+      setUserId(data?.user?.id ?? null)
+    }
+    loadAuth()
+  }, [])
+
+  // ✅ 심볼(차트/호가) 변경: 포지션 열려있으면 변경 막아서 PnL 꼬임 방지
+  const handleChangeSymbol = (next: 'BTCUSDT' | 'ETHUSDT') => {
+    if (position && position.symbol !== next) {
+      alert(`이미 ${position.symbol} 포지션이 열려 있습니다.\n포지션 종료 후 다른 심볼로 이동하세요.`)
+      return
+    }
+    setSymbol(next)
+  }
+
+  // ✅ 바이낸스 WS (symbol 기준)
   useEffect(() => {
     const lower = symbol.toLowerCase()
     const tickerWS = new WebSocket(`wss://fstream.binance.com/ws/${lower}@ticker`)
@@ -74,56 +95,77 @@ export default function PaperTrade() {
     }
   }, [symbol])
 
-  useEffect(() => {
-    const load = async () => {
-      const { data } = await supabase.auth.getUser()
-      if (!data?.user) return
+  // --- helpers ---
+  const refreshWallet = async (uid: string) => {
+    const { data: wal } = await supabase.from('paper_wallets').select('*').eq('user_id', uid).maybeSingle()
+    if (wal) setWallet(wal as WalletRecord)
+  }
 
-      const { data: pos } = await supabase
-        .from('paper_positions')
-        .select('*')
-        .eq('user_id', data.user.id)
-        .maybeSingle()
-      if (pos) setPosition(pos as PositionRecord)
+  const refreshPositionForSymbol = async (uid: string, sym: 'BTCUSDT' | 'ETHUSDT') => {
+    const { data: pos } = await supabase
+      .from('paper_positions')
+      .select('*')
+      .eq('user_id', uid) // ✅ 절대 현재 uid만
+      .eq('symbol', sym)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-      const { data: wal } = await supabase
-        .from('paper_wallets')
-        .select('*')
-        .eq('user_id', data.user.id)
-        .maybeSingle()
-      if (wal) setWallet(wal as WalletRecord)
+    setPosition((pos as PositionRecord) ?? null)
+  }
+
+  const refreshLatestPosition = async (uid: string) => {
+    const { data: pos } = await supabase
+      .from('paper_positions')
+      .select('*')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (pos) {
+      setPosition(pos as PositionRecord)
+      setSymbol((pos as PositionRecord).symbol)
+    } else {
+      setPosition(null)
     }
-    load()
-  }, [])
+  }
+
+  const refreshTrades = async (uid: string) => {
+    const { data: rows } = await supabase
+      .from('paper_trades')
+      .select('id, user_id, type, symbol, price, amount, leverage, pnl, created_at')
+      .eq('user_id', uid)
+      .order('created_at', { ascending: false })
+      .limit(30)
+
+    if (rows) setTrades(rows as TradeRecord[])
+  }
+
+  // ✅ 초기 로드(지갑/포지션/트레이드)
+  useEffect(() => {
+    if (!userId) return
+    refreshWallet(userId)
+    refreshLatestPosition(userId)
+    refreshTrades(userId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId])
+
+  // ✅ 심볼 바뀌면(포지션 없을 때만) 포지션 재조회
+  useEffect(() => {
+    if (!userId) return
+    if (position) return
+    refreshPositionForSymbol(userId, symbol)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [symbol, userId])
 
   useEffect(() => {
     const handleVisibility = () => {
       setIsPageVisible(document.visibilityState === 'visible')
     }
-
     handleVisibility()
     document.addEventListener('visibilitychange', handleVisibility)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility)
-    }
-  }, [])
-
-  useEffect(() => {
-    const loadTrades = async () => {
-      const { data } = await supabase.auth.getUser()
-      const userId = data?.user?.id
-      if (!userId) return
-
-      const { data: rows } = await supabase
-        .from('paper_trades')
-        .select('id, user_id, type, symbol, price, amount, leverage, pnl, created_at')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(30)
-
-      if (rows) setTrades(rows as TradeRecord[])
-    }
-    loadTrades()
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
   }, [])
 
   const pnlUSDT = useMemo(() => {
@@ -136,10 +178,10 @@ export default function PaperTrade() {
     return (pnlUSDT / position.margin) * 100
   }, [pnlUSDT, position])
 
+  // ✅ 강제 청산
   useEffect(() => {
-    if (!position) return
-    if (!isPageVisible) return
-    if (!isTradeRoute) return
+    if (!userId) return
+    if (!position || !priceUSDT || !isPageVisible || !isTradeRoute) return
 
     const liq =
       (position.side === 'long' && priceUSDT <= position.liquidation_price) ||
@@ -149,7 +191,7 @@ export default function PaperTrade() {
 
     const liquidate = async () => {
       await supabase.from('paper_trades').insert({
-        user_id: position.user_id,
+        user_id: userId,
         type: 'liq',
         symbol: position.symbol,
         price: priceUSDT,
@@ -158,90 +200,124 @@ export default function PaperTrade() {
         pnl: pnlUSDT,
       })
 
-      await supabase.from('paper_positions').delete().eq('id', position.id)
+      await supabase.from('paper_positions').delete().eq('id', position.id).eq('user_id', userId)
 
-      await supabase
-        .from('paper_wallets')
-        .update({ krw_balance: 0, is_liquidated: true })
-        .eq('user_id', position.user_id)
+      await supabase.from('paper_wallets').update({ krw_balance: 0, is_liquidated: true }).eq('user_id', userId)
 
       setWallet(prev => (prev ? { ...prev, krw_balance: 0, is_liquidated: true } : prev))
       alert('강제 청산되었습니다. 추가 입금 후 다시 이용 가능합니다.')
       setPosition(null)
+      await refreshTrades(userId)
     }
 
     liquidate()
-  }, [priceUSDT, position, pnlUSDT, isPageVisible, isTradeRoute])
+  }, [priceUSDT, position, pnlUSDT, isPageVisible, isTradeRoute, userId])
 
+  // ✅ TP/SL 자동 종료
   useEffect(() => {
-    if (!position) return
-    if (!priceUSDT) return
-    if (!isTradeRoute) return
+    if (!userId) return
+    if (!position || !priceUSDT || !isTradeRoute || !isPageVisible) return
 
     const hasTP = position.take_profit != null
     const hasSL = position.stop_loss != null
 
     const isTP =
       hasTP &&
-      ((position.side === 'long' && priceUSDT >= (position.take_profit as number)) ||
-        (position.side === 'short' && priceUSDT <= (position.take_profit as number)))
+      ((position.side === 'long' && priceUSDT >= position.take_profit!) ||
+        (position.side === 'short' && priceUSDT <= position.take_profit!))
 
     const isSL =
       hasSL &&
-      ((position.side === 'long' && priceUSDT <= (position.stop_loss as number)) ||
-        (position.side === 'short' && priceUSDT >= (position.stop_loss as number)))
+      ((position.side === 'long' && priceUSDT <= position.stop_loss!) ||
+        (position.side === 'short' && priceUSDT >= position.stop_loss!))
 
     if (!isTP && !isSL) return
-    if (!isPageVisible) return
 
     const autoClose = async () => {
-      const type = isTP ? 'tp' : 'sl'
-
       await supabase.from('paper_trades').insert({
-        user_id: position.user_id,
-        type,
+        user_id: userId,
+        type: isTP ? 'tp' : 'sl',
         symbol: position.symbol,
         price: priceUSDT,
         amount: position.amount,
         leverage: position.leverage,
-        pnl: calcPnL(position.side, position.entry_price, priceUSDT, position.amount, position.leverage),
+        pnl: pnlUSDT,
       })
 
-      await supabase.from('paper_positions').delete().eq('id', position.id)
+      await supabase.from('paper_positions').delete().eq('id', position.id).eq('user_id', userId)
 
-      setWallet(prev =>
-        prev ? { ...prev, krw_balance: prev.krw_balance + position.margin + pnlUSDT } : prev
-      )
-
+      setWallet(prev => (prev ? { ...prev, krw_balance: prev.krw_balance + position.margin + pnlUSDT } : prev))
       alert(isTP ? 'TP 익절이 자동 체결되었습니다.' : 'SL 손절이 자동 체결되었습니다.')
       setPosition(null)
+      await refreshTrades(userId)
+      await refreshWallet(userId)
     }
 
     autoClose()
-  }, [priceUSDT, position, pnlUSDT, isPageVisible, isTradeRoute])
+  }, [priceUSDT, position, pnlUSDT, isPageVisible, isTradeRoute, userId])
 
+  // ✅ 종료: UI 즉시 비우고 → DB 처리 → 최종 DB 재조회로 정렬
   const handleClosePosition = async () => {
+    if (!userId) return alert('로그인 정보가 없습니다. 다시 로그인해주세요.')
     if (!position) return
 
-    await supabase.from('paper_trades').insert({
-      user_id: position.user_id,
+    const closing = position
+    const credit = closing.margin + pnlUSDT
+
+    // UI 즉시 제거
+    setPosition(null)
+
+    // 1) trade insert
+    const { error: tradeErr } = await supabase.from('paper_trades').insert({
+      user_id: userId,
       type: 'close',
-      symbol: position.symbol,
+      symbol: closing.symbol,
       price: priceUSDT,
-      amount: position.amount,
-      leverage: position.leverage,
+      amount: closing.amount,
+      leverage: closing.leverage,
       pnl: pnlUSDT,
     })
 
-    await supabase.from('paper_positions').delete().eq('id', position.id)
+    if (tradeErr) {
+      setPosition(closing)
+      alert(`종료 기록 저장 실패: ${tradeErr.message}`)
+      return
+    }
 
-    setWallet(prev =>
-      prev ? { ...prev, krw_balance: prev.krw_balance + position.margin + pnlUSDT } : prev
-    )
+    // 2) delete (auth uid 기준 강제)
+    const { data: deleted, error: delErr } = await supabase
+      .from('paper_positions')
+      .delete()
+      .eq('id', closing.id)
+      .eq('user_id', userId)
+      .select('id')
 
-    setPosition(null)
+    if (delErr) {
+      setPosition(closing)
+      alert(`포지션 삭제 실패: ${delErr.message}`)
+      return
+    }
+
+    if (!deleted || deleted.length === 0) {
+      // ✅ 여기서 closing을 복구하지 말고, DB 재조회로 화면을 “정답”으로 맞춤
+      await refreshPositionForSymbol(userId, symbol)
+      alert('포지션 삭제가 0건 처리되었습니다. (DB에 다른 user_id로 저장된 포지션일 수 있음)')
+      return
+    }
+
+    // 3) wallet UI + DB
+    setWallet(prev => (prev ? { ...prev, krw_balance: prev.krw_balance + credit } : prev))
+
+    if (wallet?.id) {
+      const nextBalance = (wallet?.krw_balance ?? 0) + credit
+      await supabase.from('paper_wallets').update({ krw_balance: nextBalance }).eq('id', wallet.id)
+    }
+
+    await refreshTrades(userId)
+    await refreshWallet(userId)
   }
 
+  // ✅ 포지션 오픈 (심볼당 1개 제한)
   const handleOpen = async ({
     side,
     amount,
@@ -255,6 +331,24 @@ export default function PaperTrade() {
     takeProfit: number | null
     stopLoss: number | null
   }) => {
+    if (!userId) return
+
+    // 이미 포지션이 있으면(현재 구조는 사실상 1개만) 차단
+    if (position) {
+      return alert(`이미 ${position.symbol} 포지션이 열려 있습니다.\n해당 포지션을 종료한 후 거래하세요.`)
+    }
+
+    const { data: existing } = await supabase
+      .from('paper_positions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('symbol', symbol)
+      .limit(1)
+
+    if (existing && existing.length > 0) {
+      return alert('해당 심볼에 이미 열린 포지션이 있습니다.')
+    }
+
     if (!wallet) return alert('지갑 정보가 없습니다. 다시 로그인해주세요.')
     if (wallet.is_liquidated) return alert('지갑이 청산 상태입니다. 모의투자 지갑에 입금 후 다시 이용 가능합니다.')
 
@@ -263,13 +357,10 @@ export default function PaperTrade() {
 
     const liquidation = calcLiquidation(side, priceUSDT, amount, leverage)
 
-    const { data } = await supabase.auth.getUser()
-    if (!data?.user) return
-
     const { data: inserted, error } = await supabase
       .from('paper_positions')
       .insert({
-        user_id: data.user.id,
+        user_id: userId,
         symbol,
         side,
         entry_price: priceUSDT,
@@ -284,8 +375,7 @@ export default function PaperTrade() {
       .single()
 
     if (error) {
-      console.error('paper_positions insert failed', error)
-      alert(`포지션 생성 중 오류: ${error.message || '알 수 없는 이유'}`)
+      alert(`포지션 생성 중 오류: ${error.message}`)
       return
     }
 
@@ -294,12 +384,14 @@ export default function PaperTrade() {
     const newBalance = wallet.krw_balance - margin
     setWallet({ ...wallet, krw_balance: newBalance })
     await supabase.from('paper_wallets').update({ krw_balance: newBalance }).eq('id', wallet.id)
+
+    await refreshTrades(userId)
   }
 
   return (
     <TradeLayout
       symbol={symbol}
-      onChangeSymbol={setSymbol}
+      onChangeSymbol={handleChangeSymbol}
       priceUSDT={priceUSDT}
       wallet={wallet}
       walletLoading={!wallet}

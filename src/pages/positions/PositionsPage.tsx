@@ -1004,6 +1004,13 @@ function PriceChartLW({
     load().then((LW: any) => {
       if (destroyed || !ref.current || !LW) return
       if (!chartRef.current) {
+        const seoulFormatter = new Intl.DateTimeFormat('ko-KR', {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false,
+          timeZone: 'Asia/Seoul',
+        })
+
         chartRef.current = LW.createChart(ref.current, {
           height: 240,
           layout: { background: { color: "#0f0f0f" }, textColor: "#c9d1d9" },
@@ -1021,10 +1028,7 @@ function PriceChartLW({
                   : time?.timestamp
                   ? time.timestamp * 1000
                   : Date.now()
-              const d = new Date(t)
-              const hh = String(d.getHours()).padStart(2, "0")
-              const mm = String(d.getMinutes()).padStart(2, "0")
-              return `${hh}:${mm}`
+              return seoulFormatter.format(new Date(t))
             },
           },
           crosshair: { mode: 0 },

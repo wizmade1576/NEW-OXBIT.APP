@@ -99,6 +99,50 @@ function pctColorClass(pct: number) {
   return 'text-[#9aa4ad]'
 }
 
+/**
+ * ✅ 차트 오버레이용 Y 위치 계산
+ * - 실제 차트 스케일을 알 수 없으니(TradingView iframe), 현재가 기준으로 “그럴듯한” 위치를 계산해서 표시
+ * - rangePct가 클수록 라인 이동이 덜 민감해짐
+ */
+function calcOverlayTopPercent(entry: number, mark: number, rangePct = 0.08) {
+  if (!Number.isFinite(entry) || !Number.isFinite(mark) || mark <= 0) return 50
+  const ratio = (entry - mark) / mark // +면 entry가 위, -면 아래
+  const clamped = Math.max(-rangePct, Math.min(rangePct, ratio))
+  // mark(현재가)=50%, entry가 위면 top 줄어야 함(위로 올라감) => 50 - ...
+  const top = 50 - (clamped / rangePct) * 40 // 최대 40% 이동
+  return Math.max(6, Math.min(94, top))
+}
+
+function EntryLineOverlay({
+  position,
+  markPrice,
+}: {
+  position: TradeLayoutProps['position']
+  markPrice: number
+}) {
+  if (!position) return null
+
+  const isLong = position.side === 'long'
+  const top = calcOverlayTopPercent(position.entry_price, markPrice, 0.08)
+  const color = isLong ? 'bg-[#16c784]' : 'bg-red-400'
+  const textColor = isLong ? 'text-[#16c784]' : 'text-red-300'
+  const label = `Entry ${fmtPrice(position.entry_price)}`
+
+  return (
+    <div
+      className="pointer-events-none absolute left-0 right-0 z-20"
+      style={{ top: `${top}%` }}
+    >
+      <div className="flex items-center gap-2 px-2">
+        <div className={`h-[1px] flex-1 ${color} opacity-80`} />
+        <span className={`text-[11px] ${textColor} bg-black/70 border border-white/10 px-2 py-0.5 rounded`}>
+          {label}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function TradeLayout(props: TradeLayoutProps) {
   const {
     symbol,
@@ -210,7 +254,11 @@ export default function TradeLayout(props: TradeLayoutProps) {
         <div className={topTab === 'chart' ? 'flex-none overflow-hidden' : 'flex-none overflow-visible'}>
           {topTab === 'chart' ? (
             <div className="h-[46vh] max-h-[50vh] overflow-hidden border-b border-white/10">
-              <TradingChart symbol={symbol} />
+              {/* ✅ 차트 래퍼를 relative로 만들고 오버레이 라인 얹기 */}
+              <div className="relative h-full">
+                <TradingChart symbol={symbol} />
+                <EntryLineOverlay position={position} markPrice={priceUSDT} />
+              </div>
             </div>
           ) : topTab === 'orderbook' ? (
             <div className="px-2 pt-2">
@@ -322,8 +370,10 @@ export default function TradeLayout(props: TradeLayoutProps) {
               right={<span className="uppercase tracking-[0.35em] text-[#9aa4ad]">PERP</span>}
               className="border-0 border-r border-[#1f2329]"
             >
-              <div className="h-full min-h-0">
+              {/* ✅ 데스크탑도 차트 래퍼 relative + 오버레이 */}
+              <div className="relative h-full min-h-0">
                 <TradingChart symbol={symbol} />
+                <EntryLineOverlay position={position} markPrice={priceUSDT} />
               </div>
             </LayoutPanel>
 
