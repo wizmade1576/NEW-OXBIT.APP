@@ -23,6 +23,30 @@ function formatPhoneForAuth(raw: string): string {
   return normalized
 }
 
+function translateSupabaseError(message?: string | null) {
+  if (!message) return '문제가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+  const lower = message.toLowerCase()
+  if (lower.includes('user already registered')) {
+    return '이미 등록된 이메일입니다.'
+  }
+  if (lower.includes('duplicate key value')) {
+    return '이미 사용 중인 이메일입니다.'
+  }
+  if (lower.includes('row-level security')) {
+    return '지갑을 초기화할 권한이 없습니다. 관리자에게 문의하세요.'
+  }
+  if (lower.includes('invalid credentials')) {
+    return '입력한 정보가 올바르지 않습니다.'
+  }
+  if (lower.includes('password') && lower.includes('length')) {
+    return '비밀번호는 8자 이상, 영문/숫자를 조합해 주세요.'
+  }
+  if (lower.includes('phone number')) {
+    return '전화번호 형식을 확인해 주세요.'
+  }
+  return '문제가 발생했습니다. 잠시 후 다시 시도해 주세요.'
+}
+
 export default function RegisterPage() {
   const navigate = useNavigate()
   const [email, setEmail] = React.useState('')
@@ -225,7 +249,8 @@ export default function RegisterPage() {
     });
 
     if (signupError) {
-      setError(signupError.message);
+      console.error('signup error', signupError)
+      setError(translateSupabaseError(signupError.message))
       return;
     }
 
@@ -269,25 +294,48 @@ try {
 
     if (profileErr) {
       console.error("profile upsert failed", profileErr)
-      setError(profileErr.message || "user_profile upsert failed")
+      setError(translateSupabaseError(profileErr.message))
       return
     }
 
-    const { error: walletErr } = await supabase
+    const { data: existingWallet, error: walletFetchError } = await supabase
       .from('paper_wallets')
-      .upsert(
-        {
-          user_id: user.id,
+      .select('id')
+      .eq('user_id', user.id)
+      .maybeSingle()
+
+    if (walletFetchError) {
+      console.error('wallet lookup failed', walletFetchError)
+      setError('지갑 정보를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.')
+      return
+    }
+
+    if (existingWallet) {
+      const { error: walletErr } = await supabase
+        .from('paper_wallets')
+        .update({
           krw_balance: INITIAL_WALLET_BALANCE,
           is_liquidated: false,
-        },
-        { onConflict: 'user_id' },
-      )
+        })
+        .eq('user_id', user.id)
 
-    if (walletErr) {
-      console.error('wallet upsert failed', walletErr)
-      setError('지갑 초기화에 실패했습니다.')
-      return
+      if (walletErr) {
+        console.error('wallet update failed', walletErr)
+        setError(translateSupabaseError(walletErr.message))
+        return
+      }
+    } else {
+      const { error: walletErr } = await supabase.from('paper_wallets').insert({
+        user_id: user.id,
+        krw_balance: INITIAL_WALLET_BALANCE,
+        is_liquidated: false,
+      })
+
+      if (walletErr) {
+        console.error('wallet create failed', walletErr)
+        setError(translateSupabaseError(walletErr.message))
+        return
+      }
     }
 
 
@@ -522,6 +570,7 @@ try {
                 </a>
               </label>
             </div>
+            {error ? <p className="text-xs text-red-400">{error}</p> : null}
 
             <div className="my-2 h-px w-full bg-border" />
             <Button type="submit" className="w-full" disabled={loading || !!passwordError}>

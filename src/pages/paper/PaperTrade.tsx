@@ -332,12 +332,14 @@ export default function PaperTrade() {
     leverage,
     takeProfit,
     stopLoss,
+    entryPrice,
   }: {
     side: PositionSide
     amount: number
     leverage: number
     takeProfit: number | null
     stopLoss: number | null
+    entryPrice: number
   }) => {
     if (!userId) return
 
@@ -360,10 +362,10 @@ export default function PaperTrade() {
     if (!wallet) return alert('지갑 정보가 없습니다. 다시 로그인해주세요.')
     if (wallet.is_liquidated) return alert('지갑이 청산 상태입니다. 모의투자 지갑에 입금 후 다시 이용 가능합니다.')
 
-    const margin = (amount * priceUSDT) / leverage
+    const margin = (amount * entryPrice) / leverage
     if (wallet.krw_balance < margin) return alert('잔고가 부족합니다. 모의투자 지갑에 추가 입금이 필요합니다.')
 
-    const liquidation = calcLiquidation(side, priceUSDT, amount, leverage)
+    const liquidation = calcLiquidation(side, entryPrice, amount, leverage)
 
     const { data: inserted, error } = await supabase
       .from('paper_positions')
@@ -371,7 +373,7 @@ export default function PaperTrade() {
         user_id: userId,
         symbol,
         side,
-        entry_price: priceUSDT,
+        entry_price: entryPrice,
         leverage,
         amount,
         margin,

@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/Card'
 import Button from '../../components/ui/Button'
 import getSupabase from '../../lib/supabase/client'
@@ -21,6 +21,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = React.useState(false)
   const [saving, setSaving] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const navigate = useNavigate()
   const [note, setNote] = React.useState<string | null>(() => (location.state as any)?.welcomeMessage ?? null)
 
   React.useEffect(() => {
@@ -199,9 +200,19 @@ export default function ProfilePage() {
               <label className="text-xs uppercase tracking-wide text-muted-foreground">권한</label>
               <div className="px-3 py-2 rounded-md bg-background text-sm text-foreground border border-border">{profile.role}</div>
             </div>
-            <Button type="submit" className="w-full" disabled={saving || loading}>
-              {saving ? '저장 중...' : '프로필 저장'}
-            </Button>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button type="submit" className="w-full sm:flex-1" disabled={saving || loading}>
+                {saving ? '저장 중...' : '프로필 저장'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => navigate('/')}
+              >
+                oxbit.app 시작하기
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>

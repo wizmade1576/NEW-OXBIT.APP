@@ -8,15 +8,18 @@ const orderTabs = [
   { id: 'market', label: 'Market' },
 ] as const
 
+type OrderFormPayload = {
+  side: PositionSide
+  amount: number
+  leverage: number
+  takeProfit: number | null
+  stopLoss: number | null
+  entryPrice: number
+}
+
 type OrderFormProps = {
   priceUSDT: number
-  onOpen: (payload: {
-    side: PositionSide
-    amount: number
-    leverage: number
-    takeProfit: number | null
-    stopLoss: number | null
-  }) => void
+  onOpen: (payload: OrderFormPayload) => void
 
   entryPrice?: number
   markPrice?: number
@@ -113,12 +116,14 @@ export default function OrderForm({
   const submit = (event: FormEvent) => {
     event.preventDefault()
 
+    const resolvedEntry = resolvedEntryPrice || priceUSDT
     onOpen({
       side,
       amount,
       leverage,
       takeProfit: tpEnabled && Number(takeProfit) > 0 ? Number(takeProfit) : null,
       stopLoss: slEnabled && Number(stopLoss) > 0 ? Number(stopLoss) : null,
+      entryPrice: resolvedEntry,
     })
 
     if (orderType === 'market') {

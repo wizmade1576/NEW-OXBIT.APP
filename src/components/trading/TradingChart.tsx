@@ -1,58 +1,220 @@
-// src/components/trading/TradingChart.tsx
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 type Props = {
   symbol: 'BTCUSDT' | 'ETHUSDT'
+  entryPrice?: number | null
+  entrySide?: 'long' | 'short' | null
 }
 
-export default function TradingChart({ symbol }: Props) {
+type TradingViewWindow = Window &
+  typeof globalThis & {
+    TradingView?: any
+  }
+
+let tradingViewScriptPromise: Promise<any> | null = null
+
+const loadTradingViewScript = () => {
+  if (typeof window === 'undefined') return Promise.resolve(undefined)
+  const win = window as TradingViewWindow
+  if (win.TradingView) return Promise.resolve(win.TradingView)
+  if (tradingViewScriptPromise) return tradingViewScriptPromise
+
+  tradingViewScriptPromise = new Promise((resolve, reject) => {
+    const existing = document.getElementById('tv-script') as HTMLScriptElement | null
+    if (existing) {
+      existing.addEventListener('load', () => resolve(win.TradingView), { once: true })
+      existing.addEventListener('error', reject, { once: true })
+      return
+    }
+
+    const script = document.createElement('script')
+    script.id = 'tv-script'
+    script.src = 'https://s3.tradingview.com/tv.js'
+    script.async = true
+    script.onload = () => resolve(win.TradingView)
+    script.onerror = () => reject(new Error('TradingView script failed to load'))
+    document.head.appendChild(script)
+  })
+
+  return tradingViewScriptPromise
+}
+
+export default function TradingChart({ symbol, entryPrice, entrySide }: Props) {
+  const containerIdRef = useMemo(() => `tradingview-chart-${Math.random().toString(36).slice(2)}`, [])
+  const [chartReady, setChartReady] = useState(false)
+  const chartRef = useRef<any | null>(null)
+  const widgetRef = useRef<any | null>(null)
+  const entryLineRef = useRef<any | null>(null)
+  const wrapperRef = useRef<HTMLDivElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const mountedRef = useRef(false)
+  const [wrapperHeight, setWrapperHeight] = useState(0)
+  const [entryCoordinate, setEntryCoordinate] = useState<number | null>(null)
 
   const tvSymbol = useMemo(() => {
     return symbol === 'BTCUSDT' ? 'BINANCE:BTCUSDT.P' : 'BINANCE:ETHUSDT.P'
   }, [symbol])
 
   useEffect(() => {
-    const el = containerRef.current
-    if (!el) return
+    let cancelled = false
+    let widgetInstance: any | null = null
 
-    // ✅ StrictMode(dev)에서 effect 2번 실행 방지 + 심볼 변경 시 정상 재렌더
-    if (mountedRef.current) {
-      el.innerHTML = ''
+    const setup = async () => {
+      const TradingView = await loadTradingViewScript()
+      if (cancelled) return
+      const container = containerRef.current
+      if (!container || !TradingView) return
+
+      widgetInstance = new TradingView.widget({
+        autosize: true,
+        symbol: tvSymbol,
+        interval: '15',
+        timezone: 'Asia/Seoul',
+        theme: 'dark',
+        style: '1',
+        locale: 'en',
+        hide_side_toolbar: true,
+        withdateranges: true,
+        allow_symbol_change: false,
+        save_image: false,
+        backgroundColor: '#000000',
+        gridColor: 'rgba(255, 255, 255, 0.06)',
+        container_id: containerIdRef,
+      })
+
+      widgetRef.current = widgetInstance
+      widgetInstance.onChartReady(() => {
+        if (cancelled) return
+        chartRef.current = widgetInstance.chart()
+        setChartReady(true)
+      })
     }
-    mountedRef.current = true
 
-    const script = document.createElement('script')
-    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js'
-    script.async = true
-    script.innerHTML = JSON.stringify({
-      autosize: true,
-      symbol: tvSymbol,
-      interval: '15',
-      timezone: 'Asia/Seoul',
-      theme: 'dark',
-      style: '1',
-      locale: 'en',
-      hide_side_toolbar: true,
-      withdateranges: true,
-      allow_symbol_change: false,
-      save_image: false,
-      backgroundColor: '#000000',
-      gridColor: 'rgba(255, 255, 255, 0.06)',
-    })
-
-    el.appendChild(script)
+    setup()
 
     return () => {
-      // 언마운트 시 정리
-      if (el) el.innerHTML = ''
+      cancelled = true
+      entryLineRef.current?.remove?.()
+      entryLineRef.current = null
+      widgetInstance?.remove()
+      widgetRef.current = null
+      chartRef.current = null
+      setChartReady(false)
     }
-  }, [tvSymbol])
+  }, [tvSymbol, containerIdRef])
+
+  useEffect(() => {
+    if (!chartReady || !chartRef.current) return
+    if (entryLineRef.current) {
+      entryLineRef.current.remove?.()
+      entryLineRef.current = null
+    }
+
+    if (entryPrice == null) return
+
+    const chart = chartRef.current
+    const color = entrySide === 'long' ? '#16c784' : '#ff5555'
+    const now = Math.floor(Date.now() / 1000)
+    const formattedPrice = entryPrice.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+
+    entryLineRef.current = chart.createMultipointShape(
+      [
+        { time: now, price: entryPrice },
+        { time: now + 1, price: entryPrice },
+      ],
+      {
+        shape: 'horizontal_line',
+        text: `Entry ${formattedPrice}`,
+        overrides: {
+          linecolor: color,
+          linewidth: 2,
+          linestyle: 0,
+          textcolor: '#ffffff',
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          borderradius: 2,
+        },
+        disableSelection: true,
+        lock: true,
+        disableSave: true,
+        hidePriceLine: false,
+      },
+    )
+  }, [chartReady, entryPrice, entrySide])
+
+  useEffect(() => {
+    const updateHeight = () => {
+      setWrapperHeight(wrapperRef.current?.clientHeight ?? 0)
+    }
+
+    updateHeight()
+    window.addEventListener('resize', updateHeight)
+    return () => {
+      window.removeEventListener('resize', updateHeight)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!chartReady || !chartRef.current || entryPrice == null) {
+      setEntryCoordinate(null)
+      return
+    }
+
+    const priceScale =
+      typeof chartRef.current.priceScale === 'function'
+        ? chartRef.current.priceScale('right')
+        : null
+    const coordinate =
+      priceScale && typeof priceScale.priceToCoordinate === 'function'
+        ? priceScale.priceToCoordinate(entryPrice)
+        : null
+
+    if (coordinate == null || Number.isNaN(coordinate)) {
+      setEntryCoordinate(null)
+      return
+    }
+
+    const bounded =
+      wrapperHeight > 0
+        ? Math.max(0, Math.min(wrapperHeight, coordinate))
+        : Math.max(0, coordinate)
+
+    setEntryCoordinate(bounded)
+  }, [chartReady, entryPrice, wrapperHeight])
+
+  const labelColor = entrySide === 'long' ? '#16c784' : '#ff5555'
+  const formattedLabel =
+    entryPrice != null
+      ? `Entry ${entryPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      : ''
 
   return (
-    <div className="relative h-full w-full min-h-0 overflow-hidden bg-black">
-      <div ref={containerRef} className="absolute inset-0 h-full w-full" />
+    <div ref={wrapperRef} className="relative h-full w-full min-h-0 overflow-hidden bg-black">
+      <div ref={containerRef} id={containerIdRef} className="absolute inset-0 h-full w-full" />
+      {entryCoordinate != null && entryPrice != null ? (
+        <>
+          <div
+            className="pointer-events-none absolute left-0 right-0 z-10"
+            style={{ top: `${entryCoordinate}px` }}
+          >
+            <div className="h-[1px]" style={{ backgroundColor: labelColor }} />
+          </div>
+          <div
+            className="pointer-events-none absolute left-0 right-0 z-20"
+            style={{ top: `${entryCoordinate}px`, transform: 'translateY(-50%)' }}
+          >
+            <div className="flex items-center justify-end gap-2 px-2">
+              <span
+                className="text-[11px] font-semibold uppercase tracking-[0.2em] rounded border border-white/10 bg-black/70 px-2 py-0.5"
+                style={{ color: labelColor }}
+              >
+                {formattedLabel}
+              </span>
+            </div>
+          </div>
+        </>
+      ) : null}
     </div>
   )
 }
