@@ -218,7 +218,12 @@ export default function TradeLayout(props: TradeLayoutProps) {
             <div className="h-[46vh] max-h-[50vh] overflow-hidden border-b border-white/10">
               {/* ✅ 차트 래퍼를 relative로 만들고 오버레이 라인 얹기 */}
               <div className="relative h-full">
-                <TradingChart symbol={symbol} entryPrice={position?.entry_price ?? null} entrySide={position?.side ?? null} />
+                <TradingChart
+                  symbol={symbol}
+                  entryPrice={position?.entry_price ?? null}
+                  entrySide={position?.side ?? null}
+                  markPrice={priceUSDT}
+                />
               </div>
             </div>
           ) : topTab === 'orderbook' ? (
@@ -333,7 +338,12 @@ export default function TradeLayout(props: TradeLayoutProps) {
             >
               {/* ✅ 데스크탑도 차트 래퍼 relative + 오버레이 */}
               <div className="relative h-full min-h-0">
-                <TradingChart symbol={symbol} entryPrice={position?.entry_price ?? null} entrySide={position?.side ?? null} />
+                <TradingChart
+                  symbol={symbol}
+                  entryPrice={position?.entry_price ?? null}
+                  entrySide={position?.side ?? null}
+                  markPrice={priceUSDT}
+                />
               </div>
             </LayoutPanel>
 

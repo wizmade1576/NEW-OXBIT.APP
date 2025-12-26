@@ -1,15 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 type Props = {
   symbol: 'BTCUSDT' | 'ETHUSDT'
   entryPrice?: number | null
   entrySide?: 'long' | 'short' | null
+  markPrice?: number
 }
 
-type TradingViewWindow = Window &
-  typeof globalThis & {
-    TradingView?: any
-  }
+type TradingViewWindow = Window & typeof globalThis & { TradingView?: any }
 
 let tradingViewScriptPromise: Promise<any> | null = null
 
@@ -39,20 +37,19 @@ const loadTradingViewScript = () => {
   return tradingViewScriptPromise
 }
 
+const clampPercent = (value: number) => Math.max(0, Math.min(100, value))
+
 export default function TradingChart({ symbol, entryPrice, entrySide }: Props) {
   const containerIdRef = useMemo(() => `tradingview-chart-${Math.random().toString(36).slice(2)}`, [])
   const [chartReady, setChartReady] = useState(false)
+  const [entryPercent, setEntryPercent] = useState<number | null>(null)
   const chartRef = useRef<any | null>(null)
   const widgetRef = useRef<any | null>(null)
   const entryLineRef = useRef<any | null>(null)
   const wrapperRef = useRef<HTMLDivElement | null>(null)
-  const containerRef = useRef<HTMLDivElement | null>(null)
-  const [wrapperHeight, setWrapperHeight] = useState(0)
-  const [entryCoordinate, setEntryCoordinate] = useState<number | null>(null)
+  const entryPriceRef = useRef<number | null | undefined>(entryPrice)
 
-  const tvSymbol = useMemo(() => {
-    return symbol === 'BTCUSDT' ? 'BINANCE:BTCUSDT.P' : 'BINANCE:ETHUSDT.P'
-  }, [symbol])
+  const tvSymbol = useMemo(() => (symbol === 'BTCUSDT' ? 'BINANCE:BTCUSDT.P' : 'BINANCE:ETHUSDT.P'), [symbol])
 
   useEffect(() => {
     let cancelled = false
@@ -61,7 +58,7 @@ export default function TradingChart({ symbol, entryPrice, entrySide }: Props) {
     const setup = async () => {
       const TradingView = await loadTradingViewScript()
       if (cancelled) return
-      const container = containerRef.current
+      const container = document.getElementById(containerIdRef)
       if (!container || !TradingView) return
 
       widgetInstance = new TradingView.widget({
@@ -82,11 +79,11 @@ export default function TradingChart({ symbol, entryPrice, entrySide }: Props) {
       })
 
       widgetRef.current = widgetInstance
-      widgetInstance.onChartReady(() => {
-        if (cancelled) return
-        chartRef.current = widgetInstance.chart()
-        setChartReady(true)
-      })
+    widgetInstance.onChartReady(() => {
+      if (cancelled) return
+      chartRef.current = widgetInstance.chart()
+      setChartReady(true)
+    })
     }
 
     setup()
@@ -95,7 +92,13 @@ export default function TradingChart({ symbol, entryPrice, entrySide }: Props) {
       cancelled = true
       entryLineRef.current?.remove?.()
       entryLineRef.current = null
-      widgetInstance?.remove()
+      try {
+        if (widgetInstance && typeof widgetInstance.remove === 'function') {
+          widgetInstance.remove()
+        }
+      } catch (error) {
+        console.warn('TradingView widget remove failed', error)
+      }
       widgetRef.current = null
       chartRef.current = null
       setChartReady(false)
@@ -103,13 +106,14 @@ export default function TradingChart({ symbol, entryPrice, entrySide }: Props) {
   }, [tvSymbol, containerIdRef])
 
   useEffect(() => {
-    if (!chartReady || !chartRef.current) return
+    if (!chartReady || !chartRef.current || entryPrice == null) {
+      setEntryPercent(null)
+      return
+    }
     if (entryLineRef.current) {
       entryLineRef.current.remove?.()
       entryLineRef.current = null
     }
-
-    if (entryPrice == null) return
 
     const chart = chartRef.current
     const color = entrySide === 'long' ? '#16c784' : '#ff5555'
@@ -143,45 +147,67 @@ export default function TradingChart({ symbol, entryPrice, entrySide }: Props) {
     )
   }, [chartReady, entryPrice, entrySide])
 
-  useEffect(() => {
-    const updateHeight = () => {
-      setWrapperHeight(wrapperRef.current?.clientHeight ?? 0)
+  const updateEntryPercent = useCallback(() => {
+    const chart = chartRef.current
+    const price = entryPriceRef.current
+    const wrapper = wrapperRef.current
+    if (!chart || price == null || !wrapper) {
+      setEntryPercent(null)
+      return
     }
-
-    updateHeight()
-    window.addEventListener('resize', updateHeight)
-    return () => {
-      window.removeEventListener('resize', updateHeight)
+    const height = wrapper.clientHeight
+    if (height <= 0) {
+      setEntryPercent(null)
+      return
     }
+    const priceScale =
+      typeof chart.priceScale === 'function' ? chart.priceScale('right') : null
+    const coordinate =
+      priceScale && typeof priceScale.priceToCoordinate === 'function'
+        ? priceScale.priceToCoordinate(price)
+        : null
+    if (coordinate == null || Number.isNaN(coordinate)) {
+      setEntryPercent(null)
+      return
+    }
+    setEntryPercent(clampPercent((coordinate / height) * 100))
   }, [])
 
   useEffect(() => {
-    if (!chartReady || !chartRef.current || entryPrice == null) {
-      setEntryCoordinate(null)
+    entryPriceRef.current = entryPrice ?? null
+    updateEntryPercent()
+  }, [entryPrice, updateEntryPercent])
+
+  useEffect(() => {
+    const handleResize = () => updateEntryPercent()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [updateEntryPercent])
+
+  useEffect(() => {
+    if (!chartReady || !chartRef.current) {
       return
     }
+    updateEntryPercent()
 
+    const chart = chartRef.current
     const priceScale =
-      typeof chartRef.current.priceScale === 'function'
-        ? chartRef.current.priceScale('right')
+      typeof chart.priceScale === 'function' ? chart.priceScale('right') : null
+    const priceScaleSub =
+      priceScale && typeof priceScale.subscribeVisibleRangeChange === 'function'
+        ? priceScale.subscribeVisibleRangeChange(() => updateEntryPercent())
         : null
-    const coordinate =
-      priceScale && typeof priceScale.priceToCoordinate === 'function'
-        ? priceScale.priceToCoordinate(entryPrice)
+    const timeScale = typeof chart.timeScale === 'function' ? chart.timeScale() : null
+    const timeScaleSub =
+      timeScale && typeof timeScale.subscribeVisibleRangeChange === 'function'
+        ? timeScale.subscribeVisibleRangeChange(() => updateEntryPercent())
         : null
 
-    if (coordinate == null || Number.isNaN(coordinate)) {
-      setEntryCoordinate(null)
-      return
+    return () => {
+      priceScaleSub?.()
+      timeScaleSub?.()
     }
-
-    const bounded =
-      wrapperHeight > 0
-        ? Math.max(0, Math.min(wrapperHeight, coordinate))
-        : Math.max(0, coordinate)
-
-    setEntryCoordinate(bounded)
-  }, [chartReady, entryPrice, wrapperHeight])
+  }, [chartReady, updateEntryPercent])
 
   const labelColor = entrySide === 'long' ? '#16c784' : '#ff5555'
   const formattedLabel =
@@ -191,18 +217,18 @@ export default function TradingChart({ symbol, entryPrice, entrySide }: Props) {
 
   return (
     <div ref={wrapperRef} className="relative h-full w-full min-h-0 overflow-hidden bg-black">
-      <div ref={containerRef} id={containerIdRef} className="absolute inset-0 h-full w-full" />
-      {entryCoordinate != null && entryPrice != null ? (
+      <div id={containerIdRef} className="absolute inset-0 h-full w-full" />
+      {entryPercent != null && entryPrice != null ? (
         <>
           <div
             className="pointer-events-none absolute left-0 right-0 z-10"
-            style={{ top: `${entryCoordinate}px` }}
+            style={{ top: `${entryPercent}%` }}
           >
-            <div className="h-[1px]" style={{ backgroundColor: labelColor }} />
+            <div className="h-[1px] w-full" style={{ backgroundColor: labelColor }} />
           </div>
           <div
             className="pointer-events-none absolute left-0 right-0 z-20"
-            style={{ top: `${entryCoordinate}px`, transform: 'translateY(-50%)' }}
+            style={{ top: `${entryPercent}%`, transform: 'translateY(-50%)' }}
           >
             <div className="flex items-center justify-end gap-2 px-2">
               <span
