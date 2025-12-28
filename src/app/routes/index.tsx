@@ -45,6 +45,7 @@ import AdminAdsPage from '../../pages/admin/AdsPage'
 import UserManagePage from '../../pages/admin/UserManagePage'
 import AdminPositionsPage from '../../pages/admin/PositionsPage'
 import AdminAnalyticsPage from '../../pages/admin/AnalyticsPage'
+import RequireAuth from '../../components/auth/RequireAuth'
 
 
 export const router = createBrowserRouter([
@@ -52,86 +53,92 @@ export const router = createBrowserRouter([
     path: '/',
     element: <RootLayout />,
     children: [
-      { index: true, element: <BreakingPage /> },
-
-      {
-        path: 'news',
-        element: <NewsLayout />,
-        children: [{ index: true, element: <NewsPage /> }],
-      },
-
-      {
-        path: 'markets',
-        element: <MarketsLayout />,
-        children: [
-          { index: true, element: <Navigate to="stocks" replace /> },
-          { path: 'crypto', element: <CryptoPage /> },
-          { path: 'stocks', element: <StocksPage /> },
-          { path: 'futures', element: <FuturesPage /> },
-          { path: 'kimchi', element: <KimchiPage /> },
-          { path: 'schedule', element: <SchedulePage /> },
-        ],
-      },
-
-      {
-        path: 'positions',
-        element: <PositionsLayout />,
-        children: [
-          { index: true, element: <PositionsPage /> },
-          { path: 'live', element: <PositionsPage /> },
-          { path: 'fear-greed', element: <FearGreedPage /> },
-          { path: 'long-short', element: <LongShortPage /> },
-          { path: 'whales', element: <WhalesPage /> },
-        ],
-      },
-
-      { path: 'breaking', element: <BreakingPage /> },
-      { path: 'breaking/:id', element: <BreakingDetailPage /> },
-
-      { path: 'profile', element: <ProfilePage /> },
       { path: 'login', element: <LoginPage /> },
       { path: 'signup', element: <RegisterPage /> },
       { path: 'forgot', element: <ForgotPasswordPage /> },
 
       {
-        path: 'paper',
+        element: <RequireAuth />,
         children: [
-          { index: true, element: <PaperTradingPage /> },
-          { path: 'trade', element: <PaperTrade /> },
-          { path: 'wallet', element: <WalletPage /> },
-          { path: 'reset', element: <PaperReset /> },
+          { index: true, element: <BreakingPage /> },
+
+          {
+            path: 'news',
+            element: <NewsLayout />,
+            children: [{ index: true, element: <NewsPage /> }],
+          },
+
+          {
+            path: 'markets',
+            element: <MarketsLayout />,
+            children: [
+              { index: true, element: <Navigate to="stocks" replace /> },
+              { path: 'crypto', element: <CryptoPage /> },
+              { path: 'stocks', element: <StocksPage /> },
+              { path: 'futures', element: <FuturesPage /> },
+              { path: 'kimchi', element: <KimchiPage /> },
+              { path: 'schedule', element: <SchedulePage /> },
+            ],
+          },
+
+          {
+            path: 'positions',
+            element: <PositionsLayout />,
+            children: [
+              { index: true, element: <PositionsPage /> },
+              { path: 'live', element: <PositionsPage /> },
+              { path: 'fear-greed', element: <FearGreedPage /> },
+              { path: 'long-short', element: <LongShortPage /> },
+              { path: 'whales', element: <WhalesPage /> },
+            ],
+          },
+
+          { path: 'breaking', element: <BreakingPage /> },
+          { path: 'breaking/:id', element: <BreakingDetailPage /> },
+
+          { path: 'profile', element: <ProfilePage /> },
+
+          {
+            path: 'paper',
+            children: [
+              { index: true, element: <PaperTradingPage /> },
+              { path: 'trade', element: <PaperTrade /> },
+              { path: 'wallet', element: <WalletPage /> },
+              { path: 'reset', element: <PaperReset /> },
+            ],
+          },
+
+          {
+            path: 'admin',
+            element: (
+              <RequireAdmin>
+                <AdminLayout />
+              </RequireAdmin>
+            ),
+            children: [
+              { index: true, element: <AdminDashboardPage /> },
+              { path: 'analytics', element: <AdminAnalyticsPage /> },
+              { path: 'users', element: <UserManagePage /> },
+              { path: 'positions', element: <AdminPositionsPage /> },
+              { path: 'breaking', element: <AdminBreakingPage /> },
+              { path: 'ads', element: <AdminAdsPage /> },
+            ],
+          },
+
+          {
+            path: 'more',
+            element: <MoreLayout />,
+            children: [
+              { index: true, element: <div /> },
+              { path: 'notices', element: <NoticesPage /> },
+              { path: 'guide', element: <GuidePage /> },
+            ],
+          },
+
+          { path: 'search', element: <SearchPage /> },
+          { path: '*', element: <NotFoundPage /> },
         ],
       },
-
-      {
-        path: 'admin',
-        element: (
-          <RequireAdmin>
-            <AdminLayout />
-          </RequireAdmin>
-        ),
-        children: [
-          { index: true, element: <AdminDashboardPage /> },
-          { path: 'analytics', element: <AdminAnalyticsPage /> },
-          { path: 'users', element: <UserManagePage /> },
-          { path: 'positions', element: <AdminPositionsPage /> },
-          { path: 'breaking', element: <AdminBreakingPage /> },
-          { path: 'ads', element: <AdminAdsPage /> },
-        ],
-      },
-
-      {
-        path: 'more',
-        element: <MoreLayout />,
-        children: [
-          { index: true, element: <div /> },
-          { path: 'notices', element: <NoticesPage /> },
-          { path: 'guide', element: <GuidePage /> },
-        ],
-      },
-
-      { path: 'search', element: <SearchPage /> },
-      { path: '*', element: <NotFoundPage /> },
 
     ],
   },

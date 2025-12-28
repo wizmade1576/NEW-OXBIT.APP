@@ -17,13 +17,24 @@ export default function RootLayout() {
     const supabase = getSupabase()
     if (!supabase) return
     let mounted = true
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return
-      setUser(data.session?.user ?? null)
-    })
+
+    const hydrateSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession()
+        if (!mounted) return
+        setUser(data.session?.user ?? null)
+      } catch {
+        if (!mounted) return
+        setUser(null)
+      }
+    }
+    hydrateSession()
+
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return
       setUser(session?.user ?? null)
     })
+
     return () => {
       mounted = false
       sub?.subscription?.unsubscribe?.()
