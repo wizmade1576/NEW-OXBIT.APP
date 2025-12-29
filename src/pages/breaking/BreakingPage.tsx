@@ -12,6 +12,7 @@ import {
   countComments,
 } from '../../lib/breaking/api'
 import { buildBreakingSharePayload } from '../../lib/share/breakingShare'
+import { useAuthStore } from '@/store/useAuthStore'
 
 type BreakingItem = {
   key: string
@@ -52,7 +53,18 @@ function ShareIcon(props: React.SVGProps<SVGSVGElement>) {
 /* -------------------------------------------------------
     TIMELINE ITEM (속보 카드)
 ------------------------------------------------------- */
-function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?: string; nextKey?: string }) {
+
+function TimelineItem({
+  item,
+  prevKey,
+  nextKey,
+  onRequireLogin,
+}: {
+  item: BreakingItem
+  prevKey?: string
+  nextKey?: string
+  onRequireLogin: (msg: string) => void
+}) {
   const [expanded, setExpanded] = React.useState(false)
   const [liked, setLiked] = React.useState<boolean>(() => {
     try {
@@ -118,6 +130,22 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
     } catch {}
   }
 
+  const user = useAuthStore((state) => state.user)
+
+  const handleDetailClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (user) return
+    e.preventDefault()
+    onRequireLogin('로그인이 필요한 서비스 입니다.')
+  }
+
+  const handleExpandToggle = () => {
+    if (!user) {
+      onRequireLogin('로그인이 필요한 서비스 입니다.')
+      return
+    }
+    setExpanded((v) => !v)
+  }
+
   const toggleLike = async () => {
     if (item.id) {
       try {
@@ -167,7 +195,10 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
         <Link
           to={`/breaking/${item.id}`}
           state={{ ...item, prevKey, nextKey }}
-          onClick={() => sessionStorage.setItem('breaking:scrollY', String(window.scrollY))}
+          onClick={(e) => {
+            sessionStorage.setItem('breaking:scrollY', String(window.scrollY))
+            handleDetailClick(e)
+          }}
           className="block"
         >
           <h4
@@ -179,16 +210,16 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
             {item.title}
           </h4>
 
-          <div
-            className={
-              expanded
-                ? 'mt-1.5 text-xs sm:text-sm text-muted-foreground whitespace-normal break-words leading-5 sm:leading-6'
-                : 'mt-1.5 text-xs sm:text-sm text-muted-foreground whitespace-normal break-words leading-5 sm:leading-6 line-clamp-2'
-            }
-          >
-            {item.body}
-          </div>
-        </Link>
+        <div
+          className={
+            expanded
+              ? 'mt-1.5 text-xs sm:text-sm text-muted-foreground whitespace-normal break-words leading-5 sm:leading-6'
+              : 'mt-1.5 text-xs sm:text-sm text-muted-foreground whitespace-normal break-words leading-5 sm:leading-6 line-clamp-2'
+          }
+        >
+          {item.body}
+        </div>
+      </Link>
 
         {/* 액션바 */}
         <div className="mt-2 sm:mt-3 flex items-center gap-1 sm:gap-2 flex-wrap text-[11px] sm:text-sm">
@@ -247,7 +278,7 @@ function TimelineItem({ item, prevKey, nextKey }: { item: BreakingItem; prevKey?
           {/* 모아보기 */}
           <button
             type="button"
-            onClick={() => setExpanded((v) => !v)}
+            onClick={handleExpandToggle}
             className="ml-auto rounded-md border border-border px-1.5 py-0.5 text-[11px] sm:text-xs h-[26px] hover:bg-accent"
           >
             {expanded ? '닫기' : '펼치기'}
@@ -276,6 +307,7 @@ export default function BreakingPage() {
   const [hasMore, setHasMore] = React.useState(true)
   const location = useLocation()
   const [welcomeMessage, setWelcomeMessage] = React.useState<string | null>(null)
+  const [loginPopup, setLoginPopup] = React.useState<string | null>(null)
 
   // url /breaking/:id → /breaking?key=
   React.useEffect(() => {
@@ -376,6 +408,18 @@ export default function BreakingPage() {
     void load()
   }, [load])
 
+  React.useEffect(() => {
+    if (!loginPopup) return
+    const id = window.setTimeout(() => setLoginPopup(null), 3000)
+    return () => {
+      window.clearTimeout(id)
+    }
+  }, [loginPopup])
+
+  const showLoginPopup = React.useCallback((message: string) => {
+    setLoginPopup(message)
+  }, [])
+
   // scroll restore
   React.useEffect(() => {
     const y = sessionStorage.getItem('breaking:scrollY')
@@ -453,6 +497,7 @@ export default function BreakingPage() {
                 item={it}
                 prevKey={idx > 0 ? items[idx - 1]?.key : undefined}
                 nextKey={idx < items.length - 1 ? items[idx + 1]?.key : undefined}
+                onRequireLogin={showLoginPopup}
               />
             ))}
           </div>
@@ -475,7 +520,15 @@ export default function BreakingPage() {
             </div>
           )}
 
-        </div> {/* flex-col wrap 끝 */}
+    </div> {/* flex-col wrap 끝 */}
+
+      {loginPopup && (
+        <div className="fixed inset-0 z-40 flex items-center justify-center px-4 py-6 pointer-events-none">
+          <div className="pointer-events-auto rounded-2xl border border-border bg-card/95 px-6 py-4 text-sm text-foreground shadow-2xl backdrop-blur">
+            {loginPopup}
+          </div>
+        </div>
+      )}
 
       </section>
     </div>

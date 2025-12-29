@@ -9,7 +9,7 @@ export default function RequireAuth() {
 
   const previewLabels: Record<string, string> = {
     '/': '실시간 브레이킹 뉴스',
-    '/breaking': '브레이킹 피드',
+    '/breaking': '속보',
     '/news': '뉴스',
     '/markets': '마켓 데이터',
     '/positions': '포지션 시세',
@@ -21,24 +21,20 @@ export default function RequireAuth() {
   const key = basePath ? `/${basePath}` : '/'
   const friendlyName = previewLabels[key] ?? '프리미엄 콘텐츠'
 
-  const overlayMessage = sessionChecked ? (
-    <span className="hidden text-sm text-muted-foreground sm:block">
-      <span className="mr-1 text-foreground">{friendlyName}</span>을(를) 계속 보고 싶다면 로그인해 주세요.
-    </span>
-  ) : (
-    '로그인 상태를 확인하는 중입니다…'
-  )
+  const overlayMessage = sessionChecked
+    ? `${friendlyName}를 계속 보고 싶다면 로그인해 주세요.`
+    : '로그인 상태를 확인하는 중입니다…'
 
   return (
     <div className="relative">
       <Outlet />
       {!user && (
         <div className="fixed inset-0 z-20 flex items-center justify-center pointer-events-none p-4 sm:p-6">
-          <div className="w-full max-w-[320px] space-y-4 rounded-2xl border border-border bg-card/95 p-6 text-center shadow-xl backdrop-blur pointer-events-auto sm:max-w-md sm:p-8">
-            <div className="hidden text-xs font-semibold uppercase tracking-widest text-muted-foreground sm:block">
+          <div className="w-full max-w-[320px] space-y-4 rounded-2xl border border-border bg-card/95 p-6 text-center shadow-xl backdrop-blur pointer-events-auto sm:max-w-md sm:p-8 lg:max-w-[420px] lg:p-8">
+            <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               로그인 필요
             </div>
-            <div className="hidden text-lg font-semibold text-foreground sm:block">
+            <div className="text-lg font-semibold text-foreground">
               {sessionChecked ? friendlyName : '세션 준비 중'}
             </div>
             <p className="text-sm text-muted-foreground">{overlayMessage}</p>
