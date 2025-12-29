@@ -33,7 +33,7 @@ export default function RequireAuth() {
     <div className="relative">
       <Outlet />
       {!user && (
-        <div className="fixed inset-0 z-20 flex items-center justify-center bg-background/40 backdrop-blur-2xl p-4 sm:p-6 pointer-events-none">
+        <div className="fixed inset-0 z-20 flex items-center justify-center pointer-events-none p-4 sm:p-6">
           <div className="w-full max-w-[320px] space-y-4 rounded-2xl border border-border bg-card/95 p-6 text-center shadow-xl backdrop-blur pointer-events-auto sm:max-w-md sm:p-8">
             <div className="hidden text-xs font-semibold uppercase tracking-widest text-muted-foreground sm:block">
               로그인 필요
