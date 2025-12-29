@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
 import { useAuthStore } from '@/store/useAuthStore'
 import Button from '../ui/Button'
 
@@ -13,7 +14,7 @@ export default function RequireAuth() {
     '/news': '뉴스',
     '/markets': '마켓 데이터',
     '/positions': '포지션 시세',
-    '/paper': '모의투자',
+    '/paper': '페이퍼 트레이딩',
     '/more': '기타 정보',
   }
 
@@ -25,12 +26,32 @@ export default function RequireAuth() {
     ? `${friendlyName}를 계속 보고 싶다면 로그인해 주세요.`
     : '로그인 상태를 확인하는 중입니다…'
 
+  const isBreakingSection = !basePath || basePath === 'breaking'
+  const [delayElapsed, setDelayElapsed] = useState(!isBreakingSection)
+  const shouldShowOverlay = !user && delayElapsed
+
+  useEffect(() => {
+    if (!isBreakingSection || user) {
+      setDelayElapsed(true)
+      return
+    }
+
+    setDelayElapsed(false)
+    const timeoutId = window.setTimeout(() => {
+      setDelayElapsed(true)
+    }, 7000)
+
+    return () => {
+      window.clearTimeout(timeoutId)
+    }
+  }, [isBreakingSection, user])
+
   return (
     <div className="relative">
       <Outlet />
-      {!user && (
+      {shouldShowOverlay && (
         <div className="fixed inset-0 z-20 flex items-center justify-center pointer-events-none p-4 sm:p-6">
-          <div className="w-full max-w-[320px] space-y-5 rounded-2xl border border-border bg-card/95 p-10 text-center shadow-xl backdrop-blur pointer-events-auto sm:max-w-md sm:p-8 lg:max-w-[420px] lg:p-8">
+          <div className="w-full max-w-[320px] space-y-5 rounded-2xl border border-border bg-card/95 p-8 text-center shadow-xl backdrop-blur pointer-events-auto sm:max-w-md sm:p-8 lg:max-w-[420px] lg:p-8">
             <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               로그인 필요
             </div>
