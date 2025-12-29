@@ -30,7 +30,7 @@ export default function RequireAuth() {
       <Outlet />
       {!user && (
         <div className="fixed inset-0 z-20 flex items-center justify-center pointer-events-none p-4 sm:p-6">
-          <div className="w-full max-w-[320px] space-y-4 rounded-2xl border border-border bg-card/95 p-6 text-center shadow-xl backdrop-blur pointer-events-auto sm:max-w-md sm:p-8 lg:max-w-[420px] lg:p-8">
+          <div className="w-full max-w-[320px] space-y-5 rounded-2xl border border-border bg-card/95 p-8 text-center shadow-xl backdrop-blur pointer-events-auto sm:max-w-md sm:p-8 lg:max-w-[420px] lg:p-8">
             <div className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
               로그인 필요
             </div>
