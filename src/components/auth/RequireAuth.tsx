@@ -13,7 +13,7 @@ export default function RequireAuth() {
     '/news': '뉴스',
     '/markets': '마켓 데이터',
     '/positions': '포지션 시세',
-    '/paper': '페이퍼 트레이딩',
+    '/paper': '모의투자',
     '/more': '기타 정보',
   }
 
